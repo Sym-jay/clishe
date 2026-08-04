@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+
+# Clishe user state - these live in $HOME in real usage, but if anyone ever
+# runs tests or the app with HOME pointed at the repo, don't let secrets or
+# personal data get committed.
+.clishe_kb.json
+.clishe_data.json
+.clishe_config.json
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+venv/
+venv/
