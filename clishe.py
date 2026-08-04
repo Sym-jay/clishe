@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Clishe Brain - Backend for natural language command mapping and prediction
+Clishe Brain - Backend for natural language command mapping, prediction,
+and (new) AI-provider-backed phrase resolution / command explanation.
 """
 import argparse
 import json
@@ -9,11 +10,18 @@ from pathlib import Path
 import warnings
 warnings.filterwarnings('ignore')
 
+# Make sure the script's own directory is importable regardless of the
+# caller's cwd (clishe.sh may be invoked from anywhere).
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from config import load_config
+from providers import build_provider_chain, ProviderError
+
 # File paths
 KB_FILE = Path.home() / '.clishe_kb.json'
 DATA_FILE = Path.home() / '.clishe_data.json'
 
-# Minimum number of stored sequences before we bother training a predictor
+# Minimum number of stored sequences before we bother predicting
 MIN_SEQUENCES_FOR_PREDICTION = 3
 # How many commands we keep in the "current" rolling buffer before archiving
 SEQUENCE_FLUSH_LENGTH = 10
@@ -34,15 +42,12 @@ class ClisheBrain:
             with open(path, 'r') as f:
                 return json.load(f)
         except (json.JSONDecodeError, OSError) as e:
-            # Don't crash the whole CLI just because the state file got corrupted.
             print(f"Warning: could not read {path.name} ({e}); starting fresh.",
                   file=sys.stderr)
             return default
 
     def _save_json(self, path, payload):
         try:
-            # Write to a temp file then replace, so a crash mid-write can't
-            # corrupt the real file.
             tmp_path = path.with_suffix(path.suffix + '.tmp')
             with open(tmp_path, 'w') as f:
                 json.dump(payload, f, indent=2)
@@ -51,20 +56,18 @@ class ClisheBrain:
             print(f"Warning: could not save {path.name} ({e})", file=sys.stderr)
 
     def load_kb(self):
-        """Load knowledge base (phrase -> command) from JSON."""
         return self._load_json(KB_FILE, {})
 
     def save_kb(self):
         self._save_json(KB_FILE, self.kb)
 
     def load_data(self):
-        """Load command sequences from JSON."""
         return self._load_json(DATA_FILE, {'sequences': [], 'current': []})
 
     def save_data(self):
         self._save_json(DATA_FILE, self.data)
 
-    # ---------- actions ----------
+    # ---------- KB / prediction actions ----------
 
     def query(self, phrase):
         """Query the knowledge base for a command."""
@@ -81,7 +84,6 @@ class ClisheBrain:
         return True
 
     def log(self, command):
-        """Log a command to the current sequence."""
         if not command.strip():
             return False
         self.data.setdefault('current', []).append(command)
@@ -95,12 +97,7 @@ class ClisheBrain:
         return True
 
     def predict(self, last_command):
-        """Predict next command based on historical sequences.
-
-        Uses a lightweight frequency count (what command most often follows
-        `last_command`) instead of retraining a classifier on every call.
-        This is cheap, has no extra dependencies, and is easy to reason about.
-        """
+        """Predict next command via simple frequency count over past sequences."""
         sequences = self.data.get('sequences', [])
         if len(sequences) < MIN_SEQUENCES_FOR_PREDICTION:
             return ''
@@ -112,22 +109,68 @@ class ClisheBrain:
                     nxt = seq[i + 1]
                     follow_counts[nxt] = follow_counts.get(nxt, 0) + 1
 
-        if not follow_counts:
-            return ''
-
-        # Most frequent follower, excluding predicting the same command again
         candidates = {k: v for k, v in follow_counts.items() if k != last_command}
         if not candidates:
             return ''
+        return max(candidates, key=candidates.get)
 
-        best = max(candidates, key=candidates.get)
-        return best
+    # ---------- AI provider actions ----------
+
+    def resolve(self, phrase):
+        """Ask configured providers (in priority order) to translate an
+        unknown phrase into a shell command. Returns a dict:
+          {"status": "ok", "command": ..., "provider": ...}
+          {"status": "declined", "provider": ...}   - model understood but wouldn't answer
+          {"status": "unavailable"}                  - no provider could be reached
+        On success, also caches the mapping into the KB so we never pay for
+        the same phrase twice.
+        """
+        config = load_config()
+        chain = build_provider_chain(config)
+
+        if not chain:
+            return {"status": "unavailable"}
+
+        for provider in chain:
+            try:
+                command = provider.resolve_command(phrase)
+            except ProviderError as e:
+                print(f"[{provider.name}] {e}", file=sys.stderr)
+                continue  # try the next provider in the chain
+
+            if command:
+                self.learn(phrase, command)  # cache so KB handles it next time, free
+                return {"status": "ok", "command": command, "provider": provider.name}
+            else:
+                # This provider understood the request but declined to answer
+                # (unclear/unsafe) - that's a real answer, don't keep trying
+                # other providers for the same unsafe request.
+                return {"status": "declined", "provider": provider.name}
+
+        return {"status": "unavailable"}
+
+    def explain(self, command):
+        """Ask configured providers to explain a shell command."""
+        config = load_config()
+        chain = build_provider_chain(config)
+
+        for provider in chain:
+            try:
+                explanation = provider.explain_command(command)
+            except ProviderError as e:
+                print(f"[{provider.name}] {e}", file=sys.stderr)
+                continue
+
+            if explanation:
+                return {"status": "ok", "explanation": explanation, "provider": provider.name}
+
+        return {"status": "unavailable"}
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Clishe Brain - NLP Command Backend')
+    parser = argparse.ArgumentParser(description='Clishe Brain - Command Backend')
     parser.add_argument('--action', required=True,
-                         choices=['query', 'learn', 'log', 'predict'],
+                         choices=['query', 'learn', 'log', 'predict', 'resolve', 'explain'],
                          help='Action to perform')
     parser.add_argument('--phrase', default='', help='Natural language phrase')
     parser.add_argument('--command', default='', help='Bash command')
@@ -148,6 +191,24 @@ def main():
 
     elif args.action == 'predict':
         print(brain.predict(args.command))
+
+    elif args.action == 'resolve':
+        # Line-based STATUS=/COMMAND=/PROVIDER= output so clishe.sh can parse
+        # it with plain bash, no JSON tool required.
+        result = brain.resolve(args.phrase)
+        print(f"STATUS={result['status']}")
+        if result['status'] == 'ok':
+            print(f"COMMAND={result['command']}")
+            print(f"PROVIDER={result['provider']}")
+        elif result['status'] == 'declined':
+            print(f"PROVIDER={result['provider']}")
+
+    elif args.action == 'explain':
+        result = brain.explain(args.command)
+        print(f"STATUS={result['status']}")
+        if result['status'] == 'ok':
+            print(f"EXPLANATION={result['explanation']}")
+            print(f"PROVIDER={result['provider']}")
 
 
 if __name__ == '__main__':
