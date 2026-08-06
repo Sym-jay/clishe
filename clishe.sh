@@ -14,7 +14,12 @@ PYTHON_SCRIPT="$SCRIPT_DIR/clishe_brain.py"
 # Commands we refuse to run without explicit typed confirmation, since a
 # mis-taught phrase, a bad AI suggestion, or a corrupted KB entry could
 # otherwise wipe files.
-DANGEROUS_PATTERN='rm -rf|mkfs|dd if=|:(){ :|:& };:|> /dev/sd|chmod -R 777 /|chown -R'
+DANGEROUS_PATTERN='rm -rf|mkfs|dd if=|> /dev/sd|chmod -R 777 /|chown -R'
+# Fork bombs (":(){ :|:& };:") contain literal { } which POSIX ERE treats as
+# an interval-expression delimiter on some regex library versions, causing
+# "Invalid content of \{\}" errors on [[ =~ ]]. Checked separately below as a
+# plain substring match instead of folding it into the regex.
+FORK_BOMB_SNIPPET=':(){'
 
 # Check dependencies
 if ! command -v python3 &> /dev/null; then
@@ -36,7 +41,7 @@ echo -e "${BLUE}Type 'exit' to quit, 'explain <cmd>' to learn what a command doe
 
 confirm_dangerous() {
     local cmd="$1"
-    if [[ "$cmd" =~ $DANGEROUS_PATTERN ]]; then
+    if [[ "$cmd" == *"$FORK_BOMB_SNIPPET"* ]] || [[ "$cmd" =~ $DANGEROUS_PATTERN ]]; then
         echo -e "${RED}⚠ This command looks potentially destructive:${NC}"
         echo -e "  ${YELLOW}$cmd${NC}"
         read -r -p "Type YES to run it anyway, anything else to cancel: " confirm
@@ -81,14 +86,32 @@ while true; do
         continue
     fi
 
-    # "explain <command>" / "what does <command> do" - ask a provider to
-    # describe a command instead of resolving+running one.
+    # "explain <command>" / "what does <command> do" / "what is <command>" /
+    # "what's <command>" / "tell me about <command>" - ask a provider (or
+    # the offline dictionary) to describe a command instead of running one.
+    # Beginners phrase this a lot of different ways, so we match several
+    # patterns rather than a single rigid one, and tolerate a leading filler
+    # word ("okay, what is ls" should still work).
     explain_target=""
-    if [[ "$user_input" =~ ^explain[[:space:]]+(.+)$ ]]; then
+    cleaned_input=$(echo "$user_input" | sed -E 's/^(okay|ok|so|well|hey|um|please)[,]?[[:space:]]+//I')
+
+    shopt -s nocasematch
+    if [[ "$cleaned_input" =~ ^explain[[:space:]]+(.+)$ ]]; then
         explain_target="${BASH_REMATCH[1]}"
-    elif [[ "$user_input" =~ ^what[[:space:]]does[[:space:]](.+)[[:space:]]do\??$ ]]; then
+    elif [[ "$cleaned_input" =~ ^what[[:space:]]does[[:space:]](.+)[[:space:]]do\??$ ]]; then
+        explain_target="${BASH_REMATCH[1]}"
+    elif [[ "$cleaned_input" =~ ^what[[:space:]]+(is|are)[[:space:]]+(.+)\??$ ]]; then
+        explain_target="${BASH_REMATCH[2]}"
+    elif [[ "$cleaned_input" =~ ^what\'s[[:space:]]+(.+)\??$ ]]; then
+        explain_target="${BASH_REMATCH[1]}"
+    elif [[ "$cleaned_input" =~ ^tell[[:space:]]me[[:space:]]about[[:space:]](.+)$ ]]; then
         explain_target="${BASH_REMATCH[1]}"
     fi
+    shopt -u nocasematch
+
+    # Trim a trailing "?" and surrounding whitespace left over from the match
+    explain_target="${explain_target%\?}"
+    explain_target="$(echo "$explain_target" | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')"
 
     if [ -n "$explain_target" ]; then
         echo -e "${BLUE}Clishe: ${NC}Let me look that up..."
