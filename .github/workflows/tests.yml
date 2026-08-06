@@ -32,5 +32,13 @@ jobs:
 
       - name: Check Python syntax
         run: |
-          python -m py_compile clishe_brain.py config.py
+          python -m py_compile clishe_brain.py config.py knowledge.py
           python -m py_compile providers/__init__.py providers/base.py providers/ollama_provider.py providers/anthropic_provider.py
+
+      - name: Validate JSON data files
+        run: |
+          python -c "import json; json.load(open('command_dictionary.json'))"
+          python -c "import json; json.load(open('error_patterns.json'))"
+
+      - name: Run shell-level regression tests
+        run: bash tests/test_shell_functions.sh
