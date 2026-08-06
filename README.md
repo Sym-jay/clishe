@@ -22,7 +22,8 @@ Most CLI tools assume you already know the command you want. Clishe assumes you 
 - **Natural language → shell commands.** Say what you want; Clishe resolves it to a real command.
 - **Knowledge base that grows with you.** Every phrase Clishe resolves (whether from AI or manual teaching) is cached locally, so repeat requests are instant and free — no network call needed.
 - **Multi-provider AI backend.** Works with a local model via [Ollama](https://ollama.com) (free, offline, private) or the Anthropic API (cloud, no local setup). Configurable priority order with automatic fallback.
-- **`explain <command>`** — ask what any command does before you run it.
+- **`explain <command>`** — ask what any command does before you run it. Checks a built-in offline dictionary of ~40 common commands first (instant, free, works with no internet); only asks an AI provider if the command isn't in the dictionary.
+- **Error diagnosis.** When a command fails, Clishe matches the error text against common patterns (permission denied, no such file, etc.) and gives you a plain-English hint — fully offline, no AI call.
 - **Next-command prediction** based on your own usage patterns.
 - **Safety guardrails** — destructive-looking commands (`rm -rf`, `mkfs`, fork bombs, etc.) require explicit confirmation before running.
 - **Zero required dependencies.** The core runs on stdlib Python 3 + bash. AI features are opt-in.

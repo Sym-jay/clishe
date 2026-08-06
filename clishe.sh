@@ -62,6 +62,7 @@ parse_brain_output() {
             COMMAND) printf -v "${prefix}_COMMAND" '%s' "$value" ;;
             PROVIDER) printf -v "${prefix}_PROVIDER" '%s' "$value" ;;
             EXPLANATION) printf -v "${prefix}_EXPLANATION" '%s' "$value" ;;
+            HINT) printf -v "${prefix}_HINT" '%s' "$value" ;;
         esac
     done <<< "$output"
 }
@@ -95,7 +96,8 @@ while true; do
         parse_brain_output "$explain_output" EX
 
         if [ "$EX_STATUS" = "ok" ]; then
-            echo -e "${BLUE}Clishe (via $EX_PROVIDER): ${NC}$EX_EXPLANATION"
+            decoded_explanation="${EX_EXPLANATION//\\n/$'\n'}"
+            echo -e "${BLUE}Clishe (via $EX_PROVIDER): ${NC}$decoded_explanation"
         else
             echo -e "${YELLOW}No AI provider is available to explain that right now.${NC}"
             echo -e "${YELLOW}Set up ~/.clishe_config.json to enable this (see README).${NC}"
@@ -150,7 +152,7 @@ while true; do
                     continue
                 fi
 
-                python3 "$PYTHON_SCRIPT" --action learn --phrase "$user_input" --command "$teach_command" 2>/dev/null
+                python3 "$PYTHON_SCRIPT" --action learn --phrase "$user_input" --command "$teach_command" > /dev/null 2>&1
                 command_to_run="$teach_command"
                 echo -e "${BLUE}Clishe: ${NC}Thanks! I'll remember that."
             fi
@@ -165,16 +167,31 @@ while true; do
     fi
 
     echo ""
-    eval "$command_to_run"
+    stderr_capture_file=$(mktemp)
+    # Redirect stderr straight to a temp file (synchronous - avoids the race
+    # condition of process substitution) then replay it. This delays stderr
+    # output until the command finishes, which is a fine trade-off for the
+    # short, beginner-run commands this tool targets.
+    eval "$command_to_run" 2>"$stderr_capture_file"
     exit_code=$?
+    cat "$stderr_capture_file" >&2
     echo ""
 
     if [ $exit_code -ne 0 ]; then
         echo -e "${RED}Command exited with code: $exit_code${NC}"
+        captured_stderr=$(cat "$stderr_capture_file")
+        if [ -n "$captured_stderr" ]; then
+            diagnose_output=$(python3 "$PYTHON_SCRIPT" --action diagnose --error "$captured_stderr" 2>/dev/null)
+            parse_brain_output "$diagnose_output" DX
+            if [ "$DX_STATUS" = "ok" ]; then
+                echo -e "${YELLOW}💡 ${NC}$DX_HINT"
+            fi
+        fi
     fi
+    rm -f "$stderr_capture_file"
 
-    # Log the command
-    python3 "$PYTHON_SCRIPT" --action log --command "$command_to_run" 2>/dev/null
+    # Log the command (output intentionally discarded - this is a background bookkeeping call)
+    python3 "$PYTHON_SCRIPT" --action log --command "$command_to_run" > /dev/null 2>&1
 
     # Predict next command
     prediction=$(python3 "$PYTHON_SCRIPT" --action predict --command "$command_to_run" 2>/dev/null)

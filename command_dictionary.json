@@ -1,0 +1,309 @@
+{
+  "ls": {
+    "summary": "Lists files and directories in the current (or given) location.",
+    "flags": {
+      "-l": "long format - shows permissions, owner, size, date",
+      "-a": "show hidden files (those starting with a dot)",
+      "-h": "human-readable sizes (e.g. 4.0K instead of 4096)",
+      "-R": "list subdirectories recursively"
+    },
+    "example": "ls -la"
+  },
+  "cd": {
+    "summary": "Changes your current directory (where you 'are' in the filesystem).",
+    "flags": {
+      "-": "go back to the previous directory",
+      "~": "shortcut for your home directory (used as an argument, e.g. cd ~)"
+    },
+    "example": "cd Documents"
+  },
+  "pwd": {
+    "summary": "Prints the full path of the directory you're currently in.",
+    "flags": {},
+    "example": "pwd"
+  },
+  "mkdir": {
+    "summary": "Creates a new, empty directory.",
+    "flags": {
+      "-p": "create parent directories as needed (no error if they already exist)"
+    },
+    "example": "mkdir -p projects/new-app"
+  },
+  "rmdir": {
+    "summary": "Removes an EMPTY directory. Fails if it has anything inside.",
+    "flags": {},
+    "example": "rmdir old-folder"
+  },
+  "rm": {
+    "summary": "Deletes files (or directories with -r). This does NOT go to a trash bin - it's permanent.",
+    "flags": {
+      "-r": "delete directories and their contents recursively",
+      "-f": "force - skip confirmation prompts, ignore nonexistent files",
+      "-i": "ask for confirmation before each deletion (safer)"
+    },
+    "example": "rm -i old-file.txt",
+    "danger": "rm -rf can permanently delete entire directory trees with no undo. Always double-check the path."
+  },
+  "cp": {
+    "summary": "Copies files or directories.",
+    "flags": {
+      "-r": "copy directories recursively",
+      "-i": "ask before overwriting an existing file",
+      "-v": "verbose - show what's being copied"
+    },
+    "example": "cp -r source-folder backup-folder"
+  },
+  "mv": {
+    "summary": "Moves or renames files/directories. There's no separate 'rename' command - mv does both.",
+    "flags": {
+      "-i": "ask before overwriting an existing file"
+    },
+    "example": "mv old-name.txt new-name.txt"
+  },
+  "touch": {
+    "summary": "Creates an empty file if it doesn't exist, or updates its timestamp if it does.",
+    "flags": {},
+    "example": "touch notes.txt"
+  },
+  "cat": {
+    "summary": "Prints a file's entire contents to the screen. Good for short files.",
+    "flags": {
+      "-n": "show line numbers"
+    },
+    "example": "cat notes.txt"
+  },
+  "less": {
+    "summary": "Views a file one screen at a time - better than cat for long files. Press 'q' to quit.",
+    "flags": {},
+    "example": "less big-log-file.txt"
+  },
+  "head": {
+    "summary": "Shows the first lines of a file (default: 10).",
+    "flags": {
+      "-n": "number of lines to show, e.g. -n 20"
+    },
+    "example": "head -n 5 file.txt"
+  },
+  "tail": {
+    "summary": "Shows the last lines of a file (default: 10). Great for checking recent log entries.",
+    "flags": {
+      "-n": "number of lines to show",
+      "-f": "follow the file live as new lines are added"
+    },
+    "example": "tail -f server.log"
+  },
+  "grep": {
+    "summary": "Searches text for lines matching a pattern.",
+    "flags": {
+      "-i": "case-insensitive search",
+      "-r": "search recursively through directories",
+      "-n": "show line numbers",
+      "-v": "invert match - show lines that DON'T match"
+    },
+    "example": "grep -rn \"TODO\" ."
+  },
+  "find": {
+    "summary": "Searches for files/directories by name, type, size, or other criteria.",
+    "flags": {
+      "-name": "match by filename, e.g. -name \"*.txt\"",
+      "-type": "match by type: f for file, d for directory"
+    },
+    "example": "find . -name \"*.py\""
+  },
+  "chmod": {
+    "summary": "Changes a file's permissions (who can read/write/execute it).",
+    "flags": {
+      "-R": "apply recursively to a directory and its contents"
+    },
+    "example": "chmod 755 script.sh",
+    "danger": "chmod -R on system directories (like /) can break your OS. Only use -R inside your own project folders."
+  },
+  "chown": {
+    "summary": "Changes who owns a file (user and/or group). Usually needs sudo.",
+    "flags": {
+      "-R": "apply recursively"
+    },
+    "example": "sudo chown user:group file.txt"
+  },
+  "ps": {
+    "summary": "Shows currently running processes.",
+    "flags": {
+      "aux": "show all processes from all users, in detailed format"
+    },
+    "example": "ps aux"
+  },
+  "kill": {
+    "summary": "Sends a signal to a process, usually to stop it. Needs the process ID (PID) from ps.",
+    "flags": {
+      "-9": "force-kill immediately (last resort, skips graceful shutdown)"
+    },
+    "example": "kill -9 1234"
+  },
+  "top": {
+    "summary": "Shows a live, updating view of running processes and resource usage. Press 'q' to quit.",
+    "flags": {},
+    "example": "top"
+  },
+  "df": {
+    "summary": "Shows disk space usage for mounted filesystems.",
+    "flags": {
+      "-h": "human-readable sizes"
+    },
+    "example": "df -h"
+  },
+  "du": {
+    "summary": "Shows how much disk space files/directories are using.",
+    "flags": {
+      "-h": "human-readable sizes",
+      "-s": "summarize - show a total instead of every subfile"
+    },
+    "example": "du -sh my-folder"
+  },
+  "man": {
+    "summary": "Opens the manual page for a command - the official, detailed documentation. Press 'q' to quit.",
+    "flags": {},
+    "example": "man ls"
+  },
+  "sudo": {
+    "summary": "Runs a command with administrator (root) privileges. Use carefully - it can change or break anything on the system.",
+    "flags": {},
+    "example": "sudo apt update",
+    "danger": "Commands run with sudo bypass normal safety checks. Never run something with sudo unless you understand what it does."
+  },
+  "apt": {
+    "summary": "Package manager for Debian/Ubuntu-based systems - installs, updates, and removes software.",
+    "flags": {
+      "update": "refresh the list of available packages",
+      "install": "install a package, e.g. apt install curl",
+      "remove": "uninstall a package"
+    },
+    "example": "sudo apt install curl"
+  },
+  "echo": {
+    "summary": "Prints text to the screen. Often used to check variable values or write into files.",
+    "flags": {
+      "-n": "don't print the trailing newline"
+    },
+    "example": "echo \"Hello, world\""
+  },
+  "export": {
+    "summary": "Sets an environment variable that's visible to programs you run afterward in this shell session.",
+    "flags": {},
+    "example": "export PATH=\"$HOME/.local/bin:$PATH\""
+  },
+  "history": {
+    "summary": "Shows a list of commands you've previously run in the shell.",
+    "flags": {},
+    "example": "history"
+  },
+  "wc": {
+    "summary": "Counts lines, words, or characters in a file or input.",
+    "flags": {
+      "-l": "count lines",
+      "-w": "count words"
+    },
+    "example": "wc -l file.txt"
+  },
+  "tar": {
+    "summary": "Archives (bundles) files together, optionally with compression.",
+    "flags": {
+      "-c": "create an archive",
+      "-x": "extract an archive",
+      "-z": "use gzip compression",
+      "-v": "verbose output",
+      "-f": "specify the archive filename (usually last flag before the filename)"
+    },
+    "example": "tar -xzvf archive.tar.gz"
+  },
+  "curl": {
+    "summary": "Transfers data to/from a URL - commonly used to test APIs or download files.",
+    "flags": {
+      "-O": "save output to a file named like the remote file",
+      "-I": "fetch headers only",
+      "-X": "specify the HTTP method, e.g. -X POST"
+    },
+    "example": "curl -O https://example.com/file.zip"
+  },
+  "wget": {
+    "summary": "Downloads files from the web.",
+    "flags": {
+      "-O": "save with a specific filename"
+    },
+    "example": "wget https://example.com/file.zip"
+  },
+  "ssh": {
+    "summary": "Connects securely to a remote machine's shell over the network.",
+    "flags": {
+      "-p": "specify a non-default port"
+    },
+    "example": "ssh user@remote-host"
+  },
+  "scp": {
+    "summary": "Copies files between machines over SSH.",
+    "flags": {
+      "-r": "copy directories recursively"
+    },
+    "example": "scp file.txt user@remote-host:/path/"
+  },
+  "git": {
+    "summary": "Version control tool for tracking changes to code over time.",
+    "flags": {
+      "status": "show what's changed since the last commit",
+      "add": "stage changes for the next commit",
+      "commit": "save staged changes with a message",
+      "push": "upload commits to a remote repository",
+      "pull": "download and merge changes from a remote repository"
+    },
+    "example": "git status"
+  },
+  "python3": {
+    "summary": "Runs the Python 3 interpreter, either interactively or on a script file.",
+    "flags": {
+      "-m": "run a library module as a script"
+    },
+    "example": "python3 script.py"
+  },
+  "pip3": {
+    "summary": "Installs and manages Python packages.",
+    "flags": {
+      "install": "install a package"
+    },
+    "example": "pip3 install requests"
+  },
+  "alias": {
+    "summary": "Creates a shortcut name for a longer command.",
+    "flags": {},
+    "example": "alias ll='ls -la'"
+  },
+  "which": {
+    "summary": "Shows the full path of the program that would run for a given command name.",
+    "flags": {},
+    "example": "which python3"
+  },
+  "diff": {
+    "summary": "Compares two files and shows the differences between them.",
+    "flags": {
+      "-u": "unified format (easier to read, standard for patches)"
+    },
+    "example": "diff -u old.txt new.txt"
+  },
+  "ln": {
+    "summary": "Creates a link to a file. Symbolic links act like shortcuts.",
+    "flags": {
+      "-s": "create a symbolic (soft) link"
+    },
+    "example": "ln -s /path/to/original shortcut-name"
+  },
+  "whoami": {
+    "summary": "Prints the username you're currently logged in as.",
+    "flags": {},
+    "example": "whoami"
+  },
+  "uname": {
+    "summary": "Prints system information like the OS kernel name and version.",
+    "flags": {
+      "-a": "show all available system information"
+    },
+    "example": "uname -a"
+  }
+}

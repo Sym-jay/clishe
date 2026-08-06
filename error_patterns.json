@@ -1,0 +1,66 @@
+[
+  {
+    "match": "permission denied",
+    "hint": "You don't have permission to do this. If it's a file, try 'chmod' to change its permissions, or run the command with 'sudo' if it truly needs admin rights (but be careful with sudo)."
+  },
+  {
+    "match": "no such file or directory",
+    "hint": "The file or path doesn't exist, or you mistyped it. Try 'ls' in the current directory to see what's actually there, or 'pwd' to confirm where you are."
+  },
+  {
+    "match": "command not found",
+    "hint": "The shell doesn't recognize that as a command. Check for typos, or the program may not be installed yet (try installing it with your package manager, e.g. 'sudo apt install <name>')."
+  },
+  {
+    "match": "is a directory",
+    "hint": "You tried to do something to a directory that only works on files (e.g. 'cat' or 'rm' without -r). Add -r if you meant to include the whole directory, or target a file inside it instead."
+  },
+  {
+    "match": "not a directory",
+    "hint": "You tried to 'cd' into or treat something as a directory, but it's actually a file."
+  },
+  {
+    "match": "file exists",
+    "hint": "Something already exists at that path. If you're moving/copying, either remove the existing file first or choose a different destination name."
+  },
+  {
+    "match": "directory not empty",
+    "hint": "'rmdir' only removes empty directories. If you want to delete a directory and everything inside it, use 'rm -r' instead (double-check the path first - this is permanent)."
+  },
+  {
+    "match": "operation not permitted",
+    "hint": "The system is blocking this action, often due to ownership or system-level protections. 'sudo' might help if you're sure this is safe to do."
+  },
+  {
+    "match": "too many arguments",
+    "hint": "You gave the command more inputs than it expects. Check if a filename with spaces needs quotes around it, e.g. \"my file.txt\" instead of my file.txt."
+  },
+  {
+    "match": "syntax error",
+    "hint": "The shell couldn't parse what you typed - often a missing quote, bracket, or semicolon. Check for unmatched quotes or parentheses."
+  },
+  {
+    "match": "cannot execute binary file",
+    "hint": "This file isn't meant to be run directly as a command on this system (wrong architecture or not actually a program). Check what the file actually is with the 'file' command."
+  },
+  {
+    "match": "text file busy",
+    "hint": "Something else currently has this file open/running. Close other programs using it, or wait and try again."
+  },
+  {
+    "match": "address already in use",
+    "hint": "Something else is already using that network port. Stop the other process using it, or configure your program to use a different port."
+  },
+  {
+    "match": "connection refused",
+    "hint": "Nothing is listening on the address/port you tried to connect to. Confirm the target service is running and the address/port are correct."
+  },
+  {
+    "match": "no space left on device",
+    "hint": "Your disk is full. Run 'df -h' to see usage, and 'du -sh *' in a directory to find what's taking up space."
+  },
+  {
+    "match": "read-only file system",
+    "hint": "The filesystem (or this specific mount) doesn't allow writes right now. It may need to be remounted read-write, or you may not have the right permissions."
+  }
+]

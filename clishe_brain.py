@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from config import load_config
 from providers import build_provider_chain, ProviderError
+from knowledge import lookup_command, format_explanation, diagnose_error
 
 # File paths
 KB_FILE = Path.home() / '.clishe_kb.json'
@@ -150,7 +151,17 @@ class ClisheBrain:
         return {"status": "unavailable"}
 
     def explain(self, command):
-        """Ask configured providers to explain a shell command."""
+        """Explain a shell command. Checks the offline built-in dictionary
+        first (free, instant, no network) - only falls through to AI
+        providers if the base command isn't in the dictionary."""
+        entry = lookup_command(command)
+        if entry:
+            return {
+                "status": "ok",
+                "explanation": format_explanation(entry),
+                "provider": "offline dictionary",
+            }
+
         config = load_config()
         chain = build_provider_chain(config)
 
@@ -166,14 +177,24 @@ class ClisheBrain:
 
         return {"status": "unavailable"}
 
+    def diagnose(self, error_text):
+        """Translate a command's stderr output into a plain-English hint,
+        using offline pattern matching only - no AI call, since this needs
+        to be instant and available even with no providers configured."""
+        hint = diagnose_error(error_text)
+        if hint:
+            return {"status": "ok", "hint": hint}
+        return {"status": "unmatched"}
+
 
 def main():
     parser = argparse.ArgumentParser(description='Clishe Brain - Command Backend')
     parser.add_argument('--action', required=True,
-                         choices=['query', 'learn', 'log', 'predict', 'resolve', 'explain'],
+                         choices=['query', 'learn', 'log', 'predict', 'resolve', 'explain', 'diagnose'],
                          help='Action to perform')
     parser.add_argument('--phrase', default='', help='Natural language phrase')
     parser.add_argument('--command', default='', help='Bash command')
+    parser.add_argument('--error', default='', help='Captured stderr text to diagnose')
 
     args = parser.parse_args()
     brain = ClisheBrain()
@@ -207,8 +228,18 @@ def main():
         result = brain.explain(args.command)
         print(f"STATUS={result['status']}")
         if result['status'] == 'ok':
-            print(f"EXPLANATION={result['explanation']}")
+            # Explanations can be multi-line (flags list, example, danger
+            # note) - encode newlines so the bash side can decode them
+            # cleanly with a single-line KEY=value parser.
+            encoded = result['explanation'].replace("\n", "\\n")
+            print(f"EXPLANATION={encoded}")
             print(f"PROVIDER={result['provider']}")
+
+    elif args.action == 'diagnose':
+        result = brain.diagnose(args.error)
+        print(f"STATUS={result['status']}")
+        if result['status'] == 'ok':
+            print(f"HINT={result['hint']}")
 
 
 if __name__ == '__main__':

@@ -92,3 +92,30 @@ def test_log_flushes_current_into_sequences_at_threshold(brain):
     assert brain.data["current"] == []
     assert len(brain.data["sequences"]) == 1
     assert len(brain.data["sequences"][0]) == 10
+
+
+# ---------- explain() offline-dictionary integration ----------
+
+def test_explain_uses_offline_dictionary_for_known_command(brain):
+    result = brain.explain("chmod 755 script.sh")
+    assert result["status"] == "ok"
+    assert result["provider"] == "offline dictionary"
+    assert "permission" in result["explanation"].lower()
+
+
+def test_explain_falls_through_to_unavailable_for_unknown_command_with_no_providers(brain):
+    result = brain.explain("some-made-up-tool --flag")
+    assert result["status"] == "unavailable"
+
+
+# ---------- diagnose() ----------
+
+def test_diagnose_matches_known_error(brain):
+    result = brain.diagnose("Permission denied")
+    assert result["status"] == "ok"
+    assert "hint" in result
+
+
+def test_diagnose_unmatched_error(brain):
+    result = brain.diagnose("a totally novel error nobody has documented")
+    assert result["status"] == "unmatched"
