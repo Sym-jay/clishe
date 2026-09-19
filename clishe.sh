@@ -153,12 +153,15 @@ while true; do
                 echo -e "${BLUE}Clishe (via $RS_PROVIDER): ${NC}I think you mean: ${YELLOW}$command_to_run${NC}"
                 read -r -p "Run this? [Y/n/e=edit]: " approve
                 if [[ "$approve" =~ ^[Nn]$ ]]; then
-                    echo -e "${BLUE}Clishe: ${NC}Okay, skipping."
+                    echo -e "${BLUE}Clishe: ${NC}Okay, skipping. (Not saved - I'll ask again next time.)"
                     echo ""
                     continue
                 elif [[ "$approve" =~ ^[Ee] ]]; then
                     read -r -e -i "$command_to_run" -p "Edit command: " command_to_run
                 fi
+                # Only cache AFTER approval, and cache exactly what will run
+                # (including any edits) - never the raw, unreviewed suggestion.
+                python3 "$PYTHON_SCRIPT" --action learn --phrase "$user_input" --command "$command_to_run" > /dev/null 2>&1
                 echo -e "${BLUE}Clishe: ${NC}Saved for next time - I won't need to ask the AI again for this phrase."
             else
                 if [ "$RS_STATUS" = "declined" ]; then
