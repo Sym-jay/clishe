@@ -118,37 +118,40 @@ class ClisheBrain:
     # ---------- AI provider actions ----------
 
     def resolve(self, phrase):
-        """Ask configured providers (in priority order) to translate an
-        unknown phrase into a shell command. Returns a dict:
-          {"status": "ok", "command": ..., "provider": ...}
-          {"status": "declined", "provider": ...}   - model understood but wouldn't answer
-          {"status": "unavailable"}                  - no provider could be reached
-        On success, also caches the mapping into the KB so we never pay for
-        the same phrase twice.
-        """
-        config = load_config()
-        chain = build_provider_chain(config)
+    """Ask configured providers (in priority order) to translate an
+    unknown phrase into a shell command. Returns a dict:
+      {"status": "ok", "command": ..., "provider": ...}
+      {"status": "declined", "provider": ...}   - model understood but wouldn't answer
+      {"status": "unavailable"}                  - no provider could be reached
 
-        if not chain:
-            return {"status": "unavailable"}
+    NOTE: this method does NOT write to the KB. Caching an AI suggestion
+    before the user has approved it would let a declined or edited command
+    silently become auto-executable next time the same phrase is typed.
+    The caller (clishe.sh) must call `--action learn` explicitly, and only
+    after the user has approved (or approved-with-edits).
+    """
+    config = load_config()
+    chain = build_provider_chain(config)
 
-        for provider in chain:
-            try:
-                command = provider.resolve_command(phrase)
-            except ProviderError as e:
-                print(f"[{provider.name}] {e}", file=sys.stderr)
-                continue  # try the next provider in the chain
-
-            if command:
-                self.learn(phrase, command)  # cache so KB handles it next time, free
-                return {"status": "ok", "command": command, "provider": provider.name}
-            else:
-                # This provider understood the request but declined to answer
-                # (unclear/unsafe) - that's a real answer, don't keep trying
-                # other providers for the same unsafe request.
-                return {"status": "declined", "provider": provider.name}
-
+    if not chain:
         return {"status": "unavailable"}
+
+    for provider in chain:
+        try:
+            command = provider.resolve_command(phrase)
+        except ProviderError as e:
+            print(f"[{provider.name}] {e}", file=sys.stderr)
+            continue  # try the next provider in the chain
+
+        if command:
+            return {"status": "ok", "command": command, "provider": provider.name}
+        else:
+            # This provider understood the request but declined to answer
+            # (unclear/unsafe) - that's a real answer, don't keep trying
+            # other providers for the same unsafe request.
+            return {"status": "declined", "provider": provider.name}
+
+    return {"status": "unavailable"}
 
     def explain(self, command):
         """Explain a shell command. Checks the offline built-in dictionary
