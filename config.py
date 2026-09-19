@@ -6,6 +6,7 @@ template so first-run users see exactly what to fill in instead of hitting
 a wall of "provider not configured" errors with no next step.
 """
 import json
+import os
 from pathlib import Path
 
 CONFIG_FILE = Path.home() / '.clishe_config.json'
@@ -43,8 +44,17 @@ def load_config() -> dict:
 
 
 def _write_default_config():
+    """Create the config file with owner-only read/write permissions (0600).
+
+    This file may eventually hold a plaintext Anthropic API key, so it
+    should never be created with default (often world-readable) permissions
+    on shared or multi-user systems. os.O_EXCL also means this safely does
+    nothing if another process created the file between our exists() check
+    and this call, instead of clobbering it.
+    """
     try:
-        with open(CONFIG_FILE, 'w') as f:
+        fd = os.open(CONFIG_FILE, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, 'w') as f:
             json.dump(DEFAULT_CONFIG, f, indent=2)
     except OSError:
         pass
