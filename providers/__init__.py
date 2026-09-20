@@ -18,17 +18,17 @@ REGISTRY = {
 
 
 def build_provider_chain(config: dict) -> List[Provider]:
-    """Build the ordered list of provider instances to try, based on
-    config['provider_priority'], skipping any whose is_available() is False
-    (missing key, server not running, etc). Order matters: put free/local/fast
-    options first."""
     priority = config.get("provider_priority", ["ollama", "anthropic"])
     chain = []
     for name in priority:
         provider_cls = REGISTRY.get(name)
         if provider_cls is None:
             continue
-        provider_config = config.get(name, {})
+        # Each provider gets its own config block PLUS the detected distro,
+        # so prompts can give distro-correct package-manager commands
+        # without every provider needing its own os-release detection.
+        provider_config = dict(config.get(name, {}))
+        provider_config["distro"] = config.get("distro", "unknown")
         instance = provider_cls(provider_config)
         if instance.is_available():
             chain.append(instance)
