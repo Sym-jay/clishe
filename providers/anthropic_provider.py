@@ -5,6 +5,7 @@ Uses urllib from the standard library only, so clishe doesn't force users to
 pip install an SDK just to get cloud fallback working.
 """
 import json
+import os
 import urllib.request
 import urllib.error
 from typing import Optional
@@ -42,7 +43,7 @@ class AnthropicProvider(Provider):
 
     def __init__(self, config: dict):
         super().__init__(config)
-        self.api_key = self.config.get("api_key", "")
+        self.api_key = self.config.get("api_key") or os.environ.get("ANTHROPIC_API_KEY", "")
         self.model = self.config.get("model", DEFAULT_MODEL)
 
     def is_available(self) -> bool:
