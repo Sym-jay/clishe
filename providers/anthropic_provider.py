@@ -45,6 +45,7 @@ class AnthropicProvider(Provider):
         super().__init__(config)
         self.api_key = self.config.get("api_key") or os.environ.get("ANTHROPIC_API_KEY", "")
         self.model = self.config.get("model", DEFAULT_MODEL)
+        self.distro = self.config.get("distro", "unknown")
 
     def is_available(self) -> bool:
         return bool(self.api_key)
