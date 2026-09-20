@@ -19,6 +19,19 @@ CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 CONFIG_FILE = CONFIG_DIR / "config.json"
 OS_RELEASE_FILE = Path('/etc/os-release')
 
+def _migrate_legacy_file(old_name: str, new_path: Path):
+    """One-time migration from the old ~/.clishe_* locations to the new
+    XDG-compliant paths, so upgrading doesn't silently lose existing data."""
+    old_path = Path.home() / old_name
+    if old_path.exists() and not new_path.exists():
+        try:
+            old_path.rename(new_path)
+        except OSError:
+            pass
+
+_migrate_legacy_file(".clishe_kb.json", KB_FILE)
+_migrate_legacy_file(".clishe_data.json", DATA_FILE)
+
 DEFAULT_CONFIG = {
     "provider_priority": ["ollama", "anthropic"],
     "ollama": {
