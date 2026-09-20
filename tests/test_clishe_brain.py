@@ -41,9 +41,9 @@ def test_learn_rejects_empty_phrase_or_command(brain):
 
 
 def test_learn_persists_to_disk(brain, tmp_path):
+    import clishe_brain
     brain.learn("list files", "ls -la")
-    kb_file = tmp_path / ".clishe_kb.json"
-    assert kb_file.exists()
+    assert clishe_brain.KB_FILE.exists()
     with open(kb_file) as f:
         data = json.load(f)
     assert data["list files"] == "ls -la"
