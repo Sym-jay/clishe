@@ -4,12 +4,17 @@ Config loading for clishe's AI providers.
 Reads ~/.clishe_config.json. If it doesn't exist, writes a commented-out
 template so first-run users see exactly what to fill in instead of hitting
 a wall of "provider not configured" errors with no next step.
+
+Also detects the running Linux distro from /etc/os-release so AI providers
+can give distro-correct package-manager commands (apt vs dnf vs pacman)
+instead of defaulting to one distro for everyone.
 """
 import json
 import os
 from pathlib import Path
 
 CONFIG_FILE = Path.home() / '.clishe_config.json'
+OS_RELEASE_FILE = Path('/etc/os-release')
 
 DEFAULT_CONFIG = {
     "provider_priority": ["ollama", "anthropic"],
@@ -24,23 +29,46 @@ DEFAULT_CONFIG = {
 }
 
 
+def detect_distro() -> str:
+    """Read the ID field from /etc/os-release (e.g. 'ubuntu', 'fedora',
+    'arch', 'debian'). Returns 'unknown' if the file is missing or
+    unparseable (e.g. non-Linux systems), so callers never need to
+    special-case a missing value."""
+    if not OS_RELEASE_FILE.exists():
+        return "unknown"
+    try:
+        with open(OS_RELEASE_FILE, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith('ID='):
+                    value = line.split('=', 1)[1].strip()
+                    return value.strip('"').lower()
+    except OSError:
+        pass
+    return "unknown"
+
+
 def load_config() -> dict:
     if not CONFIG_FILE.exists():
         _write_default_config()
-        return DEFAULT_CONFIG
+        config = dict(DEFAULT_CONFIG)
+    else:
+        try:
+            with open(CONFIG_FILE, 'r') as f:
+                user_config = json.load(f)
+            # Merge shallowly over defaults so a partial user config still works.
+            config = dict(DEFAULT_CONFIG)
+            config.update(user_config)
+        except (json.JSONDecodeError, OSError):
+            # Corrupted config shouldn't take down the whole tool - fall back to
+            # KB-only behavior (empty priority list means no providers get built).
+            config = {"provider_priority": []}
 
-    try:
-        with open(CONFIG_FILE, 'r') as f:
-            user_config = json.load(f)
-    except (json.JSONDecodeError, OSError):
-        # Corrupted config shouldn't take down the whole tool - fall back to
-        # KB-only behavior (empty priority list means no providers get built).
-        return {"provider_priority": []}
-
-    # Merge shallowly over defaults so a partial user config still works.
-    merged = dict(DEFAULT_CONFIG)
-    merged.update(user_config)
-    return merged
+    # Always computed live, never persisted to disk - the distro can't
+    # change without a fresh install anyway, and this keeps it accurate
+    # without a stale cached value surviving an OS upgrade.
+    config["distro"] = detect_distro()
+    return config
 
 
 def _write_default_config():
