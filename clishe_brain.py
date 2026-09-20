@@ -6,6 +6,7 @@ and (new) AI-provider-backed phrase resolution / command explanation.
 import argparse
 import json
 import sys
+import os
 from pathlib import Path
 import warnings
 warnings.filterwarnings('ignore')
@@ -19,8 +20,12 @@ from providers import build_provider_chain, ProviderError
 from knowledge import lookup_command, format_explanation, diagnose_error
 
 # File paths
-KB_FILE = Path.home() / '.clishe_kb.json'
-DATA_FILE = Path.home() / '.clishe_data.json'
+XDG_DATA_HOME = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
+DATA_DIR = XDG_DATA_HOME / "clishe"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+KB_FILE = DATA_DIR / "kb.json"
+DATA_FILE = DATA_DIR / "history.json"
 
 # Minimum number of stored sequences before we bother predicting
 MIN_SEQUENCES_FOR_PREDICTION = 3
