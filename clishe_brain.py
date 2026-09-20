@@ -5,8 +5,8 @@ and (new) AI-provider-backed phrase resolution / command explanation.
 """
 import argparse
 import json
-import sys
 import os
+import sys
 from pathlib import Path
 import warnings
 warnings.filterwarnings('ignore')
@@ -19,14 +19,24 @@ from config import load_config
 from providers import build_provider_chain, ProviderError
 from knowledge import lookup_command, format_explanation, diagnose_error
 
-# File paths
+# ---------- XDG-compliant data file locations ----------
+# Data (KB + history) lives under $XDG_DATA_HOME/clishe/, falling back to
+# ~/.local/share/clishe/ per the XDG Base Directory spec, instead of
+# cluttering the bare home directory with dotfiles.
 XDG_DATA_HOME = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
 DATA_DIR = XDG_DATA_HOME / "clishe"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
+KB_FILE = DATA_DIR / "kb.json"
+DATA_FILE = DATA_DIR / "history.json"
+
+
 def _migrate_legacy_file(old_name: str, new_path: Path):
     """One-time migration from the old ~/.clishe_* locations to the new
-    XDG-compliant paths, so upgrading doesn't silently lose existing data."""
+    XDG-compliant paths, so upgrading doesn't silently lose existing data.
+    Must run AFTER new_path (KB_FILE / DATA_FILE) is already defined above -
+    Python executes top to bottom, so referencing a name before its
+    assignment raises NameError."""
     old_path = Path.home() / old_name
     if old_path.exists() and not new_path.exists():
         try:
@@ -34,11 +44,9 @@ def _migrate_legacy_file(old_name: str, new_path: Path):
         except OSError:
             pass
 
+
 _migrate_legacy_file(".clishe_kb.json", KB_FILE)
 _migrate_legacy_file(".clishe_data.json", DATA_FILE)
-
-KB_FILE = DATA_DIR / "kb.json"
-DATA_FILE = DATA_DIR / "history.json"
 
 # Minimum number of stored sequences before we bother predicting
 MIN_SEQUENCES_FOR_PREDICTION = 3
