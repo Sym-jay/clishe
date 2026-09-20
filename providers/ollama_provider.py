@@ -40,6 +40,7 @@ class OllamaProvider(Provider):
         super().__init__(config)
         self.host = self.config.get("host", DEFAULT_HOST).rstrip("/")
         self.model = self.config.get("model", DEFAULT_MODEL)
+        self.distro = self.config.get("distro", "unknown")
 
     def is_available(self) -> bool:
         """Ping the server's tag list endpoint - fast, no model load needed."""
@@ -88,11 +89,20 @@ class OllamaProvider(Provider):
     # ---------- public API ----------
 
     def resolve_command(self, phrase: str) -> Optional[str]:
-        data = self._generate(RESOLVE_PROMPT_TEMPLATE.format(phrase=phrase))
-        command = data.get("command")
-        if not command or not isinstance(command, str):
-            return None
-        return command.strip()
+    distro_note = ""
+    if self.distro != "unknown":
+        distro_note = (
+            f"\n\nThe user's system is running the '{self.distro}' Linux "
+            f"distribution — use its native package manager and conventions "
+            f"(e.g. apt for debian/ubuntu, dnf for fedora, pacman for arch) "
+            f"when relevant."
+        )
+    prompt = RESOLVE_PROMPT_TEMPLATE.format(phrase=phrase) + distro_note
+    data = self._generate(prompt)
+    command = data.get("command")
+    if not command or not isinstance(command, str):
+        return None
+    return command.strip()
 
     def explain_command(self, command: str) -> Optional[str]:
         data = self._generate(EXPLAIN_PROMPT_TEMPLATE.format(command=command))
