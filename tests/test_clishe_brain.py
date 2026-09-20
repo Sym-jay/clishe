@@ -44,9 +44,9 @@ def test_learn_persists_to_disk(brain, tmp_path):
     import clishe_brain
     brain.learn("list files", "ls -la")
     assert clishe_brain.KB_FILE.exists()
-    with open(kb_file) as f:
-        data = json.load(f)
-    assert data["list files"] == "ls -la"
+    with open(clishe_brain.KB_FILE) as f:
+        saved = json.load(f)
+    assert saved["list files"] == "ls -la"
 
 
 def test_corrupted_kb_file_does_not_crash(tmp_path, monkeypatch):
