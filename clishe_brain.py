@@ -24,6 +24,19 @@ XDG_DATA_HOME = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "s
 DATA_DIR = XDG_DATA_HOME / "clishe"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
+def _migrate_legacy_file(old_name: str, new_path: Path):
+    """One-time migration from the old ~/.clishe_* locations to the new
+    XDG-compliant paths, so upgrading doesn't silently lose existing data."""
+    old_path = Path.home() / old_name
+    if old_path.exists() and not new_path.exists():
+        try:
+            old_path.rename(new_path)
+        except OSError:
+            pass
+
+_migrate_legacy_file(".clishe_kb.json", KB_FILE)
+_migrate_legacy_file(".clishe_data.json", DATA_FILE)
+
 KB_FILE = DATA_DIR / "kb.json"
 DATA_FILE = DATA_DIR / "history.json"
 
