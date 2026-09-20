@@ -1,9 +1,11 @@
 """
 Config loading for clishe's AI providers.
 
-Reads ~/.clishe_config.json. If it doesn't exist, writes a commented-out
-template so first-run users see exactly what to fill in instead of hitting
-a wall of "provider not configured" errors with no next step.
+Reads the XDG-compliant config file (~/.config/clishe/config.json by
+default, or $XDG_CONFIG_HOME/clishe/config.json if set). If it doesn't
+exist, writes sensible defaults so first-run users see exactly what to
+fill in instead of hitting a wall of "provider not configured" errors
+with no next step.
 
 Also detects the running Linux distro from /etc/os-release so AI providers
 can give distro-correct package-manager commands (apt vs dnf vs pacman)
@@ -17,20 +19,8 @@ XDG_CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"
 CONFIG_DIR = XDG_CONFIG_HOME / "clishe"
 CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 CONFIG_FILE = CONFIG_DIR / "config.json"
+
 OS_RELEASE_FILE = Path('/etc/os-release')
-
-def _migrate_legacy_file(old_name: str, new_path: Path):
-    """One-time migration from the old ~/.clishe_* locations to the new
-    XDG-compliant paths, so upgrading doesn't silently lose existing data."""
-    old_path = Path.home() / old_name
-    if old_path.exists() and not new_path.exists():
-        try:
-            old_path.rename(new_path)
-        except OSError:
-            pass
-
-_migrate_legacy_file(".clishe_kb.json", KB_FILE)
-_migrate_legacy_file(".clishe_data.json", DATA_FILE)
 
 DEFAULT_CONFIG = {
     "provider_priority": ["ollama", "anthropic"],
@@ -43,6 +33,23 @@ DEFAULT_CONFIG = {
         "model": "claude-haiku-4-5-20251001"
     }
 }
+
+
+def _migrate_legacy_config():
+    """One-time migration from the old ~/.clishe_config.json location to the
+    new XDG-compliant path, so upgrading doesn't silently lose an existing
+    config (and any API key already saved in it). This only ever touches
+    the config file - KB and history data migration lives in clishe_brain.py,
+    which owns those files."""
+    old_path = Path.home() / ".clishe_config.json"
+    if old_path.exists() and not CONFIG_FILE.exists():
+        try:
+            old_path.rename(CONFIG_FILE)
+        except OSError:
+            pass
+
+
+_migrate_legacy_config()
 
 
 def detect_distro() -> str:
