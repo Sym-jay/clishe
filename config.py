@@ -13,7 +13,10 @@ import json
 import os
 from pathlib import Path
 
-CONFIG_FILE = Path.home() / '.clishe_config.json'
+XDG_CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+CONFIG_DIR = XDG_CONFIG_HOME / "clishe"
+CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+CONFIG_FILE = CONFIG_DIR / "config.json"
 OS_RELEASE_FILE = Path('/etc/os-release')
 
 DEFAULT_CONFIG = {
