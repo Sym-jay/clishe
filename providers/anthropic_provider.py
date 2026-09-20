@@ -99,7 +99,15 @@ class AnthropicProvider(Provider):
     # ---------- public API ----------
 
     def resolve_command(self, phrase: str) -> Optional[str]:
-        data = self._call(RESOLVE_SYSTEM_PROMPT, phrase)
+        system_prompt = RESOLVE_SYSTEM_PROMPT
+        if self.distro != "unknown":
+            system_prompt += (
+                f" The user's system is running the '{self.distro}' Linux "
+                f"distribution — use its native package manager and conventions "
+                f"(e.g. apt for debian/ubuntu, dnf for fedora, pacman for arch) "
+                f"when relevant."
+            )        
+        data = self._call(system_prompt, phrase)
         command = data.get("command")
         if not command or not isinstance(command, str):
             return None
