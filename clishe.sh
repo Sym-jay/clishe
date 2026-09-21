@@ -40,6 +40,37 @@ if [ ! -f "$PYTHON_SCRIPT" ]; then
     exit 1
 fi
 
+# Non-interactive mode: `clishe explain "<command>"` or `clishe <phrase>`
+# runs one lookup and exits, instead of entering the chat loop. This makes
+# Clishe usable from scripts, aliases, or a quick one-off terminal check.
+if [ "$1" = "explain" ] && [ -n "$2" ]; then
+    shift
+    explain_output=$(python3 "$PYTHON_SCRIPT" --action explain --command "$*" 2>/dev/null)
+    status=$(echo "$explain_output" | grep '^STATUS=' | cut -d= -f2-)
+    if [ "$status" = "ok" ]; then
+        explanation=$(echo "$explain_output" | grep '^EXPLANATION=' | cut -d= -f2-)
+        provider=$(echo "$explain_output" | grep '^PROVIDER=' | cut -d= -f2-)
+        decoded="${explanation//\\n/$'\n'}"
+        echo -e "${BLUE}Clishe (via $provider): ${NC}$decoded"
+    else
+        echo -e "${YELLOW}No AI provider is available to explain that right now.${NC}"
+    fi
+    exit 0
+fi
+
+if [ -n "$1" ]; then
+    # Any other non-flag argument is treated as a one-shot phrase lookup
+    # against the knowledge base only (no AI call, no execution) - a quick
+    # "what would this resolve to" check.
+    kb_result=$(python3 "$PYTHON_SCRIPT" --action query --phrase "$*" 2>/dev/null)
+    if [ -n "$kb_result" ]; then
+        echo -e "${YELLOW}$kb_result${NC}"
+    else
+        echo -e "${YELLOW}Not in the knowledge base yet. Run clishe interactively to teach it.${NC}"
+    fi
+    exit 0
+fi
+
 # Welcome message
 echo -e "${BLUE}╔═══════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║       Welcome to Clishe v1.2          ║${NC}"
