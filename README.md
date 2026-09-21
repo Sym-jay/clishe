@@ -1,8 +1,20 @@
 # Clishe
 
-A friendly, adaptive command-line assistant that helps Linux beginners learn and navigate the shell — no memorizing man pages required.
+An offline-first command-line reference for Linux beginners, with optional
+AI assistance.
 
-Type what you want in plain English. Clishe figures out the command, shows you what it's about to run, and remembers it for next time.
+**Requirements:** bash + Python 3.9+. Works out of the box on Linux and
+macOS. On Windows, run it inside WSL or Git Bash.
+
+No AI required to get started — Clishe ships with an offline knowledge
+base and command dictionary that work with zero setup and zero network
+calls. AI providers (local via Ollama, or cloud via Anthropic) are
+entirely optional, for when you want it to resolve phrases it doesn't
+already know.
+
+Type what you want in plain English — Clishe resolves it to
+a real shell command, shows you exactly what it's about to run, and
+remembers it for next time.
 
 ```
 You: show me disk usage
