@@ -29,7 +29,12 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 KB_FILE = DATA_DIR / "kb.json"
 DATA_FILE = DATA_DIR / "history.json"
+
+# Bundled, read-only seed knowledge base shipped with the repo (never
+# written to). Lets a fresh install feel responsive on common phrases
+# before the user has taught anything or configured an AI provider.
 SEED_KB_FILE = Path(__file__).resolve().parent / "seed_kb.json"
+
 
 def _migrate_legacy_file(old_name: str, new_path: Path):
     """One-time migration from the old ~/.clishe_* locations to the new
@@ -97,17 +102,17 @@ class ClisheBrain:
     # ---------- KB / prediction actions ----------
 
     def query(self, phrase):
-    """Query the knowledge base for a command. Checks the user's own
-    learned KB first, then falls back to a bundled seed KB of common
-    phrases. Kept as two separate sources (never merged) so a user's
-    personal file only ever contains what they actually taught or
-    approved, and the seed set can be improved via a normal software
-    update without needing to migrate anyone's existing data."""
-    phrase_lower = phrase.lower().strip()
-    if phrase_lower in self.kb:
-        return self.kb[phrase_lower]
-    seed_kb = self._load_json(SEED_KB_FILE, {})
-    return seed_kb.get(phrase_lower, '')
+        """Query the knowledge base for a command. Checks the user's own
+        learned KB first, then falls back to a bundled seed KB of common
+        phrases. Kept as two separate sources (never merged) so a user's
+        personal file only ever contains what they actually taught or
+        approved, and the seed set can be improved via a normal software
+        update without needing to migrate anyone's existing data."""
+        phrase_lower = phrase.lower().strip()
+        if phrase_lower in self.kb:
+            return self.kb[phrase_lower]
+        seed_kb = self._load_json(SEED_KB_FILE, {})
+        return seed_kb.get(phrase_lower, '')
 
     def learn(self, phrase, command):
         """Learn a new phrase-command mapping."""
