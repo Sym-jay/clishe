@@ -11,7 +11,8 @@ different local model server, etc.) can be added without touching
 1. Create a new file in `providers/`, e.g. `providers/openai_provider.py`.
 2. Implement the `Provider` interface from `providers/base.py`:
 ```python
-   from .base import Provider, ProviderError
+   from .base import (Provider, ProviderError, Resolution, distro_note,
+                      parse_json_reply, resolution_from_reply)
 
    class OpenAIProvider(Provider):
        name = "openai"
@@ -25,9 +26,21 @@ different local model server, etc.) can be added without touching
            # Raise ProviderError for real failures (network, auth, etc).
            ...
 
+       # Optional but recommended: also return the model's one-line reason,
+       # which Clishe shows under the suggestion. The default implementation
+       # calls resolve_command() and leaves the explanation empty.
+       def resolve_with_explanation(self, phrase: str) -> Resolution | None:
+           ...
+
        def explain_command(self, command: str) -> str | None:
            ...
 ```
+   `parse_json_reply()` tolerates code fences and chatter around the JSON,
+   `resolution_from_reply()` turns `{"command": ..., "explanation": ...}`
+   into a `Resolution`, and `distro_note()` gives the prompt text that makes
+   package-manager answers fit the user's distro. Ask the model to write
+   missing values as `<placeholders>` (see the existing prompts) so Clishe
+   can prompt for them.
 3. Register it in `providers/__init__.py`:
 ```python
    from .openai_provider import OpenAIProvider
@@ -48,20 +61,38 @@ different local model server, etc.) can be added without touching
 
 `command_dictionary.json` and `error_patterns.json` (used by `explain` and
 `diagnose`) can grow without any code changes — just add entries following
-the existing format.
+the existing format. Short flags are listed one per key (`"-x"`, `"-z"`) so
+combined flags like `-xzvf` can be explained letter by letter; subcommands
+(`"status"` for git) work the same way.
+
+## Adding seed phrases
+
+`seed_kb.json` maps a lowercase phrase to a command. If the command needs a
+value from the user, write it as a placeholder of lowercase words in angle
+brackets, e.g. `"copy a file": "cp <file> <destination>"`. Never add a bare
+command that needs arguments (`"cat"`), since it would hang or fail when run.
+`tests/test_data_files.py` checks this.
+
+## Improving the safety check
+
+`safety.py` decides when Clishe asks for a typed `YES`. To cover a new
+dangerous pattern, add a reason to `REASONS`, detect it in
+`_check_segment()`, and add cases to both the `DANGEROUS` and `SAFE` lists
+in `tests/test_safety.py`. False positives matter too: a prompt that fires
+on everyday commands teaches people to type `YES` without reading.
 
 ## Running tests locally
 
 ```bash
 pip install pytest
 python -m pytest tests/ -v
+bash tests/test_shell_functions.sh
+shellcheck -S warning clishe.sh install.sh   # if you have shellcheck
 ```
 
-Please also run a quick syntax check before pushing, especially for
-`clishe_brain.py` and files under `providers/`:
-```bash
-python -m py_compile clishe_brain.py config.py providers/*.py
-```
+`tests/test_shell_functions.sh` sources `clishe.sh` (which stops after its
+function definitions when sourced) and tests the real bash functions, plus
+a few end-to-end sessions with piped input.
 
 ## Pull requests
 
