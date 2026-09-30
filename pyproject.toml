@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "clishe-cli"
-version = "0.2.0"
+version = "0.3.0"
 description = "A friendly, adaptive command-line assistant that helps Linux beginners learn the shell"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 license = {text = "MIT"}
 authors = [{name = "Sym-jay"}]
 keywords = ["cli", "linux", "shell", "beginner", "ai", "assistant"]

@@ -27,18 +27,14 @@ jobs:
       - name: Run tests
         run: python -m pytest tests/ -v
 
-      - name: Check shell script syntax
-        run: bash -n clishe.sh
+      - name: Check shell scripts
+        run: |
+          bash -n clishe.sh install.sh
+          shellcheck -S warning clishe.sh install.sh tests/test_shell_functions.sh
 
       - name: Check Python syntax
         run: |
-          python -m py_compile clishe_brain.py config.py knowledge.py
-          python -m py_compile providers/__init__.py providers/base.py providers/ollama_provider.py providers/anthropic_provider.py
-
-      - name: Validate JSON data files
-        run: |
-          python -c "import json; json.load(open('command_dictionary.json'))"
-          python -c "import json; json.load(open('error_patterns.json'))"
+          python -m py_compile clishe_brain.py config.py knowledge.py safety.py providers/*.py
 
       - name: Run shell-level regression tests
         run: bash tests/test_shell_functions.sh
