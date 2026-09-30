@@ -1,11 +1,17 @@
 #!/usr/bin/env python3
 """
-Clishe Brain - Backend for natural language command mapping, prediction,
-and (new) AI-provider-backed phrase resolution / command explanation.
+Clishe Brain - backend for clishe.sh.
+
+Owns the knowledge base (phrases you taught), command history and
+next-command prediction, AI-provider resolution, offline explanations,
+error hints and the safety check. clishe.sh talks to it through
+`--action ...` calls and reads back simple KEY=value lines.
 """
 import argparse
+import difflib
 import json
 import os
+import re
 import sys
 from pathlib import Path
 import warnings
@@ -18,6 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from config import load_config
 from providers import build_provider_chain, ProviderError
 from knowledge import lookup_command, format_explanation, diagnose_error
+from safety import check_command
 
 # ---------- XDG-compliant data file locations ----------
 # Data (KB + history) lives under $XDG_DATA_HOME/clishe/, falling back to
@@ -26,6 +33,11 @@ from knowledge import lookup_command, format_explanation, diagnose_error
 XDG_DATA_HOME = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
 DATA_DIR = XDG_DATA_HOME / "clishe"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
+try:
+    # History can contain paths, hostnames or tokens someone typed.
+    os.chmod(DATA_DIR, 0o700)
+except OSError:
+    pass
 
 KB_FILE = DATA_DIR / "kb.json"
 DATA_FILE = DATA_DIR / "history.json"
@@ -38,10 +50,7 @@ SEED_KB_FILE = Path(__file__).resolve().parent / "seed_kb.json"
 
 def _migrate_legacy_file(old_name: str, new_path: Path):
     """One-time migration from the old ~/.clishe_* locations to the new
-    XDG-compliant paths, so upgrading doesn't silently lose existing data.
-    Must run AFTER new_path (KB_FILE / DATA_FILE) is already defined above -
-    Python executes top to bottom, so referencing a name before its
-    assignment raises NameError."""
+    XDG-compliant paths, so upgrading doesn't silently lose existing data."""
     old_path = Path.home() / old_name
     if old_path.exists() and not new_path.exists():
         try:
@@ -57,6 +66,27 @@ _migrate_legacy_file(".clishe_data.json", DATA_FILE)
 MIN_SEQUENCES_FOR_PREDICTION = 3
 # How many commands we keep in the "current" rolling buffer before archiving
 SEQUENCE_FLUSH_LENGTH = 10
+# Oldest sequences are dropped past this, so history.json stays small.
+MAX_SEQUENCES = 200
+# How similar a phrase must be (0-1) to offer "did you mean ...?"
+FUZZY_CUTOFF = 0.78
+
+# Words people add around a request that don't change what they want.
+_LEADING_FILLER = re.compile(
+    r"^(?:(?:please|pls|hey|hi|ok|okay|so|um|clishe|can you|could you|would you)[,!]?\s+)+")
+_TRAILING_FILLER = re.compile(r"(?:[,]?\s+(?:please|pls|thanks|thank you))+$")
+
+
+def normalize_phrase(phrase: str) -> str:
+    """Canonical form used for KB keys and lookups:
+    '  Please, show me disk usage?? ' -> 'show me disk usage'."""
+    p = (phrase or "").lower().strip()
+    p = p.replace("’", "'").replace("‘", "'")
+    p = re.sub(r"\s+", " ", p)
+    p = p.strip(" ?!.,")
+    p = _LEADING_FILLER.sub("", p)
+    p = _TRAILING_FILLER.sub("", p)
+    return p.strip(" ?!.,")
 
 
 class ClisheBrain:
@@ -79,49 +109,89 @@ class ClisheBrain:
             return default
 
     def _save_json(self, path, payload):
+        """Atomic write with owner-only permissions."""
+        tmp_path = path.with_suffix(path.suffix + '.tmp')
         try:
-            tmp_path = path.with_suffix(path.suffix + '.tmp')
-            with open(tmp_path, 'w') as f:
+            fd = os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            with os.fdopen(fd, 'w') as f:
                 json.dump(payload, f, indent=2)
             tmp_path.replace(path)
         except OSError as e:
             print(f"Warning: could not save {path.name} ({e})", file=sys.stderr)
 
     def load_kb(self):
-        return self._load_json(KB_FILE, {})
+        kb = self._load_json(KB_FILE, {})
+        if not isinstance(kb, dict):
+            return {}
+        # Normalize keys written by older versions ("show disk usage?").
+        return {normalize_phrase(k): v for k, v in kb.items() if normalize_phrase(k)}
 
     def save_kb(self):
         self._save_json(KB_FILE, self.kb)
 
+    def load_seed_kb(self):
+        seed = self._load_json(SEED_KB_FILE, {})
+        return {normalize_phrase(k): v for k, v in seed.items()} if isinstance(seed, dict) else {}
+
     def load_data(self):
-        return self._load_json(DATA_FILE, {'sequences': [], 'current': []})
+        data = self._load_json(DATA_FILE, {'sequences': [], 'current': []})
+        return data if isinstance(data, dict) else {'sequences': [], 'current': []}
 
     def save_data(self):
         self._save_json(DATA_FILE, self.data)
 
-    # ---------- KB / prediction actions ----------
+    # ---------- KB actions ----------
 
     def query(self, phrase):
-        """Query the knowledge base for a command. Checks the user's own
-        learned KB first, then falls back to a bundled seed KB of common
-        phrases. Kept as two separate sources (never merged) so a user's
-        personal file only ever contains what they actually taught or
-        approved, and the seed set can be improved via a normal software
-        update without needing to migrate anyone's existing data."""
-        phrase_lower = phrase.lower().strip()
-        if phrase_lower in self.kb:
-            return self.kb[phrase_lower]
-        seed_kb = self._load_json(SEED_KB_FILE, {})
-        return seed_kb.get(phrase_lower, '')
+        """Exact lookup: the user's own KB first, then the bundled seed KB.
+        Kept as two sources (never merged) so the personal file only ever
+        contains what the user taught or approved, and the seed set can be
+        improved in an update without migrating anyone's data."""
+        key = normalize_phrase(phrase)
+        if not key:
+            return ''
+        if key in self.kb:
+            return self.kb[key]
+        return self.load_seed_kb().get(key, '')
+
+    def suggest(self, phrase):
+        """Closest known phrase for a near-miss ('show disk usage' vs 'show
+        me disk usage'). Returns (phrase, command) or None. The caller must
+        ask before running it - a near match is a guess, not an answer."""
+        key = normalize_phrase(phrase)
+        if not key:
+            return None
+        known = dict(self.load_seed_kb())
+        known.update(self.kb)  # the user's own phrases win
+        match = difflib.get_close_matches(key, list(known), n=1, cutoff=FUZZY_CUTOFF)
+        if not match or match[0] == key:
+            return None
+        return match[0], known[match[0]]
 
     def learn(self, phrase, command):
         """Learn a new phrase-command mapping."""
-        phrase_lower = phrase.lower().strip()
-        if not phrase_lower or not command.strip():
+        key = normalize_phrase(phrase)
+        command = (command or "").strip()
+        if not key or not command:
             return False
-        self.kb[phrase_lower] = command.strip()
+        self.kb[key] = command
         self.save_kb()
         return True
+
+    def forget(self, phrase):
+        """Remove a phrase the user taught. Seed phrases can't be removed,
+        but teaching the same phrase overrides them."""
+        key = normalize_phrase(phrase)
+        if key in self.kb:
+            del self.kb[key]
+            self.save_kb()
+            return True
+        return False
+
+    def learned(self):
+        return sorted(self.kb.items())
+
+    # ---------- history / prediction ----------
 
     def log(self, command):
         if not command.strip():
@@ -132,6 +202,8 @@ class ClisheBrain:
             if len(self.data['current']) > 1:
                 self.data.setdefault('sequences', []).append(self.data['current'])
             self.data['current'] = []
+            # Keep history bounded - old habits matter less than recent ones.
+            self.data['sequences'] = self.data['sequences'][-MAX_SEQUENCES:]
 
         self.save_data()
         return True
@@ -159,36 +231,32 @@ class ClisheBrain:
     def resolve(self, phrase):
         """Ask configured providers (in priority order) to translate an
         unknown phrase into a shell command. Returns a dict:
-          {"status": "ok", "command": ..., "provider": ...}
+          {"status": "ok", "command": ..., "explanation": ..., "provider": ...}
           {"status": "declined", "provider": ...}   - model understood but wouldn't answer
           {"status": "unavailable"}                  - no provider could be reached
 
-        NOTE: this method does NOT write to the KB. Caching an AI suggestion
-        before the user has approved it would let a declined or edited command
-        silently become auto-executable next time the same phrase is typed.
-        The caller (clishe.sh) must call `--action learn` explicitly, and only
-        after the user has approved (or approved-with-edits).
+        NOTE: this does NOT write to the KB. Caching a suggestion before the
+        user approves it would let a rejected or edited command silently
+        become auto-executable next time. clishe.sh calls `--action learn`
+        only after approval (and after the safety confirmation).
         """
-        config = load_config()
-        chain = build_provider_chain(config)
-
+        chain = build_provider_chain(load_config())
         if not chain:
             return {"status": "unavailable"}
 
         for provider in chain:
             try:
-                command = provider.resolve_command(phrase)
+                result = provider.resolve_with_explanation(phrase)
             except ProviderError as e:
                 print(f"[{provider.name}] {e}", file=sys.stderr)
                 continue  # try the next provider in the chain
 
-            if command:
-                return {"status": "ok", "command": command, "provider": provider.name}
-            else:
-                # This provider understood the request but declined to answer
-                # (unclear/unsafe) - that's a real answer, don't keep trying
-                # other providers for the same unsafe request.
-                return {"status": "declined", "provider": provider.name}
+            if result:
+                return {"status": "ok", "command": result.command,
+                        "explanation": result.explanation, "provider": provider.name}
+            # This provider understood the request but declined (unclear or
+            # unsafe). That's a real answer - don't shop it around.
+            return {"status": "declined", "provider": provider.name}
 
         return {"status": "unavailable"}
 
@@ -200,13 +268,11 @@ class ClisheBrain:
         if entry:
             return {
                 "status": "ok",
-                "explanation": format_explanation(entry),
+                "explanation": format_explanation(entry, command),
                 "provider": "offline dictionary",
             }
 
-        config = load_config()
-        chain = build_provider_chain(config)
-
+        chain = build_provider_chain(load_config())
         for provider in chain:
             try:
                 explanation = provider.explain_command(command)
@@ -228,12 +294,34 @@ class ClisheBrain:
             return {"status": "ok", "hint": hint}
         return {"status": "unmatched"}
 
+    def check(self, command):
+        """Safety check: reasons a command looks destructive (may be empty)."""
+        reasons = check_command(command)
+        return {"status": "danger" if reasons else "safe", "reasons": reasons}
+
+
+# ---------- output helpers for clishe.sh ----------
+
+def _one_line(value: str) -> str:
+    """Values are sent as single KEY=value lines. Multi-line commands become
+    '; '-joined (same meaning to the shell for simple commands), so what the
+    user sees is exactly what runs."""
+    lines = [ln.strip() for ln in str(value).splitlines() if ln.strip()]
+    return "; ".join(lines)
+
+
+def _encoded(value: str) -> str:
+    """For prose (explanations): keep line breaks as a literal \\n that
+    clishe.sh turns back into newlines."""
+    return str(value).replace("\r", "").replace("\n", "\\n")
+
 
 def main():
     parser = argparse.ArgumentParser(description='Clishe Brain - Command Backend')
     parser.add_argument('--action', required=True,
-                         choices=['query', 'learn', 'log', 'predict', 'resolve', 'explain', 'diagnose'],
-                         help='Action to perform')
+                        choices=['query', 'suggest', 'learn', 'forget', 'list', 'log',
+                                 'predict', 'resolve', 'explain', 'diagnose', 'check'],
+                        help='Action to perform')
     parser.add_argument('--phrase', default='', help='Natural language phrase')
     parser.add_argument('--command', default='', help='Bash command')
     parser.add_argument('--error', default='', help='Captured stderr text to diagnose')
@@ -244,9 +332,25 @@ def main():
     if args.action == 'query':
         print(brain.query(args.phrase))
 
+    elif args.action == 'suggest':
+        match = brain.suggest(args.phrase)
+        if match:
+            print("STATUS=ok")
+            print(f"PHRASE={_one_line(match[0])}")
+            print(f"COMMAND={_one_line(match[1])}")
+        else:
+            print("STATUS=none")
+
     elif args.action == 'learn':
         ok = brain.learn(args.phrase, args.command)
         print('learned' if ok else 'error')
+
+    elif args.action == 'forget':
+        print('forgotten' if brain.forget(args.phrase) else 'unknown')
+
+    elif args.action == 'list':
+        for phrase, command in brain.learned():
+            print(f"{phrase}\t{command}")
 
     elif args.action == 'log':
         ok = brain.log(args.command)
@@ -256,12 +360,13 @@ def main():
         print(brain.predict(args.command))
 
     elif args.action == 'resolve':
-        # Line-based STATUS=/COMMAND=/PROVIDER= output so clishe.sh can parse
-        # it with plain bash, no JSON tool required.
+        # Line-based KEY=value output so clishe.sh can parse it with plain
+        # bash, no JSON tool required.
         result = brain.resolve(args.phrase)
         print(f"STATUS={result['status']}")
         if result['status'] == 'ok':
-            print(f"COMMAND={result['command']}")
+            print(f"COMMAND={_one_line(result['command'])}")
+            print(f"EXPLANATION={_encoded(result['explanation'])}")
             print(f"PROVIDER={result['provider']}")
         elif result['status'] == 'declined':
             print(f"PROVIDER={result['provider']}")
@@ -270,18 +375,20 @@ def main():
         result = brain.explain(args.command)
         print(f"STATUS={result['status']}")
         if result['status'] == 'ok':
-            # Explanations can be multi-line (flags list, example, danger
-            # note) - encode newlines so the bash side can decode them
-            # cleanly with a single-line KEY=value parser.
-            encoded = result['explanation'].replace("\n", "\\n")
-            print(f"EXPLANATION={encoded}")
+            print(f"EXPLANATION={_encoded(result['explanation'])}")
             print(f"PROVIDER={result['provider']}")
 
     elif args.action == 'diagnose':
         result = brain.diagnose(args.error)
         print(f"STATUS={result['status']}")
         if result['status'] == 'ok':
-            print(f"HINT={result['hint']}")
+            print(f"HINT={_one_line(result['hint'])}")
+
+    elif args.action == 'check':
+        result = brain.check(args.command)
+        print(f"STATUS={result['status']}")
+        if result['reasons']:
+            print(f"REASON={_encoded(chr(10).join(result['reasons']))}")
 
 
 if __name__ == '__main__':

@@ -10,7 +10,8 @@ import urllib.request
 import urllib.error
 from typing import Optional
 
-from .base import Provider, ProviderError
+from .base import (Provider, ProviderError, Resolution, distro_note,
+                   parse_json_reply, resolution_from_reply)
 
 API_URL = "https://api.anthropic.com/v1/messages"
 API_VERSION = "2023-06-01"
@@ -27,6 +28,7 @@ RESOLVE_SYSTEM_PROMPT = (
     "modify permissions recursively, or affect the whole system), or isn't "
     "really a shell task, reply with "
     '{"command": null, "explanation": "<why, in one short sentence>"}. '
+    "If the command needs a value the user did not give (like a file or folder name), write it as a short lowercase placeholder in angle brackets, e.g. \"cat <file>\" or \"cp <file> <destination>\". "
     "Never include an explanation of the JSON format itself, only the values."
 )
 
@@ -86,32 +88,17 @@ class AnthropicProvider(Provider):
         except (KeyError, TypeError) as e:
             raise ProviderError(f"Unexpected Anthropic response shape: {e}") from e
 
-        # Be tolerant of the model wrapping JSON in a code fence anyway.
-        cleaned = raw_text.strip().strip("`")
-        if cleaned.lower().startswith("json"):
-            cleaned = cleaned[4:].strip()
-
-        try:
-            return json.loads(cleaned)
-        except json.JSONDecodeError as e:
-            raise ProviderError(f"Could not parse Anthropic response as JSON: {e}") from e
+        return parse_json_reply(raw_text)
 
     # ---------- public API ----------
 
+    def resolve_with_explanation(self, phrase: str) -> Optional[Resolution]:
+        data = self._call(RESOLVE_SYSTEM_PROMPT + distro_note(self.distro), phrase)
+        return resolution_from_reply(data)
+
     def resolve_command(self, phrase: str) -> Optional[str]:
-        system_prompt = RESOLVE_SYSTEM_PROMPT
-        if self.distro != "unknown":
-            system_prompt += (
-                f" The user's system is running the '{self.distro}' Linux "
-                f"distribution — use its native package manager and conventions "
-                f"(e.g. apt for debian/ubuntu, dnf for fedora, pacman for arch) "
-                f"when relevant."
-            )        
-        data = self._call(system_prompt, phrase)
-        command = data.get("command")
-        if not command or not isinstance(command, str):
-            return None
-        return command.strip()
+        result = self.resolve_with_explanation(phrase)
+        return result.command if result else None
 
     def explain_command(self, command: str) -> Optional[str]:
         data = self._call(EXPLAIN_SYSTEM_PROMPT, command)

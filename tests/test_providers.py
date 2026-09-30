@@ -134,3 +134,70 @@ def test_ollama_empty_response_raises_provider_error():
 def test_provider_is_abstract():
     with pytest.raises(TypeError):
         Provider({})  # can't instantiate the ABC directly
+
+
+# ---------- explanations and JSON tolerance ----------
+
+from providers.base import Resolution, parse_json_reply
+
+
+def test_anthropic_resolve_with_explanation():
+    provider = AnthropicProvider({"api_key": "sk-x"})
+    body = _anthropic_body('{"command": "df -h", "explanation": "Shows disk space."}')
+    with patch("urllib.request.urlopen", return_value=_FakeResp(body)):
+        assert provider.resolve_with_explanation("disk") == Resolution("df -h", "Shows disk space.")
+
+
+def test_ollama_tolerates_chatter_around_json():
+    provider = OllamaProvider({"host": "http://localhost:11434"})
+    body = json.dumps({
+        "response": 'Sure! Here you go: {"command": "uptime", "explanation": "How long it has run."} Hope that helps'
+    }).encode()
+    with patch("urllib.request.urlopen", return_value=_FakeResp(body)):
+        assert provider.resolve_with_explanation("up") == Resolution("uptime", "How long it has run.")
+
+
+@pytest.mark.parametrize("text", [
+    '{"a": 1}',
+    '```json\n{"a": 1}\n```',
+    '```\n{"a": 1}\n```',
+    'Here: {"a": 1}',
+])
+def test_parse_json_reply_variants(text):
+    assert parse_json_reply(text) == {"a": 1}
+
+
+def test_parse_json_reply_rejects_non_objects():
+    with pytest.raises(ProviderError):
+        parse_json_reply("[1, 2]")
+    with pytest.raises(ProviderError):
+        parse_json_reply("no json here")
+
+
+def test_distro_is_added_to_prompt():
+    provider = AnthropicProvider({"api_key": "sk-x", "distro": "fedora"})
+    captured = {}
+
+    def fake_urlopen(req, timeout):
+        captured["payload"] = json.loads(req.data)
+        return _FakeResp(_anthropic_body('{"command": "sudo dnf install htop"}'))
+
+    with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+        provider.resolve_command("install htop")
+    assert "fedora" in captured["payload"]["system"]
+
+
+def test_third_party_provider_gets_default_resolve_with_explanation():
+    class Minimal(Provider):
+        name = "minimal"
+
+        def is_available(self):
+            return True
+
+        def resolve_command(self, phrase):
+            return "ls"
+
+        def explain_command(self, command):
+            return None
+
+    assert Minimal({}).resolve_with_explanation("x") == Resolution("ls", "")

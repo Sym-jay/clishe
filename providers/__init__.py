@@ -5,7 +5,7 @@ individual providers.
 """
 from typing import List
 
-from .base import Provider, ProviderError
+from .base import Provider, ProviderError, Resolution
 from .ollama_provider import OllamaProvider
 from .anthropic_provider import AnthropicProvider
 
@@ -35,4 +35,4 @@ def build_provider_chain(config: dict) -> List[Provider]:
     return chain
 
 
-__all__ = ["Provider", "ProviderError", "REGISTRY", "build_provider_chain"]
+__all__ = ["Provider", "ProviderError", "Resolution", "REGISTRY", "build_provider_chain"]

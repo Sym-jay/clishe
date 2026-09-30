@@ -27,9 +27,15 @@ Clishe: I know this! Running: df -h
 Filesystem      Size  Used Avail Use% Mounted on
 /dev/sda1        50G   12G   36G  25% /
 
+You: show file contents
+Clishe: I know this! cat <file>
+  file: notes.txt
+Clishe: Running: cat notes.txt
+
 You: find files bigger than 100MB
 Clishe: I don't know that. Let me think...
 Clishe (via ollama): I think you mean: find . -type f -size +100M
+  Searches this folder and below for files larger than 100 MB.
 Run this? [Y/n/e=edit]: y
 ```
 
@@ -39,7 +45,7 @@ Run this? [Y/n/e=edit]: y
 
 Most command-line tools assume you already know the command you want. Clishe assumes you don't, and treats that as normal.
 
-- **It shows its work.** Every command is displayed before it runs, and you can edit it first.
+- **It shows its work.** Every command is displayed before it runs, and you can edit it first. AI suggestions come with a one-line reason, and `explain` breaks down the exact flags you used.
 - **It works offline.** A bundled knowledge base, a command dictionary and an error-hint database need no network and no account.
 - **It learns from you.** Anything you teach it, or approve from an AI suggestion, is remembered, so the same phrase is instant next time.
 - **It stays out of your way.** It's a small bash + Python (standard library) tool that keeps its files in the standard XDG locations.
@@ -47,10 +53,14 @@ Most command-line tools assume you already know the command you want. Clishe ass
 ## Features
 
 **Everyday use**
-- Natural language to shell commands, resolved in this order: your knowledge base, the bundled seed KB, a native command you typed directly, then an AI provider (if configured), then "teach me".
-- `explain`-style questions: `explain tar -xzvf`, `what does chmod do`, `what's grep`, `tell me about find`. These use the offline dictionary first and only ask an AI provider if the command isn't in it.
+- Natural language to shell commands, resolved in this order: your knowledge base, the bundled seed KB, a native command you typed directly, a close match to a phrase it already knows ("did you mean...?"), then an AI provider (if configured), then "teach me".
+- Forgiving matching: case, punctuation and filler like "please" or "can you" are ignored, so `Please show me disk usage?` finds `show me disk usage`.
+- Fill-in-the-blank commands: entries like `cp <file> <destination>` ask for each value, quote it safely, and show the final command before running it. You can teach your own (`ssh <server>`).
+- `explain`-style questions: `explain tar -xzvf`, `what does chmod do`, `what's grep`, `tell me about find`. The offline dictionary explains each flag you used (`-x`, `-z`, `-v`, `-f`) and points to `man` for ones it doesn't know. An AI provider is asked only if the command isn't in the dictionary.
 - Plain-English hints when a command fails (permission denied, no such file, and so on), fully offline.
 - Next-command suggestions based on your own history. They appear once you have a few dozen logged commands.
+- A comfortable prompt: arrow keys and line editing work, your inputs are remembered across sessions, and Ctrl-C stops a running command without closing Clishe.
+- Manage what it knows from inside a session: `learned`, `teach`, `forget <phrase>`.
 
 **AI (optional)**
 - Local models through [Ollama](https://ollama.com), or the Anthropic API, with a configurable priority order and automatic fallback when a provider is unreachable.
@@ -58,8 +68,8 @@ Most command-line tools assume you already know the command you want. Clishe ass
 - AI suggestions are saved only after you approve them. If you reject one, nothing is stored.
 
 **Safety and scripting**
-- Commands that look destructive (`rm -rf`, `mkfs`, `dd if=`, fork bombs, recursive `chmod`/`chown` on `/`) require you to type `YES`.
-- One-shot mode for scripts and aliases: `clishe explain "tar -xzvf"` and `clishe "show me disk usage"` (a knowledge-base lookup that prints the command without running it).
+- Commands that look destructive require you to type `YES`, and the warning says why in plain English ("It deletes a folder and everything inside it, permanently"). The check parses the command, so `rm -fr`, `sudo rm -r`, `cd x && rm -rf y`, `curl ... | sh`, `find -delete`, `git reset --hard` and friends are all caught. See [Security](#security).
+- One-shot mode for scripts and aliases: `clishe explain "tar -xzvf"`, `clishe "show me disk usage"` (a knowledge-base lookup that prints the command without running it), `clishe --list`.
 
 ## Install
 
@@ -100,7 +110,7 @@ Start an interactive session:
 clishe
 ```
 
-Type what you want. Type `exit` to leave.
+Type what you want. Type `help` for tips, and `exit` (or Ctrl-D) to leave.
 
 ### Sessions
 
@@ -110,10 +120,30 @@ You: show me disk usage
 Clishe: I know this! Running: df -h
 ```
 
+**A phrase that needs details**
+```text
+You: copy a file
+Clishe: I know this! cp <file> <destination>
+Clishe: This one needs some details (leave blank to cancel):
+  file: my notes.txt
+  destination: backup/
+Clishe: Running: cp 'my notes.txt' backup/
+```
+Values with spaces or wildcards are quoted for you. Leaving a value blank cancels.
+
+**Close, but not exact**
+```text
+You: show disk usage
+Clishe: Did you mean "show me disk usage"? That runs: df -h
+Use it? [Y/n]: y
+```
+Saying yes also remembers your wording, so next time it's instant.
+
 **A phrase it doesn't know, with an AI provider configured**
 ```text
 You: find files bigger than 100MB
 Clishe (via ollama): I think you mean: find . -type f -size +100M
+  Searches this folder and below for files larger than 100 MB.
 Run this? [Y/n/e=edit]: e
 Edit command: find ~ -type f -size +100M
 ```
@@ -130,15 +160,45 @@ Clishe: Thanks! I'll remember that.
 **Asking what something does**
 ```text
 You: explain tar -xzvf
-You: what does chmod do
-You: tell me about grep
+Clishe (via offline dictionary): Archives (bundles) files together, optionally with compression.
+In 'tar -xzvf':
+  -x  extract an archive
+  -z  use gzip compression
+  -v  verbose output
+  -f  specify the archive filename (usually last flag before the filename)
 ```
+`what does chmod do` and `tell me about grep` work too.
+
+**A destructive command**
+```text
+You: delete a folder
+Clishe: I know this! rm -r <folder>
+  folder: old-project
+Clishe: Running: rm -r old-project
+⚠ This command looks potentially destructive:
+  rm -r old-project
+  - It deletes a folder and everything inside it, permanently (there's no trash bin).
+Type YES to run it anyway, anything else to cancel:
+```
+
+### Session commands
+
+| Type | What it does |
+|---|---|
+| `help` | Show tips |
+| `learned` | List the phrases you've taught |
+| `teach` | Teach a phrase and its command, or fix a wrong one |
+| `forget <phrase>` | Forget a phrase you taught |
+| `explain <command>` | Explain a command and its flags |
+| `exit` / Ctrl-D | Leave |
 
 ### One-shot mode
 
 ```bash
 clishe explain "tar -xzvf"        # explain a command, then exit
 clishe "show me disk usage"       # look up a phrase in your KB / seed KB (does not run it)
+clishe --list                     # the phrases you've taught, tab-separated
+clishe --version
 ```
 
 ## Configuration
@@ -149,10 +209,11 @@ Clishe follows the [XDG Base Directory](https://specifications.freedesktop.org/b
 |---|---|
 | Config | `~/.config/clishe/config.json` (or `$XDG_CONFIG_HOME/clishe/`) |
 | Your knowledge base (phrases you taught or approved) | `~/.local/share/clishe/kb.json` (or `$XDG_DATA_HOME/clishe/`) |
-| Command history (for suggestions) | `~/.local/share/clishe/history.json` |
+| Command history (for suggestions, capped) | `~/.local/share/clishe/history.json` |
+| What you typed at the prompt (arrow-key recall) | `~/.local/share/clishe/input_history` |
 | Seed knowledge base (bundled, read-only) | `seed_kb.json` in the install directory |
 
-Files from older versions (`~/.clishe_kb.json` and friends) are moved to the new locations automatically on first run.
+Your data files are created with owner-only permissions. Files from older versions (`~/.clishe_kb.json` and friends) are moved to the new locations automatically on first run. Set `NO_COLOR=1` to turn off colors.
 
 The config file is created on first run with owner-only permissions (`0600`):
 
@@ -206,20 +267,24 @@ Your knowledge base, command history and command output are never sent. With Oll
 
 ```mermaid
 flowchart TD
-    A["You type a phrase"] --> B{"Explain-style question?"}
+    A["You type a phrase"] --> D{"In your KB or seed KB?"}
+    D -->|yes| P["Fill in any placeholders"]
+    D -->|no| B{"Explain-style question?"}
     B -->|yes| C["Offline dictionary, then AI fallback"]
-    B -->|no| D{"In your KB or seed KB?"}
-    D -->|yes| H["Safety check"]
-    D -->|no| E{"Already a valid command?"}
-    E -->|yes| H
-    E -->|no| F["Ask AI provider"]
+    B -->|no| E{"Already a valid command?"}
+    E -->|yes| P
+    E -->|no| M{"Close to a known phrase?"}
+    M -->|"you say yes"| P
+    M -->|no| F["Ask AI provider"]
     F --> G{"You approve or edit?"}
-    G -->|yes| S["Save to your KB"]
+    G -->|yes| P
     G -->|no| X["Skip, nothing saved"]
     F -->|no provider| T["Teach me"]
-    T --> S
-    S --> H
-    H --> I["Run it"]
+    T --> P
+    P --> H{"Safety check"}
+    H -->|"risky, not confirmed"| X
+    H -->|ok| S["Save new phrase to your KB"]
+    S --> I["Run it"]
     I --> J["Log, diagnose errors, suggest next command"]
 ```
 
@@ -228,8 +293,9 @@ flowchart TD
 Clishe runs resolved commands with `eval`, so it can do anything a shell command can. Please read this before trusting it.
 
 - **You approve AI suggestions before they run**, and only what you approved (including your edits) is saved.
-- **Destructive-looking commands need a typed `YES`.**
-- **The pattern list is not exhaustive.** It catches obvious cases, not every risky command. Read what you're about to run.
+- **Destructive-looking commands need a typed `YES`,** with a plain-English reason. The check lives in `safety.py` and has its own test suite.
+- **A phrase is saved only after its command passes the safety check** (or you confirm it), so cancelling a warning never leaves a risky command in your KB.
+- **The check is not exhaustive.** It catches common ways to lose data, not every risky command (for example, anything hidden inside `$(...)` or a script you run). Read what you're about to run.
 - **Don't run Clishe as root.** It's alpha software.
 - If you use the config file for an API key, it's created with `0600` permissions. An environment variable avoids storing the key at all.
 
@@ -241,13 +307,16 @@ To report a way to bypass the confirmation checks, see [SECURITY.md](SECURITY.md
 `~/.local/bin` isn't on your `PATH`. Add `export PATH="$HOME/.local/bin:$PATH"` to your `~/.bashrc`, then restart your shell.
 
 **"No AI provider is available"**
-No provider is configured or reachable. Check that `ollama serve` is running, or that `ANTHROPIC_API_KEY` is set. Clishe still works from your KB, the seed KB and teach-me mode.
+No provider is configured or reachable. Clishe prints the underlying error under this message (for example an HTTP 401 for a bad API key). Check that `ollama serve` is running, or that `ANTHROPIC_API_KEY` is set. Clishe still works from your KB, the seed KB and teach-me mode.
 
 **Suggestions in the wrong package manager**
 Clishe reads your distro from `/etc/os-release`. If that file is missing or unusual, the AI gets no distro hint. Rejecting a suggestion saves nothing, so you can retry.
 
 **Errors mentioning `read -i` or `sed` on macOS**
 The default macOS bash is too old, and BSD `sed` differs. See [Install](#install).
+
+**It learned the wrong command for a phrase**
+Type `teach` and enter the phrase again with the right command, or `forget <phrase>`.
 
 **Starting over**
 Delete `~/.local/share/clishe/kb.json` to forget everything you've taught it.
@@ -259,6 +328,7 @@ clishe.sh               interactive shell front end
 clishe_brain.py         backend: KB, history, prediction, AI resolution
 config.py               config loading, distro detection
 knowledge.py            offline explain / diagnose engine
+safety.py               destructive-command check
 providers/              AI provider interface, Ollama and Anthropic backends
 seed_kb.json            bundled starter phrases (read-only)
 command_dictionary.json offline command explanations
@@ -275,7 +345,6 @@ Ideas, not promises:
 - Distro-specific entries in the offline dictionary (package managers)
 - AUR and Homebrew packaging
 - More dictionary and seed-KB entries
-- Trimming stored history so it stays small over time
 
 ## Contributing
 
@@ -284,7 +353,7 @@ Contributions are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers adding an A
 ```bash
 pip install pytest
 python -m pytest tests/ -v
-python -m py_compile clishe_brain.py config.py providers/*.py
+bash tests/test_shell_functions.sh
 ```
 
 Found a safety issue? See [SECURITY.md](SECURITY.md).

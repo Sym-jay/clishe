@@ -30,23 +30,84 @@ def lookup_command(command_str: str):
     Returns the dict entry, or None if not found."""
     if not command_str or not command_str.strip():
         return None
-    try:
-        tokens = shlex.split(command_str)
-    except ValueError:
-        # Unbalanced quotes etc - fall back to naive split rather than crash
-        tokens = command_str.split()
+    # Falls back to a naive split on unbalanced quotes rather than crashing.
+    tokens = _split_args(command_str)
+    # "sudo apt install x" should explain apt, not sudo.
+    while len(tokens) > 1 and tokens[0] == "sudo":
+        tokens = tokens[1:]
     if not tokens:
         return None
     base_command = tokens[0]
     return _COMMAND_DICT.get(base_command)
 
 
-def format_explanation(entry: dict) -> str:
-    """Turn a dictionary entry into a beginner-friendly explanation string."""
+def _split_args(command_str: str):
+    try:
+        return shlex.split(command_str)
+    except ValueError:
+        return command_str.split()
+
+
+def _base_name(command_str: str) -> str:
+    tokens = [t for t in _split_args(command_str) if t != "sudo"]
+    return tokens[0] if tokens else ""
+
+
+def explain_flags(command_str: str, entry: dict):
+    """Match the flags/subcommands actually used in `command_str` against the
+    entry's notes. Combined short flags are split, so 'tar -xzvf' explains
+    -x, -z, -v and -f one by one.
+
+    Returns (known, unknown): known is a list of (flag, description), unknown
+    is a list of dash-flags that aren't in the dictionary."""
+    flags = entry.get("flags") or {}
+    tokens = _split_args(command_str)
+    while len(tokens) > 1 and tokens[0] == "sudo":
+        tokens = tokens[1:]
+    tokens = tokens[1:]
+    known, unknown = [], []
+
+    def add(flag):
+        if flag in flags:
+            if all(flag != k for k, _ in known):
+                known.append((flag, flags[flag]))
+            return True
+        return False
+
+    for i, tok in enumerate(tokens):
+        if tok in ("-", "--") or (tok.startswith("-") and tok[1:].isdigit()):
+            continue
+        if add(tok) or add(tok.split("=", 1)[0]):
+            continue
+        if tok.startswith("--"):
+            unknown.append(tok.split("=", 1)[0])
+        elif tok.startswith("-") and len(tok) > 2:
+            for letter in tok[1:]:
+                if not add(f"-{letter}"):
+                    unknown.append(f"-{letter}")
+        elif tok.startswith("-"):
+            unknown.append(tok)
+        elif i == 0 and tok.isalpha() and all(f"-{c}" in flags for c in tok):
+            # Old-style bundled flags without a dash: "tar xzvf file.tgz"
+            for letter in tok:
+                add(f"-{letter}")
+    return known, unknown
+
+
+def format_explanation(entry: dict, command: str = "") -> str:
+    """Turn a dictionary entry into a beginner-friendly explanation string.
+    If `command` is given and uses flags, explain those specific flags
+    instead of listing the common ones."""
     parts = [entry.get("summary", "").strip()]
 
     flags = entry.get("flags") or {}
-    if flags:
+    known, unknown = explain_flags(command, entry) if command else ([], [])
+    if known or unknown:
+        lines = [f"  {flag}  {desc}" for flag, desc in known]
+        lines += [f"  {flag}  (not in my offline notes - try: man {_base_name(command)})"
+                  for flag in unknown]
+        parts.append(f"In '{command.strip()}':\n" + "\n".join(lines))
+    elif flags:
         flag_lines = [f"  {flag}  {desc}" for flag, desc in flags.items()]
         parts.append("Common flags:\n" + "\n".join(flag_lines))
 
