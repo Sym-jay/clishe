@@ -8,7 +8,8 @@ import urllib.request
 import urllib.error
 from typing import Optional
 
-from .base import Provider, ProviderError
+from .base import (Provider, ProviderError, Resolution, distro_note,
+                   parse_json_reply, resolution_from_reply)
 
 DEFAULT_HOST = "http://localhost:11434"
 DEFAULT_MODEL = "llama3.2"
@@ -21,7 +22,8 @@ RESOLVE_PROMPT_TEMPLATE = (
     "shell command. Respond with ONLY raw JSON, no markdown fences, no "
     "commentary, in exactly this shape: "
     '{{"command": "<the shell command or null>", "explanation": "<one short sentence>"}}. '
-    "Use null for command if the request is unclear, unsafe, or not a shell task.\n\n"
+    "Use null for command if the request is unclear, unsafe, or not a shell task. "
+    "If the command needs a value the user did not give (like a file or folder name), write it as a short lowercase placeholder in angle brackets, e.g. \"cat <file>\" or \"cp <file> <destination>\". \n\n"
     "Request: {phrase}"
 )
 
@@ -81,28 +83,17 @@ class OllamaProvider(Provider):
         if not raw_text:
             raise ProviderError("Empty response from Ollama")
 
-        try:
-            return json.loads(raw_text)
-        except json.JSONDecodeError as e:
-            raise ProviderError(f"Could not parse Ollama response as JSON: {e}") from e
+        return parse_json_reply(raw_text)
 
     # ---------- public API ----------
 
+    def resolve_with_explanation(self, phrase: str) -> Optional[Resolution]:
+        prompt = RESOLVE_PROMPT_TEMPLATE.format(phrase=phrase) + distro_note(self.distro)
+        return resolution_from_reply(self._generate(prompt))
+
     def resolve_command(self, phrase: str) -> Optional[str]:
-        distro_note = ""
-        if self.distro != "unknown":
-            distro_note = (
-                f"\n\nThe user's system is running the '{self.distro}' Linux "
-                f"distribution - use its native package manager and conventions "
-                f"(e.g. apt for debian/ubuntu, dnf for fedora, pacman for arch) "
-                f"when relevant."
-            )
-        prompt = RESOLVE_PROMPT_TEMPLATE.format(phrase=phrase) + distro_note
-        data = self._generate(prompt)
-        command = data.get("command")
-        if not command or not isinstance(command, str):
-            return None
-        return command.strip()
+        result = self.resolve_with_explanation(phrase)
+        return result.command if result else None
 
     def explain_command(self, command: str) -> Optional[str]:
         data = self._generate(EXPLAIN_PROMPT_TEMPLATE.format(command=command))
