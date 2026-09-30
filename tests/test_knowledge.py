@@ -87,3 +87,52 @@ def test_diagnose_unmatched_error_returns_none():
 def test_diagnose_empty_string_returns_none():
     assert diagnose_error("") is None
     assert diagnose_error(None) is None
+
+
+# ---------- per-flag explanations ----------
+
+from knowledge import explain_flags
+
+
+def test_combined_short_flags_are_split():
+    entry = lookup_command("tar -xzvf a.tgz")
+    known, unknown = explain_flags("tar -xzvf a.tgz", entry)
+    assert [f for f, _ in known] == ["-x", "-z", "-v", "-f"]
+    assert unknown == []
+
+
+def test_old_style_tar_flags_without_dash():
+    entry = lookup_command("tar xzvf a.tgz")
+    known, _ = explain_flags("tar xzvf a.tgz", entry)
+    assert [f for f, _ in known] == ["-x", "-z", "-v", "-f"]
+
+
+def test_unknown_flags_are_reported():
+    entry = lookup_command("ls -laZ")
+    known, unknown = explain_flags("ls -laZ", entry)
+    assert [f for f, _ in known] == ["-l", "-a"]
+    assert unknown == ["-Z"]
+
+
+def test_subcommands_are_explained():
+    entry = lookup_command("git status")
+    known, _ = explain_flags("git status", entry)
+    assert known and known[0][0] == "status"
+
+
+def test_sudo_is_skipped():
+    assert lookup_command("sudo apt install htop") is lookup_command("apt")
+
+
+def test_format_explanation_mentions_used_flags():
+    entry = lookup_command("grep -rn foo .")
+    text = format_explanation(entry, "grep -rn foo .")
+    assert "In 'grep -rn foo .'" in text
+    assert "-r" in text and "-n" in text
+    assert "Common flags" not in text
+
+
+def test_format_explanation_without_flags_lists_common_ones():
+    entry = lookup_command("chmod 755 x")
+    text = format_explanation(entry, "chmod 755 x")
+    assert "Common flags" in text
