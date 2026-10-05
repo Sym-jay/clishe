@@ -39,7 +39,7 @@ Clishe (via ollama): I think you mean: find . -type f -size +100M
 Run this? [Y/n/e=edit]: y
 ```
 
-<!-- TODO: replace or supplement the block above with an asciinema/GIF demo once recorded -->
+<!-- TODO: record demo.gif with `vhs demo.tape` and show it here: ![Clishe demo](demo.gif) -->
 
 Or skip the session entirely: type plain English at your **normal prompt** and press **Ctrl+G**. The words turn into the command, right there on your line, ready to read, edit and run.
 

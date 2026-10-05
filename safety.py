@@ -12,7 +12,7 @@ data or break a system; it can't catch everything. Read what you run.
 import os
 import re
 import shlex
-from typing import List
+from typing import List, Optional
 
 # Tokens that separate one command from the next on a single line.
 _SEPARATORS = {";", "&&", "||", "|", "&", "|&", "\n"}
@@ -29,6 +29,24 @@ _INTERPRETERS = _SHELLS | {"python", "python3", "perl", "ruby", "node"}
 # rm targets that match everything in a folder (rm *.log is deliberate, so
 # it isn't flagged).
 _EVERYTHING_GLOBS = {"*", ".*", "./*", "*.*"}
+
+# Interpreters that run code given right on the command line, and the flag
+# that introduces it: python3 -c '...', perl -e '...', node -e '...'.
+_INLINE_CODE_FLAGS = {
+    "python": ("-c",), "python3": ("-c",), "python2": ("-c",),
+    "perl": ("-e", "-E"), "ruby": ("-e",), "node": ("-e", "--eval"),
+    "php": ("-r",),
+}
+
+# Calls in that inline code that delete files.
+_CODE_DELETES = re.compile(
+    r"\bos\.(remove|unlink|rmdir|removedirs)\b|\brmtree\b|\.unlink\s*\("
+    r"|\bunlink\b|\bremove_tree\b|\bFileUtils\.rm|\bFile\.delete\b"
+    r"|\b(rmSync|rmdirSync|unlinkSync)\b|\bfs\.(rm|rmdir|unlink)\s*\(")
+
+# A quoted string inside inline code, which might be a shell command
+# (os.system("rm -rf ~")).
+_CODE_STRING = re.compile(r"'([^']*)'|\"([^\"]*)\"")
 
 # How deep to follow "bash -c '...'" / eval inside each other.
 _MAX_NESTING = 3
@@ -69,6 +87,8 @@ REASONS = {
     "dev_null_move": "moves files into /dev/null, which deletes them",
     "rm_all": "deletes every file in the folder",
     "truncate": "empties the file, erasing everything that was in it",
+    "mv_root": "moves a system-wide or home folder, which can break your system or make your files seem to vanish",
+    "script_delete": "runs a small program that deletes files or folders",
 }
 
 
@@ -147,13 +167,14 @@ def _truncates_to_zero(args: List[str]) -> bool:
     return False
 
 
-def _check_segment(words: List[str], redirects, piped: bool, depth: int) -> List[str]:
+def _check_segment(words: List[str], redirects, piped: bool, depth: int,
+                   variables=None) -> List[str]:
     found = []
     for _op, target in redirects:
         if _DISK_DEVICE.match(target):
             found.append("disk_write")
 
-    words = _strip_wrappers(words)
+    words = _expand_command_name(_strip_wrappers(words), variables or {})
     # "> notes.txt" or ": > notes.txt" with nothing else empties the file.
     # ("echo hi > out.txt" is normal use and isn't flagged.)
     if (not words or words == [":"]) and any(
@@ -227,17 +248,66 @@ def _check_segment(words: List[str], redirects, piped: bool, depth: int) -> List
         found.append("power")
     elif name == "crontab" and "r" in flags:
         found.append("crontab_remove")
-    elif name == "mv" and positional and positional[-1] == "/dev/null":
-        found.append("dev_null_move")
+    elif name == "mv" and positional:
+        if positional[-1] == "/dev/null":
+            found.append("dev_null_move")
+        elif any(p.rstrip("/") in {t.rstrip("/") for t in _ROOT_TARGETS}
+                 for p in positional[:-1]):
+            found.append("mv_root")
+    elif name in _INLINE_CODE_FLAGS:
+        code = _inline_code(args, _INLINE_CODE_FLAGS[name])
+        if code is not None:
+            if _CODE_DELETES.search(code):
+                found.append("script_delete")
+            if depth < _MAX_NESTING:
+                for m in _CODE_STRING.finditer(code):
+                    found.extend(_check_keys(m.group(1) or m.group(2) or "", depth + 1))
     return found
+
+
+def _inline_code(args: List[str], code_flags) -> Optional[str]:
+    """The code after -c / -e (also joined forms like -c'...'), or None."""
+    for i, a in enumerate(args):
+        if a in code_flags:
+            return args[i + 1] if i + 1 < len(args) else None
+        for f in code_flags:
+            if len(f) == 2 and a.startswith(f) and len(a) > 2:
+                return a[2:]
+    return None
+
+
+_ASSIGNMENT = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=(.*)$", re.S)
+_VAR_REF = re.compile(r"^\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))$")
+
+
+def _expand_command_name(words: List[str], variables) -> List[str]:
+    """`x=rm; $x -rf /` hides the command in a variable. If the first word is
+    a variable set earlier on the same line, put its value back."""
+    if not words:
+        return words
+    m = _VAR_REF.match(words[0])
+    if m:
+        value = variables.get(m.group(1) or m.group(2))
+        if value:
+            try:
+                return shlex.split(value) + words[1:]
+            except ValueError:
+                return value.split() + words[1:]
+    return words
 
 
 def _check_keys(command: str, depth: int = 0) -> List[str]:
     keys: List[str] = []
     if ":(){" in command.replace(" ", "") or _FORK_BOMB.search(command):
         keys.append("fork_bomb")
+    variables = {}
     for words, redirects, piped in _segments(_tokenize(command)):
-        keys.extend(_check_segment(words, redirects, piped, depth))
+        assignments = [_ASSIGNMENT.match(w) for w in words]
+        if words and all(assignments) and not redirects:
+            # "x=rm" on its own just sets a variable for later commands.
+            variables.update((m.group(1), m.group(2)) for m in assignments)
+            continue
+        keys.extend(_check_segment(words, redirects, piped, depth, variables))
     return keys
 
 

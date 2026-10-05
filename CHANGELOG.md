@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 (2026-10-05)
 
 ### Added
 - **"What does this mean?"** After `ls -l`, `df`, `du`, `free`, `ps`,
@@ -58,6 +58,15 @@
 - `teach` now runs the safety check before saving, as the README says, so a
   risky command needs a typed YES to be saved.
 - README: "shows its work" now describes what actually asks before running.
+- The safety check now also catches moving your home folder or a system
+  folder (`mv ~ /tmp/x`), a command hidden in a variable set on the same line
+  (`x=rm; $x -rf /`), and code passed straight to an interpreter that deletes
+  files or runs a risky shell command (`python3 -c "shutil.rmtree(...)"`,
+  `perl -e 'unlink ...'`, `node -e "fs.rmSync(...)"`).
+- "what's my ip" now answers offline with your local address
+  (`hostname -I`). "what's my public ip" still asks the internet.
+- Removed the bundled "check disk speed" phrase, which ran `sudo hdparm` on
+  a disk: not something to hand a beginner without context.
 
 ## 0.3.0
 
