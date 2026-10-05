@@ -146,9 +146,11 @@ parse_brain_output() {
 decode_lines() { printf '%s' "${1//\\n/$'\n'}"; }
 
 # Show why a command is risky and require a typed YES.
+#   confirm_dangerous "<command>" [run|save]
 # Returns 0 to go ahead, 1 to cancel.
 confirm_dangerous() {
     local cmd="$1"
+    local verb="${2:-run}"
     local output confirm reason
     output=$(brain --action check --command "$cmd")
     parse_brain_output "$output" CK
@@ -168,7 +170,7 @@ confirm_dangerous() {
         printf '%b⚠ I could not run my safety check on:%b\n' "$RED" "$NC"
         printf '  %b%s%b\n' "$YELLOW" "$cmd" "$NC"
     fi
-    read -r -p "Type YES to run it anyway, anything else to cancel: " confirm
+    read -r -p "Type YES to $verb it anyway, anything else to cancel: " confirm
     if [ "$confirm" != "YES" ]; then
         say "Cancelled."
         return 1
@@ -548,6 +550,9 @@ teach_session() {
     [ -z "$phrase" ] && return
     read -r -e -p "Command to run for it: " teach_command
     [ -z "$teach_command" ] && return
+    # Same check as before running, so a risky command is never saved
+    # without a typed YES.
+    confirm_dangerous "$teach_command" save || return
     if [ "$(brain --action learn --phrase "$phrase" --command "$teach_command")" = "learned" ]; then
         say "Got it. \"$phrase\" now runs: $teach_command"
     else

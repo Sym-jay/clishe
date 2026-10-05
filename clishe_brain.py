@@ -89,6 +89,77 @@ def normalize_phrase(phrase: str) -> str:
     return p.strip(" ?!.,")
 
 
+# ---------- meaning-based matching ----------
+# difflib only sees letters, so "remove a directory" never matches "delete a
+# folder". These tables map words onto a shared vocabulary so the
+# "did you mean...?" offer can match on meaning. Still offline, still a
+# suggestion the user has to accept.
+
+# Words that don't say *what* the user wants done.
+_STOPWORDS = set("""
+a an the my me i you your is are am do does did be what whats how much many
+which can could would will should please show display see view list print
+check tell give get let s of to in on for at from with this that these those
+it its all any have has there here want need know
+""".split())
+
+_SYNONYMS = {
+    "directory": "folder", "directories": "folder", "dir": "folder", "dirs": "folder",
+    "remove": "delete", "erase": "delete", "del": "delete", "rm": "delete", "wipe": "delete",
+    "usage": "use", "using": "use", "used": "use", "uses": "use",
+    "space": "disk", "storage": "disk", "drive": "disk",
+    "big": "size", "bigger": "size", "biggest": "size", "large": "size",
+    "larger": "size", "largest": "size", "huge": "size",
+    "ram": "memory",
+    "program": "process", "app": "process", "application": "process", "task": "process",
+    "running": "run",
+    "find": "search", "locate": "search", "look": "search",
+    "left": "free", "available": "free", "remaining": "free",
+    "make": "create", "new": "create",
+    "duplicate": "copy",
+    "internet": "network", "wifi": "network",
+    "zip": "compress", "unzip": "extract", "unpack": "extract", "decompress": "extract",
+    "contents": "content", "inside": "content",
+}
+
+
+def _stem(word: str) -> str:
+    """Tiny plural stripper: files -> file, processes -> process."""
+    if len(word) > 4 and word.endswith(("sses", "shes", "ches", "xes")):
+        return word[:-2]
+    if len(word) > 3 and word.endswith("s") and not word.endswith("ss"):
+        return word[:-1]
+    return word
+
+
+def meaning_tokens(phrase: str) -> frozenset:
+    """'Please remove the directories' -> {'delete', 'folder'}"""
+    out = set()
+    for w in re.findall(r"[a-z0-9]+", normalize_phrase(phrase)):
+        if w in _STOPWORDS:
+            continue
+        w = _SYNONYMS.get(w) or _SYNONYMS.get(_stem(w)) or _stem(w)
+        if w not in _STOPWORDS:
+            out.add(w)
+    return frozenset(out)
+
+
+# Generic nouns say little on their own: "unzip a file" sharing only "file"
+# with "list files" is not a match.
+_WEAK_WORDS = {"file": 0.3, "folder": 0.3}
+
+
+def _weight(tokens) -> float:
+    return sum(_WEAK_WORDS.get(t, 1.0) for t in tokens)
+
+
+# A candidate must be mostly covered by what the user said (so a match never
+# adds an action they didn't ask for: "my files" must not become "delete a
+# file"), and must cover at least half of what they said.
+MEANING_CANDIDATE_COVERAGE = 0.67
+MEANING_QUERY_COVERAGE = 0.5
+
+
 class ClisheBrain:
     def __init__(self):
         self.kb = self.load_kb()
@@ -163,10 +234,44 @@ class ClisheBrain:
             return None
         known = dict(self.load_seed_kb())
         known.update(self.kb)  # the user's own phrases win
-        match = difflib.get_close_matches(key, list(known), n=1, cutoff=FUZZY_CUTOFF)
-        if not match or match[0] == key:
+        if key in known:
             return None
-        return match[0], known[match[0]]
+        by_meaning, perfect = self._suggest_by_meaning(key, known)
+        if perfect:
+            # Same meaning, different words: better than a spelling match
+            # ("find a file" is "search for a file", not "find big files").
+            return by_meaning
+        match = difflib.get_close_matches(key, list(known), n=1, cutoff=FUZZY_CUTOFF)
+        if match:
+            return match[0], known[match[0]]
+        return by_meaning
+
+    def _suggest_by_meaning(self, key, known):
+        """Match different wording with the same meaning ('remove a
+        directory' -> 'delete a folder'). Returns ((phrase, command), perfect)
+        or (None, False); `perfect` means every word lined up both ways."""
+        wanted = meaning_tokens(key)
+        if not wanted:
+            return None, False
+        best, best_rank = None, None
+        for phrase in known:
+            have = meaning_tokens(phrase)
+            if not have:
+                continue
+            overlap = _weight(wanted & have)
+            cand_cov = overlap / _weight(have)
+            query_cov = overlap / _weight(wanted)
+            if cand_cov < MEANING_CANDIDATE_COVERAGE or query_cov < MEANING_QUERY_COVERAGE:
+                continue
+            rank = (cand_cov + query_cov,
+                    phrase in self.kb,  # the user's own phrases win ties
+                    not check_command(known[phrase]),  # then the less risky one
+                    difflib.SequenceMatcher(None, key, phrase).ratio())
+            if best_rank is None or rank > best_rank:
+                best, best_rank = phrase, rank
+        if best is None:
+            return None, False
+        return (best, known[best]), best_rank[0] >= 2.0
 
     def learn(self, phrase, command):
         """Learn a new phrase-command mapping."""
