@@ -1,0 +1,27 @@
+# Maintainer: Sym-jay <https://github.com/Sym-jay>
+pkgname=clishe
+pkgver=0.5.0
+pkgrel=1
+pkgdesc="Plain English to shell commands for Linux beginners: offline, learn as you go, optional local AI"
+arch=('any')
+url="https://github.com/Sym-jay/clishe"
+license=('MIT')
+depends=('bash' 'python')
+optdepends=('ollama: local AI for phrases Clishe does not know yet'
+            'man-db: explain any installed command from its manual'
+            'glib2: move deleted files to the Trash instead of erasing them')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('0638eca8d1927702c5391dfa52685dd0b13f7110c6dace82d833ee77d883c5cd')
+
+package() {
+  cd "$pkgname-$pkgver"
+  local dest="$pkgdir/usr/share/$pkgname"
+  install -d "$dest/providers" "$pkgdir/usr/bin"
+  install -m755 clishe.sh "$dest/"
+  install -m644 clishe-bind.bash ./*.py ./*.json "$dest/"
+  install -m644 providers/*.py "$dest/providers/"
+  # clishe.sh follows this link back to /usr/share/clishe to find its files.
+  ln -s "/usr/share/$pkgname/clishe.sh" "$pkgdir/usr/bin/clishe"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+}

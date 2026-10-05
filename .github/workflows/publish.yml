@@ -1,0 +1,33 @@
+name: Publish to PyPI
+
+# Runs when a GitHub release is published, so `pipx install clishe` gets it.
+# One-time setup on pypi.org: add a "pending trusted publisher" for the
+# project "clishe", owner Sym-jay, repository clishe, workflow publish.yml,
+# environment pypi. No API token is stored anywhere.
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  pypi:
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check the tag matches the version
+        run: |
+          version=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          test "v$version" = "$GITHUB_REF_NAME" || { echo "Tag $GITHUB_REF_NAME but pyproject says $version"; exit 1; }
+
+      - name: Build
+        run: pip install build && python -m build
+
+      - uses: pypa/gh-action-pypi-publish@release/v1

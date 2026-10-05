@@ -34,7 +34,15 @@ jobs:
 
       - name: Check Python syntax
         run: |
-          python -m py_compile clishe_brain.py config.py knowledge.py safety.py providers/*.py
+          python -m py_compile *.py providers/*.py
 
       - name: Run shell-level regression tests
         run: bash tests/test_shell_functions.sh
+
+      - name: Install as a package and run it
+        run: |
+          pip install .
+          cd /tmp
+          clishe --version
+          test "$(clishe 'show me disk usage')" = "df -h"
+          clishe explain tar -xzvf | grep -q "extract"
