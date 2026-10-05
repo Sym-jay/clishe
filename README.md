@@ -293,6 +293,7 @@ Nothing runs until you press Enter. Prefer another key? Set `CLISHE_KEY='\eg'` (
 | `forget <phrase>` | Forget a phrase you taught |
 | `practice` | Hands-on exercises in a throwaway folder |
 | `progress` | The commands you've learned to type yourself |
+| `setup` | Find or set up a local AI model |
 | `explain <command>` | Explain a command and its flags |
 | `what does this mean` | Explain the output of the command you just ran |
 | `exit` / Ctrl-D | Leave |
@@ -305,6 +306,7 @@ clishe "show me disk usage"       # look up a phrase in your KB / seed KB (does 
 clishe --list                     # the phrases you've taught, tab-separated
 clishe practice                   # hands-on exercises
 clishe progress                   # what you've learned
+clishe setup                      # find or set up a local AI model
 clishe --init bash                # the Ctrl+G shortcut, for your ~/.bashrc
 clishe --version
 ```
@@ -357,6 +359,14 @@ Providers are tried in `provider_priority` order. A provider that isn't running,
 ## AI providers (optional)
 
 Clishe is useful without any AI. This section is for resolving phrases it hasn't seen before. Everything here runs on your own computer: free, private, and it works on a plane.
+
+The quickest start is:
+
+```bash
+clishe setup
+```
+
+It checks your memory, suggests a model that fits (`llama3.2:1b`, `llama3.2` or `qwen2.5-coder:7b`), finds Ollama or any other local model server that's running, and can download the model and set it up for you. It also tells you whether anything could be sent to the internet (only if you turned on the cloud provider).
 
 ### Ollama
 
@@ -460,6 +470,7 @@ config.py               config loading, distro detection
 knowledge.py            offline explain / diagnose engine
 manual.py               reads the man pages installed on your system
 safety.py               destructive-command check
+setup_check.py          clishe setup: memory, local model servers, model suggestion
 providers/              AI provider interface: Ollama, OpenAI-style local servers, Anthropic (opt-in)
 seed_kb.json            bundled starter phrases (read-only)
 command_dictionary.json offline command explanations

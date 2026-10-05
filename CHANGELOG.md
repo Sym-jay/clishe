@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Added
+- **`clishe setup`.** Checks your memory and suggests a local model that
+  fits, finds Ollama and other local model servers, and can download the
+  model (`ollama pull`) and save it in the config. It also says plainly
+  whether anything could be sent to the internet.
 - **Any local model server.** Besides Ollama, Clishe now works with
   llama.cpp's `llama-server`, LM Studio, Jan, LocalAI, vLLM and anything
   else with an OpenAI-style API. It finds a running server on the usual
