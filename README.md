@@ -34,8 +34,16 @@ Clishe: Running: cat notes.txt
 
 You: find files bigger than 100MB
 Clishe: I don't know that. Let me think...
-Clishe (via ollama): I think you mean: find . -type f -size +100M
+Clishe (via ollama): I think you mean:
+
+  find  .  -type f  -size +100M
+  │     │  │        └─ bigger than 100M
+  │     │  └─ only files, not folders
+  │     └─ this folder
+  └─ search for files in a directory hierarchy
+
   Searches this folder and below for files larger than 100 MB.
+  ✓ every option is in the manual
 Run this? [Y/n/e=edit]: y
 ```
 
@@ -69,7 +77,8 @@ Most command-line tools assume you already know the command you want. Clishe ass
 - Forgiving matching: case, punctuation and filler like "please" or "can you" are ignored, so `Please show me disk usage?` finds `show me disk usage`. Different wording with the same meaning gets a "did you mean...?" too (`remove a directory` → `delete a folder`).
 - Fill-in-the-blank commands: entries like `cp <file> <destination>` ask for each value, quote it safely, and show the final command before running it. You can teach your own (`ssh <server>`).
 - `explain`-style questions: `explain tar -xzvf`, `what does chmod do`, `what's grep`, `tell me about find`. The offline dictionary explains each flag you used (`-x`, `-z`, `-v`, `-f`). For anything else that's installed, Clishe reads **your own system's manual** (`man`, or `--help`) and picks out the lines for the flags you used, still offline. An AI is asked only when there's no manual at all.
-- AI suggestions are checked against your manual: under each suggestion, Clishe shows what `man` says about every flag in it, and warns if a flag isn't in the manual (small models sometimes invent them). You learn from the real documentation, not just the model.
+- **Every part labelled.** AI suggestions, and known phrases the first time you use them, are drawn with each part of the command labelled underneath, using the offline dictionary and your own `man` pages. You see the shape of a command, not just a one-liner. Commands with pipes or redirects are shown the usual way.
+- AI suggestions are checked against your manual, and Clishe warns if a flag isn't in it (small models sometimes invent them). You learn from the real documentation, not just the model.
 - Plain-English hints when a command fails (permission denied, no such file, pip's "externally-managed-environment", apt without sudo, no internet, and more), fully offline. If a program isn't installed, it tells you the install command for your distro (`apt`, `dnf`, `pacman`, `zypper` or `apk`).
 - "What does this mean?" after `ls -l`, `df -h`, `free -h`, `ps aux`, `git status` and others walks you through the columns of the output you just saw. Offline, and your output never leaves your machine.
 - Next-command suggestions based on your own history. They appear once you have a few dozen logged commands.
@@ -168,8 +177,16 @@ Saying yes also remembers your wording, so next time it's instant.
 **A phrase it doesn't know, with an AI provider configured**
 ```text
 You: find files bigger than 100MB
-Clishe (via ollama): I think you mean: find . -type f -size +100M
+Clishe (via ollama): I think you mean:
+
+  find  .  -type f  -size +100M
+  │     │  │        └─ bigger than 100M
+  │     │  └─ only files, not folders
+  │     └─ this folder
+  └─ search for files in a directory hierarchy
+
   Searches this folder and below for files larger than 100 MB.
+  ✓ every option is in the manual
 Run this? [Y/n/e=edit]: e
 Edit command: find ~ -type f -size +100M
 ```
@@ -479,6 +496,7 @@ clishe_brain.py         backend: KB, history, prediction, AI resolution
 config.py               config loading, distro detection
 knowledge.py            offline explain / diagnose engine
 manual.py               reads the man pages installed on your system
+breakdown.py            draws a command with each part labelled
 safety.py               destructive-command check
 setup_check.py          clishe setup: memory, local model servers, model suggestion
 providers/              AI provider interface: Ollama, OpenAI-style local servers, Anthropic (opt-in)

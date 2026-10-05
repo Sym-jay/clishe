@@ -7,7 +7,7 @@ CLISHE_VERSION="0.5.1"
 # see https://no-color.org).
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
     GREEN='\033[0;32m'
-    BLUE='\033[0;34m'
+    BLUE='\033[0;94m'   # bright blue: dark blue is hard to read on dark themes
     YELLOW='\033[1;33m'
     RED='\033[0;31m'
     DIM='\033[2m'
@@ -459,6 +459,26 @@ teach_prompt() {
     return 0
 }
 
+# Draw a command with each part labelled underneath (see breakdown.py)
+# into BREAKDOWN. With a phrase, only the first time that phrase is used.
+# Returns 1 when there's no breakdown, so the caller shows the command the
+# usual way.
+get_breakdown() {
+    local key value tree label width
+    BREAKDOWN=""
+    width=$(( $(tput cols 2>/dev/null || echo 80) - 2 ))
+    while IFS='=' read -r key value; do
+        case "$key" in
+            CMD) BREAKDOWN+="$(printf '  %b%s%b' "$YELLOW" "$value" "$NC")"$'\n' ;;
+            LINE)
+                tree="${value%%$'\t'*}"
+                label="${value#*$'\t'}"
+                BREAKDOWN+="$(printf '  %b%s%b%s' "$DIM" "$tree" "$NC" "$label")"$'\n' ;;
+        esac
+    done < <(brain --action breakdown --command "$1" --phrase "${2:-}" --width "$width")
+    [ -n "$BREAKDOWN" ]
+}
+
 # Ask the AI to turn a phrase into a command. On approval, sets
 # command_to_run and learn_phrase and returns 0. Returns 1 if the user
 # skipped. If no AI is available (or it declines), falls back to "teach me".
@@ -476,14 +496,27 @@ resolve_with_ai() {
 
     if [ "$RS_STATUS" = "ok" ]; then
         command_to_run="$RS_COMMAND"
-        printf '%bClishe (via %s): %bI think you mean: %b%s%b\n' \
-            "$BLUE" "$RS_PROVIDER" "$NC" "$YELLOW" "$command_to_run" "$NC"
-        if [ -n "$RS_EXPLANATION" ]; then
-            printf '  %b%s%b\n' "$DIM" "$(decode_lines "$RS_EXPLANATION")" "$NC"
+        if get_breakdown "$command_to_run"; then
+            # The command with each part labelled: the manual's words are
+            # already in the labels.
+            printf '%bClishe (via %s): %bI think you mean:\n\n%s\n' \
+                "$BLUE" "$RS_PROVIDER" "$NC" "$BREAKDOWN"
+            if [ -n "$RS_EXPLANATION" ]; then
+                printf '  %b%s%b\n' "$DIM" "$(decode_lines "$RS_EXPLANATION")" "$NC"
+            fi
+            if [ -n "$RS_MANUAL" ] && [ -z "$RS_UNVERIFIED" ]; then
+                printf '  %b✓%b %severy option is in the manual%b\n' "$GREEN" "$NC" "$DIM" "$NC"
+            fi
+        else
+            printf '%bClishe (via %s): %bI think you mean: %b%s%b\n' \
+                "$BLUE" "$RS_PROVIDER" "$NC" "$YELLOW" "$command_to_run" "$NC"
+            if [ -n "$RS_EXPLANATION" ]; then
+                printf '  %b%s%b\n' "$DIM" "$(decode_lines "$RS_EXPLANATION")" "$NC"
+            fi
         fi
         # What your own manual says about each flag: learn it from the
         # source, and catch a flag the model made up.
-        if [ -n "$RS_MANUAL" ]; then
+        if [ -n "$RS_MANUAL" ] && [ -z "$BREAKDOWN" ]; then
             printf '  %bFrom the manual:%b\n' "$DIM" "$NC"
             while IFS= read -r line; do
                 [ -n "$line" ] && printf '    %b%s%b\n' "$DIM" "$line" "$NC"
@@ -1068,7 +1101,15 @@ while true; do
         if your_turn "$user_input"; then
             continue
         fi
-        [ "$YT_SHOWN" = 1 ] || say_cmd "I know this! " "$command_to_run"
+        if [ "$YT_SHOWN" != 1 ]; then
+            # The first time a phrase is used, show what each part means.
+            if get_breakdown "$command_to_run" "$user_input"; then
+                say "I know this!"
+                printf '\n%s\n' "$BREAKDOWN"
+            else
+                say_cmd "I know this! " "$command_to_run"
+            fi
+        fi
     else
         # 2. "explain tar", "what does chmod do", "what's grep"
         explain_target=$(detect_explain_target "$user_input")

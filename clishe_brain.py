@@ -737,12 +737,13 @@ def main():
                                  'predict', 'resolve', 'explain', 'diagnose', 'check',
                                  'line', 'trash', 'missing', 'output',
                                  'turn', 'attempt', 'progress',
-                                 'setup', 'set-model'],
+                                 'setup', 'set-model', 'breakdown'],
                         help='Action to perform')
     parser.add_argument('--phrase', default='', help='Natural language phrase')
     parser.add_argument('--command', default='', help='Bash command')
     parser.add_argument('--error', default='', help='Captured stderr text to diagnose')
     parser.add_argument('--no-ai', action='store_true', help='line: offline only')
+    parser.add_argument('--width', type=int, default=80, help='breakdown: terminal width')
 
     args = parser.parse_args()
     brain = ClisheBrain()
@@ -847,6 +848,21 @@ def main():
     elif args.action == 'set-model':
         import setup_check
         print('saved' if setup_check.set_ollama_model(args.command) else 'error')
+
+    elif args.action == 'breakdown':
+        # With a phrase: only the first time it's used, so known phrases
+        # don't redraw the same picture every time.
+        key = normalize_phrase(args.phrase)
+        if key and brain.data.get('phrase_uses', {}).get(key, 0) > 0:
+            print("STATUS=skip")
+        else:
+            from breakdown import draw
+            result = draw(args.command, width=args.width)
+            print("STATUS=ok" if result else "STATUS=none")
+            if result:
+                print(f"CMD={_one_line(result['command'])}")
+                for tree, label in result['lines']:
+                    print(f"LINE={tree}\t{_one_line(label)}")
 
     elif args.action == 'predict':
         print(brain.predict(args.command))
