@@ -84,6 +84,16 @@ MAX_SEQUENCES = 200
 # After asking for the same phrase this many times, Clishe shows the command
 # so you can start typing it yourself.
 GRADUATION_TIP_AT = (3, 10)
+# "Your turn": once you've asked for a phrase this many times (and seen the
+# tip with its command), Clishe asks you to type it yourself, until you've
+# got it right this many times. "learn_mode" in the config: gentle (these
+# numbers), always (from the second time), off.
+YOUR_TURN_AFTER = {"gentle": 3, "always": 1}
+YOUR_TURN_UNTIL_RIGHT = 2
+# The everyday commands the progress report counts toward.
+BASICS = ["pwd", "ls", "cd", "mkdir", "touch", "cp", "mv", "rm", "cat", "less",
+          "head", "tail", "grep", "find", "df", "du", "free", "ps", "top", "kill",
+          "chmod", "tar", "man", "echo", "nano", "sudo", "ssh", "history"]
 # How similar a phrase must be (0-1) to offer "did you mean ...?"
 FUZZY_CUTOFF = 0.78
 
@@ -367,6 +377,10 @@ class ClisheBrain:
                     tip += " (fill in the <...> parts)"
                 tips.append(tip)
         else:
+            base = _command_name(command)
+            if base:
+                typed = self.data.setdefault('typed', {})
+                typed[base] = typed.get(base, 0) + 1
             cheered = self.data.setdefault('cheered', [])
             command = command.strip()
             if command not in cheered and any(
@@ -375,6 +389,51 @@ class ClisheBrain:
                 tips.append(f"Nice, you typed {command} yourself instead of asking!")
         self.save_data()
         return tips
+
+    def your_turn(self, phrase):
+        """Should Clishe ask you to type this phrase's command yourself?
+        Returns the command (template) if so, else ''."""
+        mode = str(load_config().get("learn_mode", "gentle")).lower()
+        if mode not in YOUR_TURN_AFTER:
+            return ''
+        key = normalize_phrase(phrase)
+        template = self.query(key)
+        if not template:
+            return ''
+        uses = self.data.get('phrase_uses', {}).get(key, 0)
+        right = self.data.get('typed_right', {}).get(key, 0)
+        if uses >= YOUR_TURN_AFTER[mode] and right < YOUR_TURN_UNTIL_RIGHT:
+            return template
+        return ''
+
+    def attempt(self, phrase, typed):
+        """Compare what you typed with the command for a phrase.
+        Returns {"status": "right" | "close" | "wrong", "command"}.
+        "close" means the right program with different options."""
+        key = normalize_phrase(phrase)
+        template = self.query(key)
+        result = {"command": template}
+        if not template:
+            return dict(result, status="wrong")
+        if same_command(typed, template):
+            right = self.data.setdefault('typed_right', {})
+            right[key] = right.get(key, 0) + 1
+            self.save_data()
+            return dict(result, status="right")
+        want = _command_name(template)
+        close = want and want == _command_name(typed)
+        return dict(result, status="close" if close else "wrong")
+
+    def progress(self):
+        """What you've learned: commands you typed yourself, out of the basics."""
+        typed = self.data.get('typed', {})
+        learned = [c for c in BASICS if c in typed]
+        others = sorted((c for c in typed if c not in BASICS), key=lambda c: -typed[c])
+        asked = {_command_name(self.query(p)) for p in self.data.get('phrase_uses', {})}
+        to_try = [c for c in BASICS if c in asked and c not in typed]
+        next_up = [c for c in BASICS if c not in typed and c not in to_try]
+        return {"learned": learned, "others": others, "total": len(BASICS),
+                "to_try": to_try, "next": next_up[:3]}
 
     # ---------- the shell shortcut (clishe-bind.bash) ----------
 
@@ -596,6 +655,58 @@ class ClisheBrain:
 
 # ---------- output helpers for clishe.sh ----------
 
+_PLACEHOLDER = re.compile(r"<[a-z]+(?: [a-z]+)*>")
+_WRAPPER_WORDS = {"sudo", "doas", "env", "nice", "nohup", "time", "command"}
+
+
+def _command_name(command: str) -> str:
+    """The program a command line runs: "sudo df -h" -> "df"."""
+    try:
+        words = shlex.split(command or "")
+    except ValueError:
+        words = (command or "").split()
+    while words and (words[0] in _WRAPPER_WORDS or re.match(r"^\w+=", words[0])):
+        words = words[1:]
+    return os.path.basename(words[0]) if words else ""
+
+
+def _shape(words):
+    """Command words in a form where "ls -la", "ls -al" and "ls -l -a" match:
+    short flags become one sorted set, everything else keeps its order."""
+    letters, rest = set(), []
+    for w in words:
+        if re.match(r"^-[A-Za-z]+$", w):
+            letters.update(w[1:])
+        else:
+            rest.append(w)
+    return letters, rest
+
+
+def same_command(typed: str, template: str) -> bool:
+    """True if `typed` is the template's command. Each <placeholder> matches
+    whatever value you typed in its place ("cp notes.txt backup/" matches
+    "cp <file> <destination>")."""
+    holes = []
+
+    def hole(m):
+        holes.append(m.group(0))
+        return f"\x00{len(holes) - 1}\x00"
+
+    try:
+        want = shlex.split(_PLACEHOLDER.sub(hole, template))
+        got = shlex.split(typed)
+    except ValueError:
+        return typed.split() == template.split()
+    want_flags, want_rest = _shape(want)
+    got_flags, got_rest = _shape(got)
+    if want_flags != got_flags or len(want_rest) != len(got_rest):
+        return False
+    for w, g in zip(want_rest, got_rest):
+        pattern = ".+".join(re.escape(part) for part in re.split(r"\x00\d+\x00", w))
+        if not re.fullmatch(pattern, g):
+            return False
+    return True
+
 def _trash_tool():
     """(command words, how to get files back) for the first trash tool found."""
     if shutil.which("gio"):
@@ -624,7 +735,8 @@ def main():
     parser.add_argument('--action', required=True,
                         choices=['query', 'suggest', 'learn', 'forget', 'list', 'log',
                                  'predict', 'resolve', 'explain', 'diagnose', 'check',
-                                 'line', 'trash', 'missing', 'output'],
+                                 'line', 'trash', 'missing', 'output',
+                                 'turn', 'attempt', 'progress'],
                         help='Action to perform')
     parser.add_argument('--phrase', default='', help='Natural language phrase')
     parser.add_argument('--command', default='', help='Bash command')
@@ -701,6 +813,25 @@ def main():
             print(f"MODE={result['mode']}")
         else:
             print("STATUS=none")
+
+    elif args.action == 'turn':
+        command = brain.your_turn(args.phrase)
+        print("STATUS=ask" if command else "STATUS=no")
+        if command:
+            print(f"COMMAND={_one_line(command)}")
+
+    elif args.action == 'attempt':
+        result = brain.attempt(args.phrase, args.command)
+        print(f"STATUS={result['status']}")
+        print(f"COMMAND={_one_line(result['command'])}")
+
+    elif args.action == 'progress':
+        result = brain.progress()
+        print(f"LEARNED={' '.join(result['learned'])}")
+        print(f"TOTAL={result['total']}")
+        print(f"OTHERS={' '.join(result['others'])}")
+        print(f"TO_TRY={' '.join(result['to_try'])}")
+        print(f"NEXT={' '.join(result['next'])}")
 
     elif args.action == 'predict':
         print(brain.predict(args.command))

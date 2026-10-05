@@ -62,7 +62,9 @@ Most command-line tools assume you already know the command you want. Clishe ass
 **Everyday use**
 - Works in your normal shell: press Ctrl+G on a line of plain English and it becomes the command, with the cursor on the first blank to fill in. Press it on a real command to have it explained. It never runs anything for you. See [Your normal shell](#your-normal-shell-ctrlg).
 - Mistakes you can undo: when you delete something with `rm`, Clishe offers to move it to the Trash instead (if `gio` or `trash-cli` is installed), so you can get it back.
-- Helps you outgrow it: after you've asked for the same thing three times, Clishe shows you the command to type yourself, and gives you a little cheer the first time you do.
+- Helps you outgrow it: after you've asked for the same thing three times, Clishe shows you the command. The next time, it's **your turn**: Clishe asks you to type it yourself, and checks it (`ls -al` counts for `ls -la`). Once you've got it right twice, it stops asking.
+- `practice`: 14 hands-on exercises (pwd, ls, mkdir, cd, touch, echo, cat, cp, mv, find, grep, rm) in a throwaway folder, with hints. It remembers where you stopped.
+- `progress`: the everyday commands you've typed yourself, the ones you still ask for, and good ones to learn next.
 - Natural language to shell commands, resolved in this order: your knowledge base, the bundled seed KB, a native command you typed directly, a close match to a phrase it already knows ("did you mean...?"), then an AI provider (if configured), then "teach me".
 - Forgiving matching: case, punctuation and filler like "please" or "can you" are ignored, so `Please show me disk usage?` finds `show me disk usage`. Different wording with the same meaning gets a "did you mean...?" too (`remove a directory` → `delete a folder`).
 - Fill-in-the-blank commands: entries like `cp <file> <destination>` ask for each value, quote it safely, and show the final command before running it. You can teach your own (`ssh <server>`).
@@ -237,6 +239,30 @@ You: df -h
 💡 Nice, you typed df -h yourself instead of asking!
 ```
 
+**Your turn**
+```text
+You: list files
+💡 Your turn! You know this one. Type the command for "list files" (or press Enter to see it):
+  $ ls -al
+Clishe: ✓ That's it!
+```
+A wrong answer just shows you the command and runs it as usual. Set `"learn_mode"` in the config to `"always"` (ask from the second time) or `"off"`.
+
+**Practice**
+```text
+You: practice
+Clishe: Practice time! You're in a throwaway folder, so nothing here can hurt your files.
+
+3/14 Make a folder called notes.
+practice$ mkdir notes
+✓ Nice!
+
+4/14 Go into the notes folder.
+practice$ cd note
+cd: note: No such file or directory
+  Not yet - try again, or type 'hint'.
+```
+
 ### Your normal shell (Ctrl+G)
 
 Add this line to your `~/.bashrc`, then open a new terminal:
@@ -265,6 +291,8 @@ Nothing runs until you press Enter. Prefer another key? Set `CLISHE_KEY='\eg'` (
 | `learned` | List the phrases you've taught |
 | `teach` | Teach a phrase and its command, or fix a wrong one |
 | `forget <phrase>` | Forget a phrase you taught |
+| `practice` | Hands-on exercises in a throwaway folder |
+| `progress` | The commands you've learned to type yourself |
 | `explain <command>` | Explain a command and its flags |
 | `what does this mean` | Explain the output of the command you just ran |
 | `exit` / Ctrl-D | Leave |
@@ -275,6 +303,8 @@ Nothing runs until you press Enter. Prefer another key? Set `CLISHE_KEY='\eg'` (
 clishe explain "tar -xzvf"        # explain a command, then exit
 clishe "show me disk usage"       # look up a phrase in your KB / seed KB (does not run it)
 clishe --list                     # the phrases you've taught, tab-separated
+clishe practice                   # hands-on exercises
+clishe progress                   # what you've learned
 clishe --init bash                # the Ctrl+G shortcut, for your ~/.bashrc
 clishe --version
 ```
@@ -319,6 +349,8 @@ The config file is created on first run with owner-only permissions (`0600`):
 Providers are tried in `provider_priority` order. A provider that isn't running, isn't turned on, or can't be reached is skipped.
 
 `allow_remote_ai` lets `ollama` and `local` use a model server outside your computer and local network. It's off, so a mistyped host can't send your phrases to the internet.
+
+`learn_mode` decides when Clishe asks you to type a command yourself: `"gentle"` (the default: after you've asked for it three times), `"always"` (from the second time) or `"off"`. Add it to the config to change it.
 
 `trash` decides what happens when you delete files with `rm` and a Trash tool (`gio` or `trash-put`) is installed: `"ask"` (the default), `"always"` (use the Trash without asking) or `"never"`.
 

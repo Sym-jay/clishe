@@ -21,6 +21,18 @@
 - **AI suggestions are checked against the manual.** Each suggestion shows
   what your manual says about its flags, and warns about any flag the
   manual doesn't mention, which is how small local models usually go wrong.
+- **Your turn.** After you've asked for a phrase three times (and seen the
+  tip with its command), Clishe asks you to type it yourself and checks
+  your answer: `ls -al` counts for `ls -la`, and `cp notes.txt backup/`
+  counts for `cp <file> <destination>`. A wrong answer shows the command
+  and runs it as usual. After two right answers it stops asking. New
+  `"learn_mode"` config option: `gentle` (default), `always`, `off`.
+- **`practice`**: 14 hands-on exercises in a throwaway folder, from `pwd`
+  to `rm -r`, each checked after every command you type, with hints and
+  answers. It picks up where you left off.
+- **`progress`**: which everyday commands you've typed yourself, which
+  ones you still ask for, and what to learn next.
+- `clishe practice` and `clishe progress` work from your normal shell too.
 
 ### Changed
 - **Local only by default.** The Anthropic provider is now opt-in:

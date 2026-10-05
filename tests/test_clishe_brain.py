@@ -494,3 +494,75 @@ def test_ai_suggestion_is_checked_against_the_manual(brain, monkeypatch):
     assert result["manual"] == ["find -size: File uses less than, more than or exactly "
                                 "n units of space, rounding up."]
     assert result["unverified"] == ["find -bigger"]
+
+
+# ---------- learning by doing ----------
+
+import pytest as _pytest  # noqa: E402
+
+
+@_pytest.mark.parametrize("typed,template,expected", [
+    ("ls -la", "ls -la", True),
+    ("ls -al", "ls -la", True),
+    ("ls -l -a", "ls -la", True),
+    ("ls", "ls -la", False),
+    ("ls -lah", "ls -la", False),
+    ("cp notes.txt backup/", "cp <file> <destination>", True),
+    ("cp 'my notes.txt' b", "cp <file> <destination>", True),
+    ("cp a", "cp <file> <destination>", False),
+    ("tar -czvf site.tar.gz site", "tar -czvf <archive name>.tar.gz <folder>", True),
+    ("tar -czvf site.zip site", "tar -czvf <archive name>.tar.gz <folder>", False),
+    ("du -sh * | sort -h", "du -sh * | sort -h", True),
+    ('echo "unterminated', "echo hi", False),
+])
+def test_same_command(typed, template, expected):
+    from clishe_brain import same_command
+    assert same_command(typed, template) is expected
+
+
+def _ask(brain, phrase, times):
+    for _ in range(times):
+        brain.record_use(brain.query(phrase), phrase)
+
+
+def test_your_turn_after_three_asks_until_right_twice(brain, monkeypatch):
+    import clishe_brain
+    monkeypatch.setattr(clishe_brain, "load_config", lambda: {})
+    _ask(brain, "list files", 2)
+    assert brain.your_turn("list files") == ""
+    _ask(brain, "list files", 1)
+    assert brain.your_turn("list files") == "ls -la"
+
+    assert brain.attempt("list files", "ls")["status"] == "close"
+    assert brain.attempt("list files", "dir")["status"] == "wrong"
+    assert brain.attempt("list files", "ls -al")["status"] == "right"
+    assert brain.your_turn("list files") == "ls -la"   # once isn't enough yet
+    assert brain.attempt("Please list files?", "ls -la")["status"] == "right"
+    assert brain.your_turn("list files") == ""
+
+
+@_pytest.mark.parametrize("mode,asks,expected", [
+    ("always", 1, "ls -la"),
+    ("always", 0, ""),
+    ("off", 10, ""),
+    ("nonsense", 10, ""),
+])
+def test_learn_mode(brain, monkeypatch, mode, asks, expected):
+    import clishe_brain
+    monkeypatch.setattr(clishe_brain, "load_config", lambda: {"learn_mode": mode})
+    _ask(brain, "list files", asks)
+    assert brain.your_turn("list files") == expected
+
+
+def test_progress_counts_commands_you_typed(brain):
+    brain.record_use("sudo df -h")           # typed yourself
+    brain.record_use("ls -la")
+    brain.record_use("ls")
+    brain.record_use("htop")
+    _ask(brain, "show me disk usage", 1)     # asked, not typed: doesn't count
+    _ask(brain, "count lines in a file", 1)  # wc: asked for, never typed
+    progress = brain.progress()
+    assert progress["learned"] == ["ls", "df"]
+    assert progress["others"] == ["htop"]
+    assert progress["total"] > 20
+    assert progress["next"][0] == "pwd"

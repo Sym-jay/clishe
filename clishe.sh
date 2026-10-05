@@ -103,12 +103,15 @@ Usage:
   clishe explain <command>  explain what a command does, then exit
   clishe "<phrase>"         look up a phrase in your knowledge base (does not run it)
   clishe --list             show the phrases you've taught
+  clishe practice           hands-on exercises in a safe, throwaway folder
+  clishe progress           the commands you've learned to type yourself
   clishe --init bash        print the Ctrl+G shortcut for your normal shell
                             (add  eval "$(clishe --init bash)"  to ~/.bashrc)
   clishe --version          show the version
   clishe --help             show this help
 
-Inside a session, also try: help, learned, teach, forget <phrase>, exit
+Inside a session, also try: help, learned, teach, forget <phrase>, practice,
+progress, exit
 EOF
 }
 
@@ -122,11 +125,17 @@ shell command. Clishe shows you the command before it runs.
   learned             list the phrases you've taught me
   teach               teach me a phrase -> command (or fix a wrong one)
   forget <phrase>     forget a phrase you taught me
+  practice            hands-on exercises in a safe, throwaway folder
+  progress            the commands you've learned to type yourself
   help                show this message
   exit                leave (Ctrl-D works too)
 
 Commands with <placeholders>, like "cp <file> <destination>", ask you to
 fill in each value before running.
+
+After you've asked for the same thing a few times, I'll ask you to type the
+command yourself. Set "learn_mode" to "always" or "off" in the config to
+change that.
 
 Want this in your normal shell too? Add this line to ~/.bashrc:
   eval "$(clishe --init bash)"
@@ -667,6 +676,185 @@ teach_session() {
     fi
 }
 
+# ---------- Learning by doing ----------
+
+# "Your turn": after you've asked for a phrase a few times, type its command
+# yourself. Returns 0 if it ran what you typed, 1 to carry on as usual (the
+# command is then run for you). Sets YT_SHOWN=1 if it already showed it.
+your_turn() {
+    local phrase="$1" output typed
+    YT_SHOWN=0
+    output=$(brain --action turn --phrase "$phrase")
+    parse_brain_output "$output" YT
+    [ "$YT_STATUS" = "ask" ] || return 1
+
+    printf '%b💡 Your turn!%b You know this one. Type the command for "%s" (or press Enter to see it):\n' \
+        "$YELLOW" "$NC" "$phrase"
+    read -r -e -p "  \$ " typed
+    [ -z "$typed" ] && return 1
+
+    output=$(brain --action attempt --phrase "$phrase" --command "$typed")
+    parse_brain_output "$output" AT
+    if [ "$AT_STATUS" = "right" ]; then
+        say "✓ That's it!"
+        TIP_PHRASE=""
+        prepare_and_run "$typed"
+        return 0
+    fi
+    if [ "$AT_STATUS" = "close" ]; then
+        say_cmd "Close! Right command, different options. It's: " "$AT_COMMAND"
+    else
+        say_cmd "Not quite. It's: " "$AT_COMMAND"
+    fi
+    YT_SHOWN=1
+    return 1
+}
+
+show_progress() {
+    local output key value learned="" total=0 others="" to_try="" next=""
+    local -a words
+    output=$(brain --action progress)
+    while IFS='=' read -r key value; do
+        case "$key" in
+            LEARNED) learned="$value" ;;
+            TOTAL) total="$value" ;;
+            OTHERS) others="$value" ;;
+            TO_TRY) to_try="$value" ;;
+            NEXT) next="$value" ;;
+        esac
+    done <<< "$output"
+    read -r -a words <<< "$learned"
+
+    say "You've typed ${#words[@]} of $total everyday commands yourself."
+    [ -n "$learned" ] && printf '  %b%s%b\n' "$GREEN" "$learned" "$NC"
+    [ -n "$others" ] && printf '  Also: %s\n' "$others"
+    if [ -n "$to_try" ]; then
+        printf "You've asked me for these, but haven't typed them yourself yet: %b%s%b\n" "$YELLOW" "$to_try" "$NC"
+    fi
+    if [ -n "$next" ]; then
+        printf 'Good ones to learn next: %s. Try: explain %s\n' "$next" "${next%% *}"
+    fi
+    echo "Type 'practice' for hands-on exercises in a safe, throwaway folder."
+}
+
+# Hands-on exercises. Each has a task, a check (run after every command
+# you type), a hint, and an answer. They run in a throwaway folder.
+P_TASK=() P_CHECK=() P_HINT=() P_ANSWER=()
+add_exercise() { P_TASK+=("$1"); P_CHECK+=("$2"); P_HINT+=("$3"); P_ANSWER+=("$4"); }
+add_exercise "Show which folder you're in." \
+    '[[ "$PRACTICE_LAST" == pwd* ]]' \
+    "It's short for 'print working directory'." "pwd"
+add_exercise "List what's in this folder (it's empty, and that's fine)." \
+    '[[ "$PRACTICE_LAST" == ls* ]]' \
+    "Two letters, short for 'list'." "ls"
+add_exercise "Make a folder called notes." \
+    '[ -d "$SANDBOX/notes" ]' \
+    "mkdir means 'make directory': mkdir <name>" "mkdir notes"
+add_exercise "Go into the notes folder." \
+    '[ "$PWD" = "$SANDBOX/notes" ]' \
+    "cd means 'change directory': cd <folder>" "cd notes"
+add_exercise "Create an empty file called todo.txt." \
+    '[ -f "$SANDBOX/notes/todo.txt" ]' \
+    "touch <file> creates an empty file." "touch todo.txt"
+add_exercise "Write the words buy milk into todo.txt." \
+    'grep -q "buy milk" "$SANDBOX/notes/todo.txt" 2>/dev/null' \
+    "echo prints text, and > sends it into a file instead of the screen: echo \"some text\" > <file>" \
+    'echo "buy milk" > todo.txt'
+add_exercise "Show what's inside todo.txt." \
+    '[[ "$PRACTICE_LAST" =~ ^(cat|less|more|head|tail)[[:space:]] ]]' \
+    "cat <file> prints a file to the screen." "cat todo.txt"
+add_exercise "Go back up to the folder above this one." \
+    '[ "$PWD" = "$SANDBOX" ]' \
+    ".. means 'the folder above this one'." "cd .."
+add_exercise "Copy notes/todo.txt to a new file here called backup.txt." \
+    '[ -f "$SANDBOX/backup.txt" ]' \
+    "cp <from> <to>" "cp notes/todo.txt backup.txt"
+add_exercise "Rename backup.txt to old.txt." \
+    '[ -f "$SANDBOX/old.txt" ] && [ ! -e "$SANDBOX/backup.txt" ]' \
+    "mv moves files, and moving to a new name renames: mv <old> <new>" "mv backup.txt old.txt"
+add_exercise "Find every file ending in .txt, in this folder and the ones inside it." \
+    '[[ "$PRACTICE_LAST" == find* && "$PRACTICE_LAST" == *txt* ]]' \
+    "find <where> -name <pattern>. Put the pattern in quotes: \"*.txt\"" 'find . -name "*.txt"'
+add_exercise "Search notes/todo.txt for the word milk." \
+    '[[ "$PRACTICE_LAST" == grep* && "$PRACTICE_LAST" == *milk* ]]' \
+    "grep <word> <file> prints the lines that contain the word." "grep milk notes/todo.txt"
+add_exercise "Delete old.txt." \
+    '[ ! -e "$SANDBOX/old.txt" ]' \
+    "rm <file> deletes it. There's no Trash with rm, so it's gone for good." "rm old.txt"
+add_exercise "Delete the notes folder and everything in it." \
+    '[ ! -e "$SANDBOX/notes" ]' \
+    "rm needs -r (recursive) to delete a folder. I'll ask you to confirm: that's the point." "rm -r notes"
+
+practice_session() {
+    local start=0 i cmd status answer done_file="$DATA_DIR/practice_done"
+    local count="${#P_TASK[@]}" orig_dir="$PWD"
+    mkdir -p "$DATA_DIR" 2>/dev/null
+    [ -f "$done_file" ] && start=$(cat "$done_file" 2>/dev/null)
+    [[ "$start" =~ ^[0-9]+$ ]] || start=0
+    if [ "$start" -ge "$count" ]; then
+        start=0
+    elif [ "$start" -gt 0 ]; then
+        read -r -p "Pick up where you left off, at exercise $((start + 1)) of $count? [Y/n]: " answer
+        [[ "$answer" =~ ^[Nn] ]] && start=0
+    fi
+
+    SANDBOX="$(mktemp -d "${TMPDIR:-/tmp}/clishe-practice.XXXXXX")" || return 1
+    cd "$SANDBOX" || return 1
+    SANDBOX="$PWD"  # the same spelling cd will use (no "//" from TMPDIR)
+    # Picking up later: quietly redo the earlier steps, so the folder looks
+    # the way the next exercise expects.
+    for ((i = 0; i < start; i++)); do
+        eval "${P_ANSWER[$i]}" >/dev/null 2>&1
+    done
+
+    say "Practice time! You're in a throwaway folder, so nothing here can hurt your files."
+    echo "Type real commands. Also: 'hint', 'answer', 'skip', 'quit'."
+    for ((i = start; i < count; i++)); do
+        echo ""
+        printf '%b%s/%s%b %s\n' "$BLUE" "$((i + 1))" "$count" "$NC" "${P_TASK[$i]}"
+        local tries=0
+        while true; do
+            if ! IFS= read -r -e -p "practice\$ " cmd; then
+                cmd="quit"
+            fi
+            case "$cmd" in
+                "") continue ;;
+                hint) printf '  %b%s%b\n' "$DIM" "${P_HINT[$i]}" "$NC"; continue ;;
+                answer|show) say_cmd "One way: " "${P_ANSWER[$i]}"; continue ;;
+                skip) say_cmd "Skipped. One way: " "${P_ANSWER[$i]}"
+                      eval "${P_ANSWER[$i]}" >/dev/null 2>&1; break ;;
+                quit|exit) printf '%s' "$i" > "$done_file"
+                      say "See you next time - I'll remember where you got to."
+                      cd "$orig_dir" 2>/dev/null || true; rm -rf -- "$SANDBOX"
+                      return 0 ;;
+            esac
+            history -s "$cmd"
+            # shellcheck disable=SC2034  # read by the exercise checks (eval)
+            PRACTICE_LAST="$cmd"
+            confirm_dangerous "$cmd" || continue
+            eval "$cmd"
+            status=$?
+            [ "$status" -eq 0 ] && brain --action log --command "$cmd" >/dev/null
+            if eval "${P_CHECK[$i]}"; then
+                printf '%b✓ Nice!%b\n' "$GREEN" "$NC"
+                break
+            fi
+            tries=$((tries + 1))
+            if [ "$tries" -ge 2 ]; then
+                printf '  %bHint: %s%b\n' "$DIM" "${P_HINT[$i]}" "$NC"
+            else
+                echo "  Not yet - try again, or type 'hint'."
+            fi
+        done
+        printf '%s' "$((i + 1))" > "$done_file"
+    done
+    echo ""
+    say "🎉 All $count done! You just used pwd, ls, mkdir, cd, touch, echo, cat, cp, mv, find, grep and rm."
+    cd "$orig_dir" 2>/dev/null || true
+    rm -rf -- "$SANDBOX"
+    : > "$done_file"
+}
+
 # Everything above is a function library. When this file is sourced (by
 # the tests), stop here instead of starting a session.
 if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
@@ -701,6 +889,10 @@ if [ $# -gt 0 ]; then
                     exit 1 ;;
             esac
             ;;
+        practice)
+            [ $# -eq 1 ] && { practice_session; exit $?; } ;;
+        progress)
+            [ $# -eq 1 ] && { show_progress; exit 0; } ;;
         explain)
             if [ $# -gt 1 ]; then
                 shift
@@ -818,6 +1010,10 @@ while true; do
         forget|"forget "*)
             forget_target="${user_input#forget}"
             forget_phrase "${forget_target# }"; echo ""; continue ;;
+        practice)
+            practice_session; echo ""; continue ;;
+        progress|"my progress"|"what have i learned")
+            show_progress; echo ""; continue ;;
     esac
 
     # 1. Exact match in your knowledge base (or the bundled seed KB).
@@ -828,7 +1024,10 @@ while true; do
     if [ -n "$kb_result" ]; then
         command_to_run="$kb_result"
         input_kind="kb"
-        say_cmd "I know this! " "$command_to_run"
+        if your_turn "$user_input"; then
+            continue
+        fi
+        [ "$YT_SHOWN" = 1 ] || say_cmd "I know this! " "$command_to_run"
     else
         # 2. "explain tar", "what does chmod do", "what's grep"
         explain_target=$(detect_explain_target "$user_input")
