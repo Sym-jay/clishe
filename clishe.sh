@@ -105,6 +105,7 @@ Usage:
   clishe --list             show the phrases you've taught
   clishe practice           hands-on exercises in a safe, throwaway folder
   clishe progress           the commands you've learned to type yourself
+  clishe setup              find or set up a local AI model
   clishe --init bash        print the Ctrl+G shortcut for your normal shell
                             (add  eval "$(clishe --init bash)"  to ~/.bashrc)
   clishe --version          show the version
@@ -127,6 +128,7 @@ shell command. Clishe shows you the command before it runs.
   forget <phrase>     forget a phrase you taught me
   practice            hands-on exercises in a safe, throwaway folder
   progress            the commands you've learned to type yourself
+  setup               find or set up a local AI model
   help                show this message
   exit                leave (Ctrl-D works too)
 
@@ -855,6 +857,41 @@ practice_session() {
     : > "$done_file"
 }
 
+# Check this computer for a local AI model and help get one running.
+setup_session() {
+    local output key value model="" running=0 ready=0 configured="" answer
+    say "Checking this computer for a local AI model..."
+    echo ""
+    output=$(brain --action setup)
+    while IFS='=' read -r key value; do
+        case "$key" in
+            LINE) printf '  %s\n' "$value" ;;
+            MODEL) model="$value" ;;
+            RUNNING) running="$value" ;;
+            READY) ready="$value" ;;
+            CONFIGURED) configured="$value" ;;
+        esac
+    done <<< "$output"
+    echo ""
+    [ -n "$model" ] || return 0
+
+    if [ "$running" = 1 ] && [ "$ready" != 1 ]; then
+        read -r -p "Download $model now? This runs: ollama pull $model [y/N]: " answer
+        if [[ "$answer" =~ ^[Yy] ]]; then
+            ollama pull "$model" && ready=1
+        fi
+    fi
+    if [ "$ready" = 1 ] && [ "$configured" != "$model" ]; then
+        read -r -p "Use $model for Clishe? [Y/n]: " answer
+        if [[ ! "$answer" =~ ^[Nn] ]] \
+            && [ "$(brain --action set-model --command "$model")" = "saved" ]; then
+            say "Done. Ask me something I don't know, and $model will answer, right here on your computer."
+        fi
+    elif [ "$ready" = 1 ]; then
+        say "All set: Clishe uses $model, on your computer."
+    fi
+}
+
 # Everything above is a function library. When this file is sourced (by
 # the tests), stop here instead of starting a session.
 if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
@@ -893,6 +930,8 @@ if [ $# -gt 0 ]; then
             [ $# -eq 1 ] && { practice_session; exit $?; } ;;
         progress)
             [ $# -eq 1 ] && { show_progress; exit 0; } ;;
+        setup)
+            [ $# -eq 1 ] && { setup_session; exit 0; } ;;
         explain)
             if [ $# -gt 1 ]; then
                 shift
@@ -1007,6 +1046,8 @@ while true; do
             list_learned; echo ""; continue ;;
         teach)
             teach_session; echo ""; continue ;;
+        setup)
+            setup_session; echo ""; continue ;;
         forget|"forget "*)
             forget_target="${user_input#forget}"
             forget_phrase "${forget_target# }"; echo ""; continue ;;

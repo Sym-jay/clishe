@@ -736,7 +736,8 @@ def main():
                         choices=['query', 'suggest', 'learn', 'forget', 'list', 'log',
                                  'predict', 'resolve', 'explain', 'diagnose', 'check',
                                  'line', 'trash', 'missing', 'output',
-                                 'turn', 'attempt', 'progress'],
+                                 'turn', 'attempt', 'progress',
+                                 'setup', 'set-model'],
                         help='Action to perform')
     parser.add_argument('--phrase', default='', help='Natural language phrase')
     parser.add_argument('--command', default='', help='Bash command')
@@ -832,6 +833,20 @@ def main():
         print(f"OTHERS={' '.join(result['others'])}")
         print(f"TO_TRY={' '.join(result['to_try'])}")
         print(f"NEXT={' '.join(result['next'])}")
+
+    elif args.action == 'setup':
+        import setup_check
+        result = setup_check.check()
+        for line in setup_check.report(result):
+            print(f"LINE={line}")
+        print(f"MODEL={result['model']}")
+        print(f"RUNNING={int(result['ollama_running'])}")
+        print(f"READY={int(result['model_ready'])}")
+        print(f"CONFIGURED={result['configured_model']}")
+
+    elif args.action == 'set-model':
+        import setup_check
+        print('saved' if setup_check.set_ollama_model(args.command) else 'error')
 
     elif args.action == 'predict':
         print(brain.predict(args.command))
