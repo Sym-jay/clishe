@@ -112,7 +112,7 @@ Usage:
   clishe --help             show this help
 
 Inside a session, also try: help, learned, teach, forget <phrase>, practice,
-progress, exit
+progress, setup, exit
 EOF
 }
 
