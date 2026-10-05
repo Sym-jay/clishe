@@ -29,8 +29,8 @@ jobs:
 
       - name: Check shell scripts
         run: |
-          bash -n clishe.sh install.sh
-          shellcheck -S warning clishe.sh install.sh tests/test_shell_functions.sh
+          bash -n clishe.sh install.sh clishe-bind.bash
+          shellcheck -S warning clishe.sh clishe-bind.bash install.sh tests/test_shell_functions.sh
 
       - name: Check Python syntax
         run: |

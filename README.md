@@ -41,6 +41,13 @@ Run this? [Y/n/e=edit]: y
 
 <!-- TODO: replace or supplement the block above with an asciinema/GIF demo once recorded -->
 
+Or skip the session entirely: type plain English at your **normal prompt** and press **Ctrl+G**. The words turn into the command, right there on your line, ready to read, edit and run.
+
+```text
+$ show me disk usage        ← press Ctrl+G
+$ df -h                     ← press Enter when you're ready
+```
+
 ## Why Clishe
 
 Most command-line tools assume you already know the command you want. Clishe assumes you don't, and treats that as normal.
@@ -53,6 +60,9 @@ Most command-line tools assume you already know the command you want. Clishe ass
 ## Features
 
 **Everyday use**
+- Works in your normal shell: press Ctrl+G on a line of plain English and it becomes the command, with the cursor on the first blank to fill in. Press it on a real command to have it explained. It never runs anything for you. See [Your normal shell](#your-normal-shell-ctrlg).
+- Mistakes you can undo: when you delete something with `rm`, Clishe offers to move it to the Trash instead (if `gio` or `trash-cli` is installed), so you can get it back.
+- Helps you outgrow it: after you've asked for the same thing three times, Clishe shows you the command to type yourself, and gives you a little cheer the first time you do.
 - Natural language to shell commands, resolved in this order: your knowledge base, the bundled seed KB, a native command you typed directly, a close match to a phrase it already knows ("did you mean...?"), then an AI provider (if configured), then "teach me".
 - Forgiving matching: case, punctuation and filler like "please" or "can you" are ignored, so `Please show me disk usage?` finds `show me disk usage`. Different wording with the same meaning gets a "did you mean...?" too (`remove a directory` → `delete a folder`).
 - Fill-in-the-blank commands: entries like `cp <file> <destination>` ask for each value, quote it safely, and show the final command before running it. You can teach your own (`ssh <server>`).
@@ -181,6 +191,48 @@ Clishe: Running: rm -r old-project
 Type YES to run it anyway, anything else to cancel:
 ```
 
+**Deleting something, with a Trash available**
+```text
+You: delete a folder
+Clishe: I know this! rm -r <folder>
+  folder: old-project
+Clishe: Move it to the Trash instead, so you can get it back? That runs: gio trash old-project
+Use the Trash? [Y/n]: y
+Clishe: Running: gio trash old-project
+Clishe: Moved to the Trash. Changed your mind? Open Trash in your file manager.
+```
+Saying `n` goes back to the normal `rm`, with its usual safety check. Set `"trash": "always"` or `"never"` in the config to stop being asked.
+
+**Learning as you go**
+```text
+You: show me disk usage
+...
+💡 You've asked for "show me disk usage" 3 times. Next time you can type it yourself: df -h
+You: df -h
+...
+💡 Nice, you typed df -h yourself instead of asking!
+```
+
+### Your normal shell (Ctrl+G)
+
+Add this line to your `~/.bashrc`, then open a new terminal:
+
+```bash
+eval "$(clishe --init bash)"
+```
+
+Now, at any prompt:
+
+| You type, then press Ctrl+G | What happens |
+|---|---|
+| `show me disk usage` | The line becomes `df -h`. Press Enter to run it. |
+| `copy a file` | The line becomes `cp <file> <destination>` with the cursor on `<file>`. |
+| `remove a directory` | Its closest match, `rm -r <folder>`, plus a warning about what it does. |
+| `tar -xzvf backup.tgz` | Each flag is explained. Your line stays as it was. |
+| something new | Asks your AI provider, if you set one up. |
+
+Nothing runs until you press Enter. Prefer another key? Set `CLISHE_KEY='\eg'` (Alt+G) before the `eval` line. Bash only for now.
+
 ### Session commands
 
 | Type | What it does |
@@ -198,6 +250,7 @@ Type YES to run it anyway, anything else to cancel:
 clishe explain "tar -xzvf"        # explain a command, then exit
 clishe "show me disk usage"       # look up a phrase in your KB / seed KB (does not run it)
 clishe --list                     # the phrases you've taught, tab-separated
+clishe --init bash                # the Ctrl+G shortcut, for your ~/.bashrc
 clishe --version
 ```
 
@@ -220,6 +273,7 @@ The config file is created on first run with owner-only permissions (`0600`):
 ```json
 {
   "provider_priority": ["ollama", "anthropic"],
+  "trash": "ask",
   "ollama": {
     "host": "http://localhost:11434",
     "model": "llama3.2"
@@ -232,6 +286,8 @@ The config file is created on first run with owner-only permissions (`0600`):
 ```
 
 Providers are tried in `provider_priority` order. A provider that isn't configured or can't be reached is skipped.
+
+`trash` decides what happens when you delete files with `rm` and a Trash tool (`gio` or `trash-put`) is installed: `"ask"` (the default), `"always"` (use the Trash without asking) or `"never"`.
 
 ## AI providers (optional)
 
@@ -325,6 +381,7 @@ Delete `~/.local/share/clishe/kb.json` to forget everything you've taught it.
 
 ```text
 clishe.sh               interactive shell front end
+clishe-bind.bash        Ctrl+G shortcut for your normal bash prompt
 clishe_brain.py         backend: KB, history, prediction, AI resolution
 config.py               config loading, distro detection
 knowledge.py            offline explain / diagnose engine

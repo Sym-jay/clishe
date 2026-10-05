@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Added
+- **Ctrl+G in your normal shell.** Add `eval "$(clishe --init bash)"` to
+  `~/.bashrc`, type plain English at any prompt and press Ctrl+G: the line
+  becomes the command, with the cursor on the first `<placeholder>`. On a
+  real command it explains the flags instead. It never runs anything.
+- **Trash instead of rm.** When you delete with `rm` and `gio` or
+  `trash-cli` is installed, Clishe offers to move the files to the Trash so
+  you can get them back. New `"trash"` config option: `ask` (default),
+  `always`, `never`.
+- **Learning tips.** After asking for the same phrase 3 (and 10) times,
+  Clishe shows the command to type yourself, and cheers once when you do.
 - "Did you mean...?" now matches on meaning, not just spelling: "remove a
   directory" finds "delete a folder", "how much disk is left" finds "how much
   space do i have". It uses a small synonym table, stays offline and still

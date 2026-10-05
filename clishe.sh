@@ -97,6 +97,8 @@ Usage:
   clishe explain <command>  explain what a command does, then exit
   clishe "<phrase>"         look up a phrase in your knowledge base (does not run it)
   clishe --list             show the phrases you've taught
+  clishe --init bash        print the Ctrl+G shortcut for your normal shell
+                            (add  eval "$(clishe --init bash)"  to ~/.bashrc)
   clishe --version          show the version
   clishe --help             show this help
 
@@ -118,6 +120,10 @@ shell command. Clishe shows you the command before it runs.
 
 Commands with <placeholders>, like "cp <file> <destination>", ask you to
 fill in each value before running.
+
+Want this in your normal shell too? Add this line to ~/.bashrc:
+  eval "$(clishe --init bash)"
+Then type plain English at any prompt and press Ctrl+G.
 EOF
 }
 
@@ -130,12 +136,12 @@ parse_brain_output() {
     local key value k
     # Reset first, so an empty or failed call can't leave the previous
     # call's STATUS or COMMAND behind.
-    for k in STATUS COMMAND PROVIDER EXPLANATION HINT REASON PHRASE; do
+    for k in STATUS COMMAND PROVIDER EXPLANATION HINT REASON PHRASE RESTORE MODE; do
         printf -v "${prefix}_${k}" '%s' ""
     done
     while IFS='=' read -r key value; do
         case "$key" in
-            STATUS|COMMAND|PROVIDER|EXPLANATION|HINT|REASON|PHRASE)
+            STATUS|COMMAND|PROVIDER|EXPLANATION|HINT|REASON|PHRASE|RESTORE|MODE)
                 printf -v "${prefix}_${key}" '%s' "$value" ;;
         esac
     done <<< "$output"
@@ -441,6 +447,23 @@ resolve_with_ai() {
     teach_prompt "$phrase"
 }
 
+# For a plain "rm", offer to move the files to the Trash instead, so they
+# can be restored. May replace FILLED_COMMAND and sets TRASH_RESTORE.
+offer_trash() {
+    local output answer
+    TRASH_RESTORE=""
+    output=$(brain --action trash --command "$FILLED_COMMAND")
+    parse_brain_output "$output" TR
+    [ "$TR_STATUS" = "ok" ] || return 0
+    if [ "$TR_MODE" != "always" ]; then
+        say_cmd "Move it to the Trash instead, so you can get it back? That runs: " "$TR_COMMAND"
+        read -r -p "Use the Trash? [Y/n]: " answer
+        [[ "$answer" =~ ^[Nn] ]] && return 0
+    fi
+    FILLED_COMMAND="$TR_COMMAND"
+    TRASH_RESTORE="$TR_RESTORE"
+}
+
 # Fill placeholders, safety-check, optionally remember, then run.
 #   prepare_and_run "<command or template>" ["<phrase to remember it as>"]
 # The template (with its <placeholders>) is what gets remembered, so the
@@ -451,6 +474,9 @@ prepare_and_run() {
     LAST_STDERR=""
 
     fill_placeholders "$template" || { echo ""; return 1; }
+    offer_trash
+    # Show the final command whenever it differs from what was shown first
+    # (placeholders filled in, or switched to the Trash).
     if [ "$FILLED_COMMAND" != "$template" ]; then
         say_cmd "Running: " "$FILLED_COMMAND"
     fi
@@ -471,6 +497,10 @@ prepare_and_run() {
     fi
 
     run_command "$FILLED_COMMAND"
+    if [ -n "$TRASH_RESTORE" ] && [ "$LAST_EXIT" -eq 0 ]; then
+        say "Moved to the Trash. Changed your mind? $TRASH_RESTORE."
+        echo ""
+    fi
 }
 
 # Run, show hints, log, suggest the next command.
@@ -509,7 +539,13 @@ run_command() {
     else
         # Only successful commands are logged, so failed guesses don't
         # pollute the next-command suggestions.
-        brain --action log --command "$cmd" > /dev/null
+        # Logging also returns tips: "you can type this yourself now",
+        # or a cheer when you just did.
+        local log_output tip
+        log_output=$(brain --action log --command "$cmd" --phrase "${TIP_PHRASE:-}")
+        while IFS= read -r tip; do
+            [[ "$tip" == TIP=* ]] && printf '%b💡 %b%s\n' "$YELLOW" "$NC" "${tip#TIP=}"
+        done <<< "$log_output"
         prediction=$(brain --action predict --command "$cmd")
         if [ -n "$prediction" ]; then
             say_cmd "💡 You might want to run: " "$prediction"
@@ -582,6 +618,17 @@ if [ $# -gt 0 ]; then
         --list)
             brain --action list
             exit 0
+            ;;
+        --init)
+            case "${2:-bash}" in
+                bash)
+                    printf '__CLISHE_BRAIN=%q\nsource %q\n' \
+                        "$PYTHON_SCRIPT" "$SCRIPT_DIR/clishe-bind.bash"
+                    exit 0 ;;
+                *)
+                    echo "Only bash is supported for now: eval \"\$(clishe --init bash)\"" >&2
+                    exit 1 ;;
+            esac
             ;;
         explain)
             if [ $# -gt 1 ]; then
@@ -709,6 +756,11 @@ while true; do
         fi
     fi
 
+    # Count phrase uses (for "you can type this yourself" tips). Commands
+    # typed directly count as "you did it yourself".
+    TIP_PHRASE=""
+    [ "$input_kind" != "native" ] && TIP_PHRASE="$user_input"
+
     prepare_and_run "$command_to_run" "$learn_phrase"
 
     # A "command" that failed with an error message, when the input reads
@@ -719,6 +771,7 @@ while true; do
         read -r -p "That didn't work. Did you mean it as plain English? Ask the AI? [y/N]: " retry
         if [[ "$retry" =~ ^[Yy]$ ]]; then
             learn_phrase=""
+            TIP_PHRASE="$user_input"
             if resolve_with_ai "$user_input"; then
                 prepare_and_run "$command_to_run" "$learn_phrase"
             fi

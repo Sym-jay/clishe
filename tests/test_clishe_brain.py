@@ -303,3 +303,100 @@ def test_one_line_output_keeps_what_runs_visible():
     import clishe_brain
     assert clishe_brain._one_line("cd /tmp\nls") == "cd /tmp; ls"
     assert clishe_brain._encoded("a\nb") == "a\\nb"
+
+
+# ---------- tips: helping people outgrow Clishe ----------
+
+def test_tip_after_third_use(brain):
+    phrase = "show me disk usage"
+    assert brain.record_use("df -h", phrase) == []
+    assert brain.record_use("df -h", phrase) == []
+    tips = brain.record_use("df -h", phrase)
+    assert len(tips) == 1 and "3 times" in tips[0] and "df -h" in tips[0]
+    assert brain.record_use("df -h", phrase) == []
+
+
+def test_tip_mentions_placeholders(brain):
+    for _ in range(2):
+        brain.record_use("cp a b", "copy a file")
+    tip = brain.record_use("cp a b", "copy a file")[0]
+    assert "cp <file> <destination>" in tip and "<...>" in tip
+
+
+def test_cheer_once_when_user_types_the_command_themselves(brain):
+    brain.record_use("df -h", "show me disk usage")
+    assert "yourself" in brain.record_use("df -h")[0]
+    assert brain.record_use("df -h") == []  # only once
+
+
+def test_no_cheer_for_commands_never_asked_about(brain):
+    assert brain.record_use("df -h") == []
+
+
+# ---------- trash instead of rm ----------
+
+@pytest.fixture
+def trash_brain(brain, monkeypatch):
+    import clishe_brain
+    monkeypatch.setattr(clishe_brain, "_trash_tool",
+                        lambda: (["gio", "trash"], "Open Trash in your file manager"))
+    monkeypatch.setattr(clishe_brain, "load_config", lambda: {"trash": "ask"})
+    return brain
+
+
+@pytest.mark.parametrize("command,expected", [
+    ("rm notes.txt", "gio trash notes.txt"),
+    ("rm -rf build", "gio trash build"),
+    ("rm -r 'my notes.txt' *.log", "gio trash 'my notes.txt' *.log"),
+    ("rm -- -weird-name", "gio trash -- -weird-name"),
+])
+def test_trash_rewrites_plain_rm(trash_brain, command, expected):
+    assert trash_brain.trash_command(command)["command"] == expected
+
+
+@pytest.mark.parametrize("command", [
+    "rm -rf",                      # no files
+    "sudo rm -rf /var/log/x",      # needs root; leave it alone
+    "rm a; ls",
+    "rm $(cat list.txt)",
+    "rm `cat list.txt`",
+    "ls | xargs rm",
+    "cp a b",
+])
+def test_trash_leaves_other_commands_alone(trash_brain, command):
+    assert trash_brain.trash_command(command) is None
+
+
+def test_trash_respects_never(trash_brain, monkeypatch):
+    import clishe_brain
+    monkeypatch.setattr(clishe_brain, "load_config", lambda: {"trash": "never"})
+    assert trash_brain.trash_command("rm x") is None
+
+
+def test_trash_needs_a_trash_tool(brain, monkeypatch):
+    import clishe_brain
+    monkeypatch.setattr(clishe_brain, "_trash_tool", lambda: None)
+    monkeypatch.setattr(clishe_brain, "load_config", lambda: {})
+    assert brain.trash_command("rm x") is None
+
+
+# ---------- the Ctrl+G shell shortcut ----------
+
+def test_line_known_phrase_becomes_command(brain):
+    r = brain.resolve_line("show me disk usage", use_ai=False)
+    assert r["mode"] == "command" and r["command"] == "df -h" and not r["reasons"]
+
+
+def test_line_risky_match_carries_a_warning(brain):
+    r = brain.resolve_line("remove a directory", use_ai=False)
+    assert r["command"] == "rm -r <folder>" and r["reasons"] and "delete a folder" in r["note"]
+
+
+def test_line_real_command_is_explained(brain):
+    r = brain.resolve_line("tar -xzvf a.tgz", use_ai=False)
+    assert r["mode"] == "explain" and "-x" in r["explanation"]
+
+
+def test_line_unknown_or_empty(brain):
+    assert brain.resolve_line("book a flight to paris", use_ai=False)["mode"] == "none"
+    assert brain.resolve_line("   ", use_ai=False)["mode"] == "none"
