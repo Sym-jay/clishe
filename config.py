@@ -72,6 +72,22 @@ def detect_distro() -> str:
     return "unknown"
 
 
+def detect_distro_family() -> list:
+    """ID plus ID_LIKE from /etc/os-release, e.g. ['pop', 'ubuntu', 'debian'],
+    so derivatives map onto the package manager of the distro they're
+    based on. Empty if unknown."""
+    ids = []
+    try:
+        with open(OS_RELEASE_FILE, 'r') as f:
+            for line in f:
+                key, _, value = line.strip().partition('=')
+                if key in ('ID', 'ID_LIKE'):
+                    ids.extend(value.strip('"').lower().split())
+    except OSError:
+        pass
+    return ids
+
+
 def load_config() -> dict:
     if not CONFIG_FILE.exists():
         _write_default_config()

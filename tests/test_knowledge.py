@@ -136,3 +136,69 @@ def test_format_explanation_without_flags_lists_common_ones():
     entry = lookup_command("chmod 755 x")
     text = format_explanation(entry, "chmod 755 x")
     assert "Common flags" in text
+
+
+# ---------- programs that aren't installed ----------
+
+import pytest  # noqa: E402
+from knowledge import missing_program_hint, output_guide  # noqa: E402
+
+
+@pytest.mark.parametrize("family,expected", [
+    (["pop", "ubuntu", "debian"], "sudo apt install dnsutils"),
+    (["fedora"], "sudo dnf install bind-utils"),
+    (["endeavouros", "arch"], "sudo pacman -S bind"),
+    (["opensuse-tumbleweed", "opensuse"], "sudo zypper install bind-utils"),
+    (["alpine"], "sudo apk add dig"),
+])
+def test_install_hint_uses_the_distros_package_manager(family, expected):
+    assert expected in missing_program_hint("dig", family)
+
+
+def test_install_hint_same_name_package():
+    assert "sudo apt install htop" in missing_program_hint("htop", ["ubuntu"])
+
+
+def test_install_hint_unknown_distro_stays_generic():
+    hint = missing_program_hint("htop", ["nixos"])
+    assert "isn't installed" in hint and "sudo" not in hint
+
+
+def test_python_points_to_python3():
+    assert "python3" in missing_program_hint("python", ["ubuntu"])
+
+
+def test_command_not_found_names_the_program():
+    hint = diagnose_error("bash: line 3: htop: command not found")
+    assert "'htop' isn't installed" in hint
+
+
+@pytest.mark.parametrize("error,expected", [
+    ("git@github.com: Permission denied (publickey).", "SSH key"),
+    ("error: externally-managed-environment", "virtual environment"),
+    ("E: Could not open lock file /var/lib/dpkg/lock-frontend", "sudo"),
+    ("E: Unable to locate package htopp", "apt update"),
+    ("fatal: not a git repository (or any of the parent directories): .git", "git init"),
+    ("curl: (6) Could not resolve host: example.invalid", "internet"),
+])
+def test_common_beginner_errors_are_explained(error, expected):
+    assert expected in diagnose_error(error)
+
+
+# ---------- output guides ----------
+
+@pytest.mark.parametrize("command,label", [
+    ("ls -la", "ls -l"),
+    ("ls", "ls"),
+    ("sudo df -h", "df"),
+    ("du -sh * | sort -h", "du"),
+    ("git status", "git status"),
+    ("FOO=1 uptime", "uptime"),
+])
+def test_output_guide_matches(command, label):
+    assert output_guide(command)[0] == label
+
+
+@pytest.mark.parametrize("command", ["git push", "cat notes.txt", "", "echo 'unterminated"])
+def test_output_guide_none(command):
+    assert output_guide(command) is None

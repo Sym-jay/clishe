@@ -83,5 +83,6 @@
   "open a file": "xdg-open <file>",
   "show running services": "systemctl list-units --type=service --state=running",
   "show recent system logs": "journalctl -n 50 --no-pager",
-  "show folder tree": "find . -maxdepth 2 -not -path '*/.*'"
+  "show folder tree": "find . -maxdepth 2 -not -path '*/.*'",
+  "go back": "cd -"
 }

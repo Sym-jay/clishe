@@ -34,12 +34,16 @@ INPUT_HISTORY_FILE="$DATA_DIR/input_history"
 # at the start of plain sentences ("find my photos", "install htop",
 # "help me set up ssh"), so they only count as commands when the line also
 # has flags, paths or operators.
-AMBIGUOUS_WORDS=" find make install kill open cut look more watch test time mail write wait yes sort touch cat head tail who join split paste fold nice help read let set locate "
+AMBIGUOUS_WORDS=" find make install kill open cut look more watch test time mail write wait yes sort touch cat head tail who join split paste fold nice help read let set locate show say "
 
 # Programs whose normal form is "<program> <subcommand> <args>", e.g.
 # "git status" or "systemctl status nginx". Several plain words after these
 # are still a command, not a sentence.
 TOOL_COMMANDS=" git apt apt-get dnf yum pacman zypper apk systemctl journalctl docker pip pip3 npm snap flatpak brew "
+
+# "go" is both the Go toolchain and an English verb ("go back"). It's a
+# command only when a real go subcommand follows.
+GO_SUBCOMMANDS=" build run test mod get install fmt vet env version doc generate list work clean tool help bug fix "
 
 # Destructive commands followed by several plain words ("rm the old files")
 # read like a sentence. Let the AI interpret them instead of treating the
@@ -53,6 +57,8 @@ RE_WHAT_DOES='^what[[:space:]]+does[[:space:]]+(.+)[[:space:]]+do\??$'
 RE_WHAT_IS='^what[[:space:]]+(is|are)[[:space:]]+(.+)$'
 RE_WHATS="^what's[[:space:]]+(.+)\$"
 RE_TELL_ME='^tell[[:space:]]+me[[:space:]]+about[[:space:]]+(.+)$'
+# "what does this mean?" about the output of the last command.
+RE_OUTPUT_QUESTION="^(what (does|do) (this|that|it|these|those) mean|explain (this|that|it|the output)|what am i looking at|i don'?t understand( (this|that|it))?)[?!. ]*\$"
 
 # A placeholder in a KB or AI command, e.g. "cp <file> <destination>".
 # Lowercase words only, so real redirections like "sort <in.txt" aren't
@@ -112,6 +118,7 @@ Type what you want in plain English ("show me disk usage"), or any normal
 shell command. Clishe shows you the command before it runs.
 
   explain <command>   what does a command do? (also: "what does ls do")
+  what does this mean explain the output of the command you just ran
   learned             list the phrases you've taught me
   teach               teach me a phrase -> command (or fix a wrong one)
   forget <phrase>     forget a phrase you taught me
@@ -238,6 +245,16 @@ fill_placeholders() {
     return 0
 }
 
+# Succeeds if the word is a program or shell builtin the user could run.
+# Clishe's own functions (say, warn, brain, ...) don't count, or "say hi"
+# would run Clishe's internals instead of being read as English.
+is_runnable() {
+    case "$(type -t -- "$1" 2>/dev/null)" in
+        file|builtin|keyword) return 0 ;;
+    esac
+    return 1
+}
+
 word_count() {
     local -a w
     read -r -a w <<< "$1"
@@ -282,7 +299,7 @@ looks_like_command() {
     # The first word must be something the shell can actually run.
     case "$first" in
         */*|.*) [ -e "$first" ] || return 1 ;;
-        *) command -v "$first" &> /dev/null || return 1 ;;
+        *) is_runnable "$first" || return 1 ;;
     esac
 
     # Flags, paths or operators mean the user is writing a real command.
@@ -290,6 +307,11 @@ looks_like_command() {
 
     # "git status", "systemctl status nginx", "sudo apt update"
     [[ "$TOOL_COMMANDS" == *" $first "* ]] && return 0
+
+    if [ "$first" = "go" ]; then
+        [[ "$GO_SUBCOMMANDS" == *" ${words[1]:-} "* ]] && return 0
+        return 1
+    fi
 
     # Ambiguous English verbs: "cat notes.txt" (the file exists) is a
     # command, but "install htop" or "find files bigger than 100MB" is not.
@@ -342,7 +364,7 @@ detect_explain_target() {
 
     if [ -n "$target" ] && [ "$explicit" -eq 0 ]; then
         local first_word="${target%% *}"
-        command -v "$first_word" &> /dev/null || target=""
+        is_runnable "$first_word" || target=""
     fi
 
     printf '%s' "$target"
@@ -362,6 +384,34 @@ run_explain() {
     warn "I couldn't explain that: it isn't in my offline dictionary and no AI provider is available."
     warn "Try 'man ${target%% *}', or set up a provider in ~/.config/clishe/config.json (see the README)."
     return 1
+}
+
+# Print how to install a well-known program the user typed but doesn't
+# have. Returns 1 if that's not what happened.
+missing_hint() {
+    local output
+    output=$(brain --action missing --command "$1")
+    parse_brain_output "$output" MS
+    [ "$MS_STATUS" = "ok" ] || return 1
+    printf '%b💡 %b%s\n' "$YELLOW" "$NC" "$MS_HINT"
+    return 0
+}
+
+# Explain the output of the last command that ran ("what does this mean?").
+explain_last_output() {
+    local output
+    if [ -z "${LAST_RUN_COMMAND:-}" ]; then
+        say "Run a command first, then ask me what its output means."
+        return
+    fi
+    output=$(brain --action output --command "$LAST_RUN_COMMAND")
+    parse_brain_output "$output" OG
+    if [ "$OG_STATUS" = "ok" ]; then
+        say_cmd "About the output of " "$LAST_RUN_COMMAND"
+        printf '%s\n' "$(decode_lines "$OG_EXPLANATION")"
+    else
+        say "I don't have a guide for the output of '$LAST_RUN_COMMAND' yet. Try 'man ${LAST_RUN_COMMAND%% *}' for the full manual."
+    fi
 }
 
 # Offer the closest known phrase for a near-miss. On yes, sets
@@ -482,18 +532,10 @@ prepare_and_run() {
     fi
 
     # Safety check before executing anything, whether it came from the KB,
-    # an AI provider, or manual teaching - and before saving it.
+    # an AI provider, or manual teaching.
     if ! confirm_dangerous "$FILLED_COMMAND"; then
         echo ""
         return 1
-    fi
-
-    if [ -n "$phrase" ]; then
-        # Cache only what was approved (including edits), never a raw
-        # unreviewed suggestion.
-        if [ "$(brain --action learn --phrase "$phrase" --command "$template")" = "learned" ]; then
-            say "Saved for next time - I won't need to ask again."
-        fi
     fi
 
     run_command "$FILLED_COMMAND"
@@ -501,15 +543,32 @@ prepare_and_run() {
         say "Moved to the Trash. Changed your mind? $TRASH_RESTORE."
         echo ""
     fi
+
+    # Remember the phrase only once its command has worked (Ctrl-C counts:
+    # that's how you stop ping or tail -f). Saving first meant a wrong
+    # command came back every time. Only what was approved, including
+    # edits, is saved, never a raw unreviewed suggestion.
+    if [ -n "$phrase" ]; then
+        if [ "$LAST_EXIT" -eq 0 ] || [ "$LAST_EXIT" -eq 130 ]; then
+            if [ "$(brain --action learn --phrase "$phrase" --command "$template")" = "learned" ]; then
+                say "Saved for next time - I won't need to ask again."
+                echo ""
+            fi
+        else
+            say "That didn't work, so I won't remember it for \"$phrase\". (If it was right after all, type 'teach' to save it.)"
+            echo ""
+        fi
+    fi
 }
 
 # Run, show hints, log, suggest the next command.
 # Sets LAST_EXIT and LAST_STDERR for the caller.
 run_command() {
     local cmd="$1"
-    local stderr_file diagnose_output prediction
+    local stderr_file diagnose_output
     LAST_EXIT=0
     LAST_STDERR=""
+    LAST_RUN_COMMAND="$cmd"
 
     echo ""
     stderr_file=$(mktemp)
@@ -541,15 +600,16 @@ run_command() {
         # pollute the next-command suggestions.
         # Logging also returns tips: "you can type this yourself now",
         # or a cheer when you just did.
-        local log_output tip
+        # (One call: the next-command suggestion comes back here too.)
+        local log_output line
         log_output=$(brain --action log --command "$cmd" --phrase "${TIP_PHRASE:-}")
-        while IFS= read -r tip; do
-            [[ "$tip" == TIP=* ]] && printf '%b💡 %b%s\n' "$YELLOW" "$NC" "${tip#TIP=}"
+        while IFS= read -r line; do
+            case "$line" in
+                TIP=*) printf '%b💡 %b%s\n' "$YELLOW" "$NC" "${line#TIP=}" ;;
+                GUIDE=1) printf '%b(Not sure what that output means? Ask me: what does this mean)%b\n' "$DIM" "$NC" ;;
+                PREDICT=*) say_cmd "💡 You might want to run: " "${line#PREDICT=}" ;;
+            esac
         done <<< "$log_output"
-        prediction=$(brain --action predict --command "$cmd")
-        if [ -n "$prediction" ]; then
-            say_cmd "💡 You might want to run: " "$prediction"
-        fi
     fi
     echo ""
 }
@@ -679,6 +739,25 @@ printf '%b║  Natural Language Command Interface   ║%b\n' "$BLUE" "$NC"
 printf '%b╚═══════════════════════════════════════╝%b\n' "$BLUE" "$NC"
 printf "%bSay what you want in plain English. Type 'help' for tips, 'exit' to quit.%b\n\n" "$BLUE" "$NC"
 
+# First time ever: show a few things to try instead of a blank prompt.
+WELCOMED_FILE="$DATA_DIR/.welcomed"
+if [ ! -e "$WELCOMED_FILE" ]; then
+    cat <<'WELCOME'
+First time here? Try typing one of these:
+
+  show me disk usage        how full your disk is
+  list files                what's in this folder
+  how much memory is free   how much RAM you have left
+  explain tar -xzvf         what each part of a command means
+  delete a file             (I always ask before anything risky)
+
+After any command, ask "what does this mean" to understand its output.
+You can also use me in your normal terminal with Ctrl+G. Type 'help' to see how.
+
+WELCOME
+    : > "$WELCOMED_FILE" 2>/dev/null
+fi
+
 while true; do
     read_input
     read_status=$?
@@ -703,6 +782,16 @@ while true; do
     command_to_run=""
     learn_phrase=""
     input_kind=""
+
+    # "what does this mean?" right after a command.
+    shopt -s nocasematch
+    if [[ "$user_input" =~ $RE_OUTPUT_QUESTION ]]; then
+        shopt -u nocasematch
+        explain_last_output
+        echo ""
+        continue
+    fi
+    shopt -u nocasematch
 
     # Clishe's own commands.
     case "$user_input" in
@@ -744,6 +833,11 @@ while true; do
             command_to_run="$user_input"
             input_kind="native"
             say_cmd "Executing: " "$command_to_run"
+        # A well-known program that isn't installed ("htop"): say how to
+        # get it, rather than treating it as English.
+        elif missing_hint "$user_input"; then
+            echo ""
+            continue
         # 4. Close to a phrase I know? (offline, asks first)
         elif offer_close_match "$user_input"; then
             input_kind="kb"

@@ -54,7 +54,7 @@ Most command-line tools assume you already know the command you want. Clishe ass
 
 - **It shows its work.** Every command is displayed as it runs. AI suggestions and "did you mean...?" matches wait for your OK first (and AI suggestions can be edited), each AI suggestion comes with a one-line reason, and `explain` breaks down the exact flags you used.
 - **It works offline.** A bundled knowledge base, a command dictionary and an error-hint database need no network and no account.
-- **It learns from you.** Anything you teach it, or approve from an AI suggestion, is remembered, so the same phrase is instant next time.
+- **It learns from you.** Anything you teach it, or approve from an AI suggestion, is remembered once it has worked, so the same phrase is instant next time. A command that fails is never saved.
 - **It stays out of your way.** It's a small bash + Python (standard library) tool that keeps its files in the standard XDG locations.
 
 ## Features
@@ -67,7 +67,8 @@ Most command-line tools assume you already know the command you want. Clishe ass
 - Forgiving matching: case, punctuation and filler like "please" or "can you" are ignored, so `Please show me disk usage?` finds `show me disk usage`. Different wording with the same meaning gets a "did you mean...?" too (`remove a directory` → `delete a folder`).
 - Fill-in-the-blank commands: entries like `cp <file> <destination>` ask for each value, quote it safely, and show the final command before running it. You can teach your own (`ssh <server>`).
 - `explain`-style questions: `explain tar -xzvf`, `what does chmod do`, `what's grep`, `tell me about find`. The offline dictionary explains each flag you used (`-x`, `-z`, `-v`, `-f`) and points to `man` for ones it doesn't know. An AI provider is asked only if the command isn't in the dictionary.
-- Plain-English hints when a command fails (permission denied, no such file, and so on), fully offline.
+- Plain-English hints when a command fails (permission denied, no such file, pip's "externally-managed-environment", apt without sudo, no internet, and more), fully offline. If a program isn't installed, it tells you the install command for your distro (`apt`, `dnf`, `pacman`, `zypper` or `apk`).
+- "What does this mean?" after `ls -l`, `df -h`, `free -h`, `ps aux`, `git status` and others walks you through the columns of the output you just saw. Offline, and your output never leaves your machine.
 - Next-command suggestions based on your own history. They appear once you have a few dozen logged commands.
 - A comfortable prompt: arrow keys and line editing work, your inputs are remembered across sessions, and Ctrl-C stops a running command without closing Clishe.
 - Manage what it knows from inside a session: `learned`, `teach`, `forget <phrase>`.
@@ -75,7 +76,7 @@ Most command-line tools assume you already know the command you want. Clishe ass
 **AI (optional)**
 - Local models through [Ollama](https://ollama.com), or the Anthropic API, with a configurable priority order and automatic fallback when a provider is unreachable.
 - Distro-aware suggestions: your distro ID (from `/etc/os-release`) is passed to the model so it can prefer `apt`, `dnf` or `pacman` as appropriate.
-- AI suggestions are saved only after you approve them. If you reject one, nothing is stored.
+- AI suggestions are saved only after you approve them and they run successfully. If you reject one, or it fails, nothing is stored.
 
 **Safety and scripting**
 - Commands that look destructive require you to type `YES`, and the warning says why in plain English ("It deletes a folder and everything inside it, permanently"). The check parses the command, so `rm -fr`, `sudo rm -r`, `cd x && rm -rf y`, `curl ... | sh`, `find -delete`, `git reset --hard` and friends are all caught. See [Security](#security).
@@ -164,7 +165,27 @@ Your edited command is the one that gets run and saved. Answering `n` skips it a
 You: deploy my site
 Clishe: I don't know that, and no AI provider is available right now. Teach me!
 What command should I run? (blank to skip) ./deploy.sh
-Clishe: Thanks! I'll remember that.
+...
+Clishe: Saved for next time - I won't need to ask again.
+```
+If the command fails, Clishe doesn't save it, so a wrong answer doesn't come back next time.
+
+**Asking about the output**
+```text
+You: free -h
+               total        used        free      shared  buff/cache   available
+Mem:           7.8Gi       2.1Gi       1.2Gi       113Mi       4.5Gi       5.4Gi
+You: what does this mean
+Clishe: About the output of free -h
+  ...
+  available   what programs can actually still use. This is the number to look at.
+A small 'free' is normal and fine. A small 'available' ... means you're low on memory.
+```
+
+**A program that isn't installed**
+```text
+You: htop
+💡 'htop' isn't installed. You can probably install it with: sudo apt install htop
 ```
 
 **Asking what something does**
@@ -242,6 +263,7 @@ Nothing runs until you press Enter. Prefer another key? Set `CLISHE_KEY='\eg'` (
 | `teach` | Teach a phrase and its command, or fix a wrong one |
 | `forget <phrase>` | Forget a phrase you taught |
 | `explain <command>` | Explain a command and its flags |
+| `what does this mean` | Explain the output of the command you just ran |
 | `exit` / Ctrl-D | Leave |
 
 ### One-shot mode
@@ -389,6 +411,7 @@ safety.py               destructive-command check
 providers/              AI provider interface, Ollama and Anthropic backends
 seed_kb.json            bundled starter phrases (read-only)
 command_dictionary.json offline command explanations
+output_guides.json      offline "what does this mean?" guides
 error_patterns.json     offline error hints
 install.sh              one-line installer
 tests/                  pytest suite

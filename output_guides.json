@@ -1,0 +1,61 @@
+[
+  {
+    "command": "ls",
+    "flag": "l",
+    "guide": "Each line is one file or folder. Reading a line like\n  drwxr-xr-x  2 hari hari 4096 Oct  5 10:00 photos\nfrom left to right:\n  d / -       d means a folder, - means a file (l is a shortcut/link)\n  rwxr-xr-x   who can read (r), write (w) and run (x) it: first you, then your group, then everyone else\n  2           how many links point to it (you can ignore this)\n  hari hari   the owner, then the group\n  4096        size in bytes (add -h to see KB/MB/GB instead)\n  Oct 5 10:00 when it was last changed\n  photos      the name\nThe 'total' line at the top is disk space used, in blocks. Names starting with a dot are hidden files."
+  },
+  {
+    "command": "ls",
+    "guide": "Each name is a file or folder in the current folder. Folders are usually shown in blue, programs you can run in green.\nAdd -l for details (size, date, permissions), and -a to also see hidden files (names that start with a dot)."
+  },
+  {
+    "command": "df",
+    "guide": "One line per disk or partition:\n  Filesystem  the disk or partition\n  Size        how big it is\n  Used        how much is taken\n  Avail       how much is still free\n  Use%        how full it is (worry when it gets above about 90%)\n  Mounted on  the folder where you reach it\nYour main disk is the one mounted on /. Lines starting with tmpfs or devtmpfs live in memory, not on your disk, so you can ignore them."
+  },
+  {
+    "command": "du",
+    "guide": "Each line is a size, then the file or folder it belongs to (with -h, sizes read like 4.0K, 120M, 2.3G).\nTo find what's taking up space, add '| sort -h' to put the biggest at the bottom, then cd into the biggest folder and run it again."
+  },
+  {
+    "command": "free",
+    "guide": "Memory (RAM) on the Mem line, swap (disk used as emergency memory) on the Swap line:\n  total       all of it\n  used        taken by programs\n  free        completely unused\n  buff/cache  borrowed by Linux to speed things up, given back when programs need it\n  available   what programs can actually still use. This is the number to look at.\nA small 'free' is normal and fine. A small 'available', or a lot of used swap, means you're low on memory."
+  },
+  {
+    "command": "ps",
+    "guide": "One line per running program (process):\n  USER     who started it\n  PID      its ID number, which is what 'kill <PID>' needs\n  %CPU     how much processor it's using right now\n  %MEM     how much memory it's using\n  VSZ/RSS  memory in KB (RSS is what it really uses)\n  STAT     its state: R running, S sleeping (normal), Z zombie (finished but not cleaned up)\n  START    when it started\n  TIME     total processor time used\n  COMMAND  what was run\nTo find one program: ps aux | grep <name>"
+  },
+  {
+    "command": "uptime",
+    "guide": "Reads as: the time now, how long since the last restart ('up 3 days'), how many people are logged in, and the load average.\nThe three load numbers are how busy the computer was over the last 1, 5 and 15 minutes. Compare them with your number of CPU cores ('nproc'): below that number is fine, well above it means things are waiting."
+  },
+  {
+    "command": "hostname",
+    "guide": "These are this computer's network addresses (IP addresses).\nOne starting with 192.168., 10. or 172.16-31. is your address on your local network (Wi-Fi or cable). Other devices at home or work can reach you on it, but it's not your public internet address.\nLonger ones with colons are IPv6 addresses."
+  },
+  {
+    "command": "ip",
+    "guide": "One block per network connection (interface):\n  lo        a loopback for the computer to talk to itself (127.0.0.1). Ignore it.\n  eth0/enp  a wired connection\n  wlan0/wlp a Wi-Fi connection\n  UP        connected and on\n  inet      the IPv4 address (192.168.x.x or 10.x.x.x is your local network address)\n  inet6     the IPv6 address"
+  },
+  {
+    "command": "ss",
+    "guide": "One line per network port in use:\n  Netid             tcp or udp\n  State             LISTEN means a program is waiting for connections\n  Local Address:Port  where it listens\nIf the address is 127.0.0.1 or [::1], only this computer can connect. 0.0.0.0 or * means other computers can too.\nCommon ports: 22 SSH, 80 web, 443 secure web, 53 DNS. Add -p (with sudo) to see which program owns each one."
+  },
+  {
+    "command": "lsblk",
+    "guide": "Your disks and their partitions, as a tree:\n  NAME        disk names like sda or nvme0n1, partitions like sda1 or nvme0n1p1\n  SIZE        how big each one is\n  TYPE        disk (the whole drive) or part (a partition of it)\n  MOUNTPOINTS the folder you reach it at, if it's in use. / is your main system.\nA USB stick usually shows up as a new sdb or sdc when you plug it in."
+  },
+  {
+    "command": "wc",
+    "guide": "The number is the count, then the file name. With -l it counts lines, -w words, -c bytes. Without a flag you get all three: lines, words, bytes."
+  },
+  {
+    "command": "git",
+    "sub": "status",
+    "guide": "git status sorts your changes into groups:\n  Changes to be committed      staged with 'git add'; they go into your next commit\n  Changes not staged           edited, but not added yet. Run 'git add <file>' to include them\n  Untracked files              new files git isn't watching yet\nThe first lines say which branch you're on and whether it's ahead of or behind the copy on GitHub (use git push or git pull to sync)."
+  },
+  {
+    "command": "git",
+    "sub": "log",
+    "guide": "Your project's history, newest first. Each commit shows:\n  commit <long id>  its ID (the first 7 characters are enough to refer to it)\n  Author            who made it\n  Date              when\n  the message       what was changed and why\nPress q to leave, the arrow keys or space to scroll. 'git log --oneline' gives a short version."
+  }
+]
