@@ -12,6 +12,15 @@
 - Every model, local or cloud, now gets the same safety instructions
   (decline unclear or destructive requests, use `<placeholders>`). Before,
   Ollama got a shorter prompt without them.
+- **Explain any installed command, offline.** When a command isn't in the
+  offline dictionary, `explain` reads your system's own manual (`man`, or
+  `--help` when there's no man page) and shows its one-line summary and
+  the description of each flag you used. AI is asked only when there's no
+  manual. Flags missing from the dictionary are filled in from the manual
+  too.
+- **AI suggestions are checked against the manual.** Each suggestion shows
+  what your manual says about its flags, and warns about any flag the
+  manual doesn't mention, which is how small local models usually go wrong.
 
 ### Changed
 - **Local only by default.** The Anthropic provider is now opt-in:

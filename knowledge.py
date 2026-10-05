@@ -97,6 +97,18 @@ def explain_flags(command_str: str, entry: dict):
     return known, unknown
 
 
+def _manual_flag(command: str, flag: str) -> str:
+    """A flag that isn't in the offline notes: ask the manual installed on
+    this computer."""
+    from manual import flag_help, read_manual
+    name = _base_name(command)
+    text, source = read_manual(name)
+    found = flag_help(text, flag) if text else ""
+    if found:
+        return f"{found} (from {source})"
+    return f"(not in my offline notes - try: man {name})"
+
+
 def format_explanation(entry: dict, command: str = "") -> str:
     """Turn a dictionary entry into a beginner-friendly explanation string.
     If `command` is given and uses flags, explain those specific flags
@@ -107,8 +119,7 @@ def format_explanation(entry: dict, command: str = "") -> str:
     known, unknown = explain_flags(command, entry) if command else ([], [])
     if known or unknown:
         lines = [f"  {flag}  {desc}" for flag, desc in known]
-        lines += [f"  {flag}  (not in my offline notes - try: man {_base_name(command)})"
-                  for flag in unknown]
+        lines += [f"  {flag}  {_manual_flag(command, flag)}" for flag in unknown]
         parts.append(f"In '{command.strip()}':\n" + "\n".join(lines))
     elif flags:
         flag_lines = [f"  {flag}  {desc}" for flag, desc in flags.items()]

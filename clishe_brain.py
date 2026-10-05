@@ -27,6 +27,7 @@ from config import load_config
 from knowledge import (lookup_command, format_explanation, diagnose_error,
                        missing_program_hint, POPULAR_PROGRAMS, output_guide)
 from safety import check_command
+from manual import check_flags, explain_from_manual
 
 
 
@@ -522,8 +523,10 @@ class ClisheBrain:
                 continue  # try the next provider in the chain
 
             if result:
+                manual, unverified = self.manual_notes(result.command)
                 return {"status": "ok", "command": result.command,
-                        "explanation": result.explanation, "provider": provider.name}
+                        "explanation": result.explanation, "provider": provider.name,
+                        "manual": manual, "unverified": unverified}
             # This provider understood the request but declined (unclear or
             # unsafe). That's a real answer - don't shop it around.
             return {"status": "declined", "provider": provider.name}
@@ -542,6 +545,12 @@ class ClisheBrain:
                 "provider": "offline dictionary",
             }
 
+        # Any installed command: its own manual, still offline.
+        from_manual = explain_from_manual(command)
+        if from_manual:
+            return {"status": "ok", "explanation": from_manual,
+                    "provider": "your system's manual"}
+
         chain = build_provider_chain(load_config())
         from providers import ProviderError
         for provider in chain:
@@ -555,6 +564,20 @@ class ClisheBrain:
                 return {"status": "ok", "explanation": explanation, "provider": provider.name}
 
         return {"status": "unavailable"}
+
+    def manual_notes(self, command):
+        """Check an AI suggestion against the manuals on this computer.
+        Returns (lines, unverified): what the manual says about each flag
+        used, and the flags the manual doesn't mention (small models
+        sometimes invent them)."""
+        lines, unverified = [], []
+        for note in check_flags(command):
+            for flag, help_text in note["flags"]:
+                if help_text:
+                    lines.append(f"{note['name']} {flag}: {help_text}")
+                else:
+                    unverified.append(f"{note['name']} {flag}")
+        return lines, unverified
 
     def diagnose(self, error_text):
         """Translate a command's stderr output into a plain-English hint,
@@ -691,6 +714,10 @@ def main():
             print(f"COMMAND={_one_line(result['command'])}")
             print(f"EXPLANATION={_encoded(result['explanation'])}")
             print(f"PROVIDER={result['provider']}")
+            if result.get('manual'):
+                print(f"MANUAL={_encoded(chr(10).join(result['manual']))}")
+            if result.get('unverified'):
+                print(f"UNVERIFIED={_one_line(', '.join(result['unverified']))}")
         elif result['status'] == 'declined':
             print(f"PROVIDER={result['provider']}")
 
