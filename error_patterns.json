@@ -1,5 +1,49 @@
 [
   {
+    "match": "permission denied (publickey)",
+    "hint": "The server didn't accept your SSH key. For GitHub: create a key with 'ssh-keygen -t ed25519', then add the contents of ~/.ssh/id_ed25519.pub under GitHub Settings > SSH keys."
+  },
+  {
+    "match": "externally-managed-environment",
+    "hint": "Your system's Python is managed by your distro, so pip won't install into it. Make a virtual environment instead: 'python3 -m venv .venv', then '. .venv/bin/activate', then pip install again. For command-line apps, 'pipx install <name>' also works."
+  },
+  {
+    "match": "could not open lock file",
+    "hint": "Installing or updating software needs admin rights. Put sudo in front, e.g. 'sudo apt install <name>'."
+  },
+  {
+    "match": "are you root?",
+    "hint": "This needs admin rights. Put sudo in front of the command."
+  },
+  {
+    "match": "unable to locate package",
+    "hint": "apt doesn't know that package name. Run 'sudo apt update' to refresh the package list, check the spelling, or search with 'apt search <name>'."
+  },
+  {
+    "match": "dpkg was interrupted",
+    "hint": "An earlier install got cut off. Fix it with: sudo dpkg --configure -a"
+  },
+  {
+    "match": "is not in the sudoers file",
+    "hint": "Your account isn't allowed to use sudo. Ask whoever manages this computer for admin rights."
+  },
+  {
+    "match": "not a git repository",
+    "hint": "This folder isn't a git project. cd into your project folder first, or run 'git init' to start one here."
+  },
+  {
+    "match": "could not resolve host",
+    "hint": "Couldn't reach that address. Check your internet connection ('ping -c 3 google.com') and the spelling of the address."
+  },
+  {
+    "match": "temporary failure in name resolution",
+    "hint": "Couldn't look up that address, which usually means no internet connection. Check your Wi-Fi or network, then try 'ping -c 3 google.com'."
+  },
+  {
+    "match": "network is unreachable",
+    "hint": "Your computer isn't connected to a network right now. Check your Wi-Fi or cable."
+  },
+  {
     "match": "permission denied",
     "hint": "You don't have permission to do this. If it's a file, try 'chmod' to change its permissions, or run the command with 'sudo' if it truly needs admin rights (but be careful with sudo)."
   },

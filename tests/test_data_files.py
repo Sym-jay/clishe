@@ -60,3 +60,15 @@ def test_version_matches_between_script_and_pyproject():
     script_version = re.search(r'^CLISHE_VERSION="([^"]+)"', script, re.M).group(1)
     project_version = re.search(r'^version = "([^"]+)"', pyproject, re.M).group(1)
     assert script_version == project_version
+
+
+def test_specific_error_patterns_come_before_generic_ones():
+    # First match wins, so "permission denied (publickey)" must be checked
+    # before plain "permission denied".
+    matches = [e["match"] for e in json.loads((ROOT / "error_patterns.json").read_text())]
+    assert matches.index("permission denied (publickey)") < matches.index("permission denied")
+
+
+def test_output_guides_are_well_formed():
+    for entry in json.loads((ROOT / "output_guides.json").read_text()):
+        assert entry["command"] and entry["guide"]

@@ -4,6 +4,7 @@ that don't require any AI provider or network call. This is the free, instant
 tier that AI resolution/explanation falls back to only when this misses.
 """
 import json
+import re
 import shlex
 from pathlib import Path
 
@@ -11,6 +12,7 @@ _DATA_DIR = Path(__file__).resolve().parent
 
 _COMMAND_DICT_FILE = _DATA_DIR / "command_dictionary.json"
 _ERROR_PATTERNS_FILE = _DATA_DIR / "error_patterns.json"
+_OUTPUT_GUIDES_FILE = _DATA_DIR / "output_guides.json"
 
 
 def _load_json(path, default):
@@ -23,6 +25,7 @@ def _load_json(path, default):
 
 _COMMAND_DICT = _load_json(_COMMAND_DICT_FILE, {})
 _ERROR_PATTERNS = _load_json(_ERROR_PATTERNS_FILE, [])
+_OUTPUT_GUIDES = _load_json(_OUTPUT_GUIDES_FILE, [])
 
 
 def lookup_command(command_str: str):
@@ -122,13 +125,125 @@ def format_explanation(entry: dict, command: str = "") -> str:
     return "\n".join(p for p in parts if p)
 
 
+# ---------- programs that aren't installed ----------
+
+# How each distro family installs a package.
+_INSTALLERS = [
+    ({"ubuntu", "debian", "linuxmint", "pop", "elementary", "kali", "raspbian", "zorin"},
+     "apt", "sudo apt install {}"),
+    ({"fedora", "rhel", "centos", "rocky", "almalinux", "nobara"}, "dnf", "sudo dnf install {}"),
+    ({"arch", "manjaro", "endeavouros", "garuda", "cachyos"}, "pacman", "sudo pacman -S {}"),
+    ({"opensuse", "opensuse-leap", "opensuse-tumbleweed", "suse", "sles"}, "zypper",
+     "sudo zypper install {}"),
+    ({"alpine"}, "apk", "sudo apk add {}"),
+]
+
+# Where the package name differs from the command name.
+_PACKAGE_NAMES = {
+    "ifconfig": {"*": "net-tools"},
+    "netstat": {"*": "net-tools"},
+    "dig": {"apt": "dnsutils", "dnf": "bind-utils", "pacman": "bind", "zypper": "bind-utils"},
+    "nslookup": {"apt": "dnsutils", "dnf": "bind-utils", "pacman": "bind", "zypper": "bind-utils"},
+    "pip3": {"apt": "python3-pip", "dnf": "python3-pip", "pacman": "python-pip", "apk": "py3-pip"},
+    "rg": {"*": "ripgrep"},
+    "fd": {"apt": "fd-find"},
+    "7z": {"apt": "p7zip-full", "dnf": "p7zip", "pacman": "p7zip"},
+    "convert": {"*": "imagemagick", "dnf": "ImageMagick"},
+    "nvim": {"*": "neovim"},
+    "node": {"apt": "nodejs", "dnf": "nodejs", "pacman": "nodejs"},
+    "javac": {"apt": "default-jdk", "dnf": "java-latest-openjdk-devel", "pacman": "jdk-openjdk"},
+    "java": {"apt": "default-jre", "dnf": "java-latest-openjdk", "pacman": "jre-openjdk"},
+}
+
+# Commands with a different name on most Linux systems.
+_USE_INSTEAD = {
+    "python": "python3",
+    "pip": "pip3 (or python3 -m pip)",
+}
+
+# Well-known programs. When someone types one of these and it isn't
+# installed, they meant to run it - it isn't English for the AI.
+POPULAR_PROGRAMS = set("""
+htop btop top neofetch fastfetch tree curl wget git vim nvim nano emacs micro
+python python3 pip pip3 node npm docker podman code gcc g++ make cmake java javac
+rustc cargo go ffmpeg unzip zip 7z tmux screen zsh fish ssh rsync jq fzf rg fd
+bat ncdu nmap traceroute ifconfig netstat dig nslookup whois sl cowsay figlet
+lolcat cmatrix tldr gparted vlc gimp firefox inxi lshw speedtest-cli
+""".split())
+
+
+def _installer(distro_family):
+    for ids, manager, template in _INSTALLERS:
+        if ids & set(distro_family):
+            return manager, template
+    return None, None
+
+
+def missing_program_hint(name: str, distro_family=None) -> str:
+    """'htop' -> "htop isn't installed. You can probably install it with:
+    sudo apt install htop" (using the user's own package manager)."""
+    name = (name or "").strip()
+    if not name or "/" in name:
+        return ""
+    if name in _USE_INSTEAD:
+        return (f"On most Linux systems '{name}' is called {_USE_INSTEAD[name]}. "
+                f"Try that instead.")
+    if distro_family is None:
+        from config import detect_distro_family
+        distro_family = detect_distro_family()
+    manager, template = _installer(distro_family)
+    if not manager:
+        return (f"'{name}' isn't installed. Install it with your package manager "
+                f"(the package is usually called {name}).")
+    names = _PACKAGE_NAMES.get(name, {})
+    package = names.get(manager) or names.get("*") or name
+    return f"'{name}' isn't installed. You can probably install it with: {template.format(package)}"
+
+
 def diagnose_error(error_text: str):
     """Match stderr text against known error patterns. Returns a hint string,
     or None if nothing matched."""
     if not error_text:
         return None
+    # "bash: htop: command not found" -> name the program and say how to
+    # install it on this distro, instead of a generic hint.
+    m = re.search(r"([^\s:]+): command not found", error_text)
+    if m:
+        return missing_program_hint(m.group(1))
     lowered = error_text.lower()
     for entry in _ERROR_PATTERNS:
         if entry.get("match", "").lower() in lowered:
             return entry.get("hint")
+    return None
+
+
+# ---------- "what does this mean?" ----------
+
+def output_guide(command: str):
+    """A plain-English guide to reading the output of `command` (for the
+    first command in a pipeline, e.g. 'du -sh * | sort -h' -> du).
+    Returns (name, guide) or None."""
+    first = re.split(r"\|\||&&|[|;&]", command or "", maxsplit=1)[0]
+    try:
+        words = shlex.split(first)
+    except ValueError:
+        words = first.split()
+    while words and (words[0] in ("sudo", "doas", "time") or "=" in words[0]):
+        words = words[1:]
+    if not words:
+        return None
+    name = words[0].rsplit("/", 1)[-1]
+    args = words[1:]
+    flags = "".join(a[1:] for a in args if a.startswith("-") and not a.startswith("--"))
+    positional = [a for a in args if not a.startswith("-")]
+    for entry in _OUTPUT_GUIDES:
+        if entry.get("command") != name:
+            continue
+        if "flag" in entry and entry["flag"] not in flags:
+            continue
+        if "sub" in entry and positional[:1] != [entry["sub"]]:
+            continue
+        label = name + (" " + entry["sub"] if "sub" in entry else "") + \
+            (" -" + entry["flag"] if "flag" in entry else "")
+        return label, entry["guide"]
     return None

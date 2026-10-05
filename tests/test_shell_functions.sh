@@ -227,5 +227,48 @@ assert_eq "widget: a real command is explained, line kept" "tar -xzvf a.tgz|15" 
 assert_eq "widget: never runs anything" "rm -r <folder>|6" "$(widget "delete a folder")"
 
 echo ""
+echo "=== only remember what worked ==="
+
+out=$(printf '%s\n' "zap the thing" "false" | timeout 10 "$CLISHE_SH" 2>&1)
+assert_eq "a taught command that fails isn't saved" "" "$("$CLISHE_SH" --list | grep -F "zap the thing")"
+case "$out" in
+    *"won't remember it"*) assert_eq "says it won't remember a failed command" "ok" "ok" ;;
+    *) assert_eq "says it won't remember a failed command" "message" "$out" ;;
+esac
+printf '%s\n' "zap the thing" "true" | timeout 10 "$CLISHE_SH" > /dev/null 2>&1
+assert_eq "a taught command that works is saved" "zap the thing	true" "$("$CLISHE_SH" --list | grep -F "zap the thing")"
+
+echo ""
+echo "=== routing: English vs commands ==="
+
+route() { if looks_like_command "$1"; then echo command; else echo english; fi; }
+assert_eq "Clishe's own functions aren't commands (say hi)" "english" "$(route "say hi")"
+assert_eq "Clishe's own functions aren't commands (brain)" "english" "$(route "brain")"
+assert_eq "go back is English" "english" "$(route "go back")"
+assert_eq "go build is a command" "command" "$(route "go build")"
+assert_eq "go mod tidy is a command" "command" "$(route "go mod tidy")"
+assert_eq "builtins still count (cd)" "command" "$(route "cd /tmp")"
+
+echo ""
+echo "=== what does this mean ==="
+
+out=$(printf '%s\n' "what does this mean" "ls -l" "What does this mean?" | timeout 10 "$CLISHE_SH" 2>&1)
+case "$out" in
+    *"Run a command first"*"Not sure what that output means"*"About the output of ls -l"*"d means a folder"*)
+        assert_eq "explains the last command's output" "ok" "ok" ;;
+    *) assert_eq "explains the last command's output" "guide" "$out" ;;
+esac
+
+echo ""
+echo "=== first run ==="
+
+FRESH_HOME="$(mktemp -d)"
+first=$(HOME="$FRESH_HOME" "$CLISHE_SH" < /dev/null 2>&1)
+second=$(HOME="$FRESH_HOME" "$CLISHE_SH" < /dev/null 2>&1)
+rm -rf "$FRESH_HOME"
+assert_eq "welcome on the first run" "yes" "$([[ "$first" == *"First time here?"* ]] && echo yes || echo no)"
+assert_eq "no welcome after that" "no" "$([[ "$second" == *"First time here?"* ]] && echo yes || echo no)"
+
+echo ""
 echo "=== Results: $pass_count passed, $fail_count failed ==="
 [ "$fail_count" -eq 0 ]

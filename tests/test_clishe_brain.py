@@ -400,3 +400,44 @@ def test_line_real_command_is_explained(brain):
 def test_line_unknown_or_empty(brain):
     assert brain.resolve_line("book a flight to paris", use_ai=False)["mode"] == "none"
     assert brain.resolve_line("   ", use_ai=False)["mode"] == "none"
+
+
+# ---------- missing programs, output guides, speed ----------
+
+def test_missing_popular_program_gets_install_hint(brain, monkeypatch):
+    import clishe_brain
+    monkeypatch.setattr(clishe_brain.shutil, "which", lambda name: None)
+    assert "isn't installed" in brain.missing_program("htop")
+    assert "isn't installed" in brain.missing_program("sudo nmap -sn 10.0.0.0/24")
+    assert "python3" in brain.missing_program("python hello.py")
+
+
+def test_missing_program_ignores_english_and_installed(brain, monkeypatch):
+    import clishe_brain
+    monkeypatch.setattr(clishe_brain.shutil, "which", lambda name: None)
+    assert brain.missing_program("go back") == ""
+    assert brain.missing_program("frobnicate") == ""   # not a known program
+    monkeypatch.setattr(clishe_brain.shutil, "which", lambda name: "/usr/bin/" + name)
+    assert brain.missing_program("htop") == ""
+
+
+def test_explain_output_guide_and_fallback(brain):
+    assert "available" in brain.explain_output("free -h")["explanation"]
+    fallback = brain.explain_output("cat notes.txt")
+    assert fallback["status"] == "ok" and "don't have a guide" in fallback["explanation"]
+    assert brain.explain_output("")["status"] == "none"
+
+
+def test_guide_hint_shown_once(brain):
+    assert brain.should_hint_guide("df -h") is True
+    assert brain.should_hint_guide("df -h") is False
+    assert brain.should_hint_guide("cat x") is False
+
+
+def test_offline_calls_do_not_load_the_ai_providers():
+    import subprocess
+    code = ("import sys; sys.argv=['x']; import clishe_brain; "
+            "print('providers' in sys.modules)")
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
+                         cwd=str(Path(__file__).resolve().parent.parent))
+    assert out.stdout.strip() == "False", out.stderr

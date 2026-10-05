@@ -24,9 +24,19 @@ warnings.filterwarnings('ignore')
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from config import load_config
-from providers import build_provider_chain, ProviderError
-from knowledge import lookup_command, format_explanation, diagnose_error
+from knowledge import (lookup_command, format_explanation, diagnose_error,
+                       missing_program_hint, POPULAR_PROGRAMS, output_guide)
 from safety import check_command
+
+
+
+def build_provider_chain(config):
+    """The AI providers pull in the network libraries, which cost ~35ms to
+    load on every call. Most calls (lookups, safety checks, logging) never
+    need them, so they're imported only when the AI is actually asked."""
+    from providers import build_provider_chain as _build
+    return _build(config)
+
 
 # ---------- XDG-compliant data file locations ----------
 # Data (KB + history) lives under $XDG_DATA_HOME/clishe/, falling back to
@@ -406,6 +416,48 @@ class ClisheBrain:
         return {"mode": "command", "command": command, "note": note,
                 "provider": provider, "reasons": check_command(command)}
 
+    def missing_program(self, text):
+        """If the user typed a well-known program that isn't installed
+        ("htop", "python script.py", "sudo nmap -sn ..."), return a hint on
+        how to install it. Plain English ("go back") returns ''."""
+        words = (text or "").split()
+        if words[:1] == ["sudo"]:
+            words = words[1:]
+        if not words or words[0] not in POPULAR_PROGRAMS or shutil.which(words[0]):
+            return ""
+        if len(words) > 1 and not any(w.startswith(("-", "/", "./", "~")) or "." in w
+                                      for w in words[1:]):
+            return ""
+        return missing_program_hint(words[0])
+
+    def explain_output(self, command):
+        """Guide to the output of the last command. Falls back to what the
+        command itself does. Never sends the output anywhere."""
+        if not (command or "").strip():
+            return {"status": "none"}
+        guide = output_guide(command)
+        if guide:
+            return {"status": "ok", "explanation": guide[1]}
+        info = lookup_command(command)
+        if info:
+            return {"status": "ok", "explanation":
+                    "I don't have a guide to this output yet, but here's what the command does:\n"
+                    + format_explanation(info, command)}
+        return {"status": "none"}
+
+    def should_hint_guide(self, command):
+        """True the first time ever that a command with an output guide
+        succeeds, so people learn they can ask 'what does this mean?'."""
+        guide = output_guide(command)
+        if not guide:
+            return False
+        hinted = self.data.setdefault('guide_hinted', [])
+        if guide[0] in hinted:
+            return False
+        hinted.append(guide[0])
+        self.save_data()
+        return True
+
     # ---------- trash instead of rm ----------
 
     def trash_command(self, command):
@@ -458,6 +510,7 @@ class ClisheBrain:
         only after approval (and after the safety confirmation).
         """
         chain = build_provider_chain(load_config())
+        from providers import ProviderError
         if not chain:
             return {"status": "unavailable"}
 
@@ -490,6 +543,7 @@ class ClisheBrain:
             }
 
         chain = build_provider_chain(load_config())
+        from providers import ProviderError
         for provider in chain:
             try:
                 explanation = provider.explain_command(command)
@@ -547,7 +601,7 @@ def main():
     parser.add_argument('--action', required=True,
                         choices=['query', 'suggest', 'learn', 'forget', 'list', 'log',
                                  'predict', 'resolve', 'explain', 'diagnose', 'check',
-                                 'line', 'trash'],
+                                 'line', 'trash', 'missing', 'output'],
                         help='Action to perform')
     parser.add_argument('--phrase', default='', help='Natural language phrase')
     parser.add_argument('--command', default='', help='Bash command')
@@ -585,6 +639,17 @@ def main():
         print('logged' if ok else 'error')
         for tip in brain.record_use(args.command, args.phrase):
             print(f"TIP={_one_line(tip)}")
+        if brain.should_hint_guide(args.command):
+            print("GUIDE=1")
+        prediction = brain.predict(args.command)
+        if prediction:
+            print(f"PREDICT={_one_line(prediction)}")
+
+    elif args.action == 'output':
+        result = brain.explain_output(args.command)
+        print(f"STATUS={result['status']}")
+        if result['status'] == 'ok':
+            print(f"EXPLANATION={_encoded(result['explanation'])}")
 
     elif args.action == 'line':
         result = brain.resolve_line(args.phrase, use_ai=not args.no_ai)
@@ -597,6 +662,12 @@ def main():
                 print(f"{key.upper()}={_encoded(result[key])}")
         if result.get('reasons'):
             print(f"REASON={_encoded(chr(10).join(result['reasons']))}")
+
+    elif args.action == 'missing':
+        hint = brain.missing_program(args.command)
+        print("STATUS=ok" if hint else "STATUS=none")
+        if hint:
+            print(f"HINT={_one_line(hint)}")
 
     elif args.action == 'trash':
         result = brain.trash_command(args.command)

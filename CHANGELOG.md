@@ -3,6 +3,22 @@
 ## Unreleased
 
 ### Added
+- **"What does this mean?"** After `ls -l`, `df`, `du`, `free`, `ps`,
+  `uptime`, `hostname -I`, `ip`, `ss`, `lsblk`, `wc`, `git status` or
+  `git log`, ask and Clishe explains the output's columns in plain English.
+  Offline; the output itself is never sent anywhere. A one-time hint shows
+  the first time each of these runs.
+- **Install hints for your distro.** "command not found", or typing a
+  well-known program that isn't installed (`htop`, `nmap`, `tree`...), now
+  says the install command for your package manager (apt, dnf, pacman,
+  zypper, apk), including packages with different names (`dig` is
+  `dnsutils` on Ubuntu, `bind-utils` on Fedora). `python` points to
+  `python3`.
+- More errors explained: pip's externally-managed-environment, apt without
+  sudo, "Unable to locate package", interrupted dpkg, not in sudoers,
+  "not a git repository", SSH key rejected, no internet / DNS failures.
+- A friendly first run: five things to try, instead of a blank prompt.
+- "go back" goes to the previous folder (`cd -`).
 - **Ctrl+G in your normal shell.** Add `eval "$(clishe --init bash)"` to
   `~/.bashrc`, type plain English at any prompt and press Ctrl+G: the line
   becomes the command, with the cursor on the first `<placeholder>`. On a
@@ -22,6 +38,18 @@
   file details, services, logs and more).
 
 ### Fixed
+- A taught or AI-suggested command is now saved only after it runs
+  successfully. Before, a wrong command (say, a program that isn't
+  installed) was saved first and then came back every time.
+- Clishe's own internal functions (`say`, `warn`, `brain`...) were treated
+  as commands, so typing "say hi" ran Clishe's code instead of being read
+  as English.
+- On machines with Go installed, "go back" ran the `go` program. `go` now
+  counts as a command only before a real Go subcommand (`go build`,
+  `go test`, `go mod tidy`...).
+- About twice as fast: the AI provider code (and its network libraries) is
+  loaded only when an AI is actually asked, and logging and next-command
+  prediction are one call instead of two.
 - The safety check now also catches `rm *` (and `rm ./*`, `rm dir/*`),
   emptying a file with `> file` or `truncate -s 0`, commands hidden in
   `bash -c '...'`, `su -c '...'` and `eval`, scripts piped into `python3`,
