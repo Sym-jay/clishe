@@ -825,10 +825,11 @@ practice_session() {
                       eval "${P_ANSWER[$i]}" >/dev/null 2>&1; break ;;
                 quit|exit) printf '%s' "$i" > "$done_file"
                       say "See you next time - I'll remember where you got to."
-                      cd "$orig_dir" 2>/dev/null; rm -rf -- "$SANDBOX"
+                      cd "$orig_dir" 2>/dev/null || true; rm -rf -- "$SANDBOX"
                       return 0 ;;
             esac
             history -s "$cmd"
+            # shellcheck disable=SC2034  # read by the exercise checks (eval)
             PRACTICE_LAST="$cmd"
             confirm_dangerous "$cmd" || continue
             eval "$cmd"
@@ -849,7 +850,7 @@ practice_session() {
     done
     echo ""
     say "🎉 All $count done! You just used pwd, ls, mkdir, cd, touch, echo, cat, cp, mv, find, grep and rm."
-    cd "$orig_dir" 2>/dev/null
+    cd "$orig_dir" 2>/dev/null || true
     rm -rf -- "$SANDBOX"
     : > "$done_file"
 }
