@@ -47,6 +47,7 @@ different local model server, etc.) can be added without touching
 
    REGISTRY = {
        "ollama": OllamaProvider,
+       "local": LocalProvider,
        "anthropic": AnthropicProvider,
        "openai": OpenAIProvider,
    }
@@ -54,6 +55,9 @@ different local model server, etc.) can be added without touching
 4. Add tests in `tests/test_providers.py` mocking the network call, covering
    at least one success case and one failure case (see the existing
    Anthropic/Ollama tests for the pattern).
+   A provider that sends anything over the internet must set `local = False`,
+   which keeps it off until the user sets `"enabled": true` in its config.
+   Clishe is local-first: please don't add cloud providers to the defaults.
 5. Mention the new provider and its config keys in the README's "Enabling
    AI features" section.
 

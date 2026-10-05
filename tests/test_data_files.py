@@ -72,3 +72,20 @@ def test_specific_error_patterns_come_before_generic_ones():
 def test_output_guides_are_well_formed():
     for entry in json.loads((ROOT / "output_guides.json").read_text()):
         assert entry["command"] and entry["guide"]
+
+
+def test_old_configs_get_the_local_provider(tmp_path, monkeypatch):
+    import json as _json
+    import config as cfg
+    path = tmp_path / "config.json"
+    path.write_text(_json.dumps({"provider_priority": ["ollama", "anthropic"]}))
+    monkeypatch.setattr(cfg, "CONFIG_FILE", path)
+    loaded = cfg.load_config()
+    assert loaded["provider_priority"] == ["ollama", "local", "anthropic"]
+    assert loaded["anthropic"]["enabled"] is False
+
+
+def test_default_config_is_local_only():
+    import config as cfg
+    assert cfg.DEFAULT_CONFIG["anthropic"]["enabled"] is False
+    assert cfg.DEFAULT_CONFIG["allow_remote_ai"] is False

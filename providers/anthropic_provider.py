@@ -1,6 +1,9 @@
 """
 Anthropic provider - calls the Claude Messages API.
 
+This is the one provider that sends your phrases over the internet, so it is
+off unless you turn it on: "anthropic": {"enabled": true} in the config.
+
 Uses urllib from the standard library only, so clishe doesn't force users to
 pip install an SDK just to get cloud fallback working.
 """
@@ -10,8 +13,8 @@ import urllib.request
 import urllib.error
 from typing import Optional
 
-from .base import (Provider, ProviderError, Resolution, distro_note,
-                   parse_json_reply, resolution_from_reply)
+from .base import (EXPLAIN_PROMPT, RESOLVE_PROMPT, Provider, ProviderError,
+                   Resolution, distro_note, parse_json_reply, resolution_from_reply)
 
 API_URL = "https://api.anthropic.com/v1/messages"
 API_VERSION = "2023-06-01"
@@ -19,35 +22,16 @@ DEFAULT_MODEL = "claude-haiku-4-5-20251001"  # fast + cheap, good fit for this t
 TIMEOUT_SECONDS = 15
 
 
-RESOLVE_SYSTEM_PROMPT = (
-    "You translate a beginner's plain-English request into a single Linux "
-    "shell command. Reply with ONLY a JSON object, no markdown fences, no "
-    "extra text, in this exact shape: "
-    '{"command": "<the shell command>", "explanation": "<one short sentence>"}. '
-    "If the request is unclear, unsafe (e.g. would delete/overwrite data, "
-    "modify permissions recursively, or affect the whole system), or isn't "
-    "really a shell task, reply with "
-    '{"command": null, "explanation": "<why, in one short sentence>"}. '
-    "If the command needs a value the user did not give (like a file or folder name), write it as a short lowercase placeholder in angle brackets, e.g. \"cat <file>\" or \"cp <file> <destination>\". "
-    "Never include an explanation of the JSON format itself, only the values."
-)
-
-EXPLAIN_SYSTEM_PROMPT = (
-    "You explain Linux shell commands to a beginner in one or two short, "
-    "plain-English sentences. Reply with ONLY a JSON object, no markdown "
-    'fences: {"explanation": "<text>"}. Be concrete about what the command '
-    "does and flag anything destructive or irreversible."
-)
-
-
 class AnthropicProvider(Provider):
     name = "anthropic"
+    local = False
 
     def __init__(self, config: dict):
         super().__init__(config)
         self.api_key = self.config.get("api_key") or os.environ.get("ANTHROPIC_API_KEY", "")
         self.model = self.config.get("model", DEFAULT_MODEL)
         self.distro = self.config.get("distro", "unknown")
+        self.family = self.config.get("distro_family", [])
 
     def is_available(self) -> bool:
         return bool(self.api_key)
@@ -93,7 +77,7 @@ class AnthropicProvider(Provider):
     # ---------- public API ----------
 
     def resolve_with_explanation(self, phrase: str) -> Optional[Resolution]:
-        data = self._call(RESOLVE_SYSTEM_PROMPT + distro_note(self.distro), phrase)
+        data = self._call(RESOLVE_PROMPT + distro_note(self.distro, self.family), phrase)
         return resolution_from_reply(data)
 
     def resolve_command(self, phrase: str) -> Optional[str]:
@@ -101,7 +85,7 @@ class AnthropicProvider(Provider):
         return result.command if result else None
 
     def explain_command(self, command: str) -> Optional[str]:
-        data = self._call(EXPLAIN_SYSTEM_PROMPT, command)
+        data = self._call(EXPLAIN_PROMPT + distro_note(self.distro, self.family), command)
         explanation = data.get("explanation")
         if not explanation or not isinstance(explanation, str):
             return None

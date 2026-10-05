@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Any local model server.** Besides Ollama, Clishe now works with
+  llama.cpp's `llama-server`, LM Studio, Jan, LocalAI, vLLM and anything
+  else with an OpenAI-style API. It finds a running server on the usual
+  ports and uses its first model, so there's usually nothing to configure.
+- Linux derivatives get the right package manager: the AI is told the
+  distro your system is based on (Mint and Pop!_OS get `apt`).
+- Every model, local or cloud, now gets the same safety instructions
+  (decline unclear or destructive requests, use `<placeholders>`). Before,
+  Ollama got a shorter prompt without them.
+
+### Changed
+- **Local only by default.** The Anthropic provider is now opt-in:
+  set `"enabled": true` under `"anthropic"` to use it. An
+  `ANTHROPIC_API_KEY` in your environment no longer turns it on by itself.
+  Existing configs with a key typed into the config file keep working.
+- Model servers outside your computer and local network are refused unless
+  you set `"allow_remote_ai": true`, so a typo in a host can't send your
+  phrases to the internet.
+
 ## 0.4.0 (2026-10-05)
 
 ### Added
