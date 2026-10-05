@@ -84,6 +84,22 @@ DANGEROUS = [
     # other ways to write to a disk
     ("cp /dev/zero /dev/sda", "disk_write"),
     ("echo x | sudo tee /dev/sdb", "disk_write"),
+    # moving a whole home or system folder away
+    ("mv ~ /tmp/x", "mv_root"),
+    ("sudo mv /etc /tmp/etc-old", "mv_root"),
+    ("mv $HOME/ backup", "mv_root"),
+    # command names hidden in a variable set on the same line
+    ("x=rm; $x -rf /", "rm_recursive"),
+    ('x="rm -rf"; ${x} build', "rm_recursive"),
+    ("cmd=reboot && sudo $cmd", "power"),
+    # code given straight to an interpreter
+    ("python3 -c \"import shutil; shutil.rmtree('/')\"", "script_delete"),
+    ("python -c 'import os; os.remove(\"notes.txt\")'", "script_delete"),
+    ("python3 -c \"import pathlib; pathlib.Path('a').unlink()\"", "script_delete"),
+    ("perl -e 'unlink glob q(*)'", "script_delete"),
+    ("ruby -e 'FileUtils.rm_rf(\"x\")'", "script_delete"),
+    ("node -e \"require('fs').rmSync('x', {recursive: true})\"", "script_delete"),
+    ("python3 -c \"import os; os.system('rm -rf ~')\"", "rm_recursive"),
 ]
 
 SAFE = [
@@ -114,6 +130,13 @@ SAFE = [
     "bash -c 'ls -la'",
     "cp a.iso b.iso",
     "echo x | tee out.txt",
+    "mv notes.txt ~",            # moving a file *into* home is fine
+    "mv old.txt new.txt",
+    "$EDITOR notes.txt",         # unknown variable: nothing to judge
+    "x=5; echo $x",
+    'python3 -c "print(1 + 1)"',
+    'python3 -c "l = [1]; l.remove(1)"',
+    "python3 -m http.server",
     'echo "unterminated',        # unbalanced quotes must not crash
     "",
     "   ",
