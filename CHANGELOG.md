@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.1 (2026-10-05)
 
 ### Added
 - **Install with pipx:** `pipx install git+https://github.com/Sym-jay/clishe`
@@ -9,6 +9,7 @@
 - A PyPI publishing workflow that runs on each GitHub release, so
   `pipx install clishe` works once the project is set up on PyPI.
 - An Arch User Repository package (`packaging/aur/`), ready to submit.
+- First release on PyPI: `pipx install clishe`.
 
 ## 0.5.0 (2026-10-05)
 
