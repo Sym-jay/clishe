@@ -98,10 +98,10 @@ Most command-line tools assume you already know the command you want. Clishe ass
 [pipx](https://pipx.pypa.io) installs command-line tools in their own space, and most distros package it (`sudo apt install pipx`, `sudo dnf install pipx`, `sudo pacman -S python-pipx`).
 
 ```bash
-pipx install git+https://github.com/Sym-jay/clishe
+pipx install clishe
 ```
 
-Update with `pipx upgrade clishe`. (`uv tool install git+https://github.com/Sym-jay/clishe` works too.)
+Update with `pipx upgrade clishe`. (`uv tool install clishe` works too, and `pipx install git+https://github.com/Sym-jay/clishe` gets the latest unreleased code.)
 
 ### With the install script
 
