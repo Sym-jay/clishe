@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Install with pipx:** `pipx install git+https://github.com/Sym-jay/clishe`
+  (or `uv tool install`), no curl-into-bash needed. CI now installs the
+  package and runs it on every change.
+- A PyPI publishing workflow that runs on each GitHub release, so
+  `pipx install clishe` works once the project is set up on PyPI.
+- An Arch User Repository package (`packaging/aur/`), ready to submit.
+
 ## 0.5.0 (2026-10-05)
 
 ### Added

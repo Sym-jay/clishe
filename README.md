@@ -89,31 +89,41 @@ Most command-line tools assume you already know the command you want. Clishe ass
 
 ## Install
 
-**Requirements:** Linux, bash 4+, Python 3.9+ (standard library only), and git for the installer.
+**Requirements:** Linux, bash 4+ and Python 3.9+ (standard library only).
 
 > **Windows:** use [WSL](https://learn.microsoft.com/windows/wsl/install). **macOS:** untested. The system bash (3.2) is too old and the script uses GNU `sed` features, so you'd need a newer bash and GNU sed from Homebrew.
 
-### One-line install
+### With pipx (recommended)
+
+[pipx](https://pipx.pypa.io) installs command-line tools in their own space, and most distros package it (`sudo apt install pipx`, `sudo dnf install pipx`, `sudo pacman -S python-pipx`).
+
+```bash
+pipx install git+https://github.com/Sym-jay/clishe
+```
+
+Update with `pipx upgrade clishe`. (`uv tool install git+https://github.com/Sym-jay/clishe` works too.)
+
+### With the install script
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Sym-jay/clishe/main/install.sh | bash
 ```
 
-This clones the repo into `~/.clishe-src` and links a `clishe` launcher into `~/.local/bin`. If that directory isn't on your `PATH`, the installer tells you what to add. To read the script before running it, [view install.sh](https://github.com/Sym-jay/clishe/blob/main/install.sh).
+This needs git. It clones the repo into `~/.clishe-src` and links a `clishe` launcher into `~/.local/bin`. If that directory isn't on your `PATH`, the installer tells you what to add. To read the script before running it, [view install.sh](https://github.com/Sym-jay/clishe/blob/main/install.sh).
 
-### Manual install
+### From a clone
 
 ```bash
 git clone https://github.com/Sym-jay/clishe.git
 cd clishe
-chmod +x clishe.sh clishe_brain.py
 ./clishe.sh
 ```
 
 ### Uninstall
 
 ```bash
-rm -rf ~/.clishe-src ~/.local/bin/clishe
+pipx uninstall clishe                       # if you used pipx
+rm -rf ~/.clishe-src ~/.local/bin/clishe    # if you used the install script
 # Optional: also remove your saved data and config
 rm -rf ~/.local/share/clishe ~/.config/clishe
 ```
@@ -477,6 +487,8 @@ command_dictionary.json offline command explanations
 output_guides.json      offline "what does this mean?" guides
 error_patterns.json     offline error hints
 install.sh              one-line installer
+launch.py               the clishe command when installed with pipx
+packaging/aur/          Arch User Repository package
 tests/                  pytest suite
 ```
 
