@@ -45,3 +45,10 @@ if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
 else
     echo "Run 'clishe' to get started."
 fi
+
+echo ""
+echo "Tip: to use Clishe at your normal prompt, add this line to ~/.bashrc:"
+echo ""
+echo "    eval \"\$(clishe --init bash)\""
+echo ""
+echo "Then type plain English and press Ctrl+G to turn it into a command."

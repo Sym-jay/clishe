@@ -24,6 +24,7 @@ OS_RELEASE_FILE = Path('/etc/os-release')
 
 DEFAULT_CONFIG = {
     "provider_priority": ["ollama", "anthropic"],
+    "trash": "ask",
     "ollama": {
         "host": "http://localhost:11434",
         "model": "llama3.2"

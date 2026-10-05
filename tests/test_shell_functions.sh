@@ -173,5 +173,59 @@ assert_eq "--version" "clishe $CLISHE_VERSION" "$("$CLISHE_SH" --version)"
 assert_eq "one-shot lookup" "df -h" "$("$CLISHE_SH" "show me disk usage")"
 
 echo ""
+echo "=== trash instead of rm ==="
+
+# A stand-in for "gio trash" that moves files into a folder we can check.
+FAKE_BIN="$TEST_HOME/fakebin"
+FAKE_TRASH="$TEST_HOME/fake-trash"
+mkdir -p "$FAKE_BIN" "$FAKE_TRASH"
+printf '#!/bin/sh\n[ "$1" = trash ] && shift && [ "$1" = "--" ] && shift\nmv -- "$@" "%s/"\n' \
+    "$FAKE_TRASH" > "$FAKE_BIN/gio"
+chmod +x "$FAKE_BIN/gio"
+
+work="$TEST_HOME/work"
+mkdir -p "$work/old-project"
+out=$(cd "$work" && printf '%s\n' "delete a folder" "old-project" "y" | PATH="$FAKE_BIN:$PATH" timeout 10 "$CLISHE_SH" 2>&1)
+assert_eq "trash: folder moved to the trash" "yes" \
+    "$([ -d "$FAKE_TRASH/old-project" ] && [ ! -e "$work/old-project" ] && echo yes || echo "no: $out")"
+case "$out" in
+    *"Changed your mind?"*) assert_eq "trash: says how to get it back" "ok" "ok" ;;
+    *) assert_eq "trash: says how to get it back" "restore hint" "$out" ;;
+esac
+
+mkdir -p "$work/keep-me"
+out=$(cd "$work" && printf '%s\n' "delete a folder" "keep-me" "n" "no" | PATH="$FAKE_BIN:$PATH" timeout 10 "$CLISHE_SH" 2>&1)
+assert_eq "trash: saying no falls back to the YES check" "yes" \
+    "$([ -d "$work/keep-me" ] && echo yes || echo "no: $out")"
+
+echo ""
+echo "=== tips ==="
+
+out=$(printf '%s\n' "show me disk usage" "show me disk usage" "show me disk usage" "df -h" | timeout 10 "$CLISHE_SH" 2>&1)
+case "$out" in
+    *"3 times"*"type it yourself"*"yourself instead of asking"*) assert_eq "tips: graduate, then cheer" "ok" "ok" ;;
+    *) assert_eq "tips: graduate, then cheer" "tip then cheer" "$out" ;;
+esac
+
+echo ""
+echo "=== Ctrl+G shell shortcut ==="
+
+init=$("$CLISHE_SH" --init bash)
+assert_eq "--init bash points at the bind file" "yes" \
+    "$([[ "$init" == *clishe-bind.bash* ]] && echo yes || echo "$init")"
+"$CLISHE_SH" --init fish >/dev/null 2>&1
+assert_eq "--init with an unsupported shell fails" "1" "$?"
+
+# widget "<line>" -> "line|cursor" after pressing the key
+widget() {
+    # shellcheck disable=SC2016  # expanded by the inner bash
+    bash -c 'eval "$1"; READLINE_LINE="$2"; READLINE_POINT=${#2}; __clishe_widget >/dev/null; printf "%s|%s" "$READLINE_LINE" "$READLINE_POINT"' _ "$init" "$1"
+}
+assert_eq "widget: phrase becomes the command" "df -h|5" "$(widget "show me disk usage")"
+assert_eq "widget: cursor lands on the first placeholder" "cp <file> <destination>|3" "$(widget "copy a file")"
+assert_eq "widget: a real command is explained, line kept" "tar -xzvf a.tgz|15" "$(widget "tar -xzvf a.tgz")"
+assert_eq "widget: never runs anything" "rm -r <folder>|6" "$(widget "delete a folder")"
+
+echo ""
 echo "=== Results: $pass_count passed, $fail_count failed ==="
 [ "$fail_count" -eq 0 ]

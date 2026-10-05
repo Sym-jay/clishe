@@ -12,6 +12,8 @@ import difflib
 import json
 import os
 import re
+import shlex
+import shutil
 import sys
 from pathlib import Path
 import warnings
@@ -68,6 +70,9 @@ MIN_SEQUENCES_FOR_PREDICTION = 3
 SEQUENCE_FLUSH_LENGTH = 10
 # Oldest sequences are dropped past this, so history.json stays small.
 MAX_SEQUENCES = 200
+# After asking for the same phrase this many times, Clishe shows the command
+# so you can start typing it yourself.
+GRADUATION_TIP_AT = (3, 10)
 # How similar a phrase must be (0-1) to offer "did you mean ...?"
 FUZZY_CUTOFF = 0.78
 
@@ -331,6 +336,113 @@ class ClisheBrain:
             return ''
         return max(candidates, key=candidates.get)
 
+    # ---------- helping you outgrow Clishe ----------
+
+    def record_use(self, command, phrase=''):
+        """Count how often each phrase is asked for and return any tips to
+        show. The goal is for people to learn the commands: after a few
+        uses Clishe shows the command to type directly, and it cheers once
+        when someone does."""
+        tips = []
+        uses = self.data.setdefault('phrase_uses', {})
+        key = normalize_phrase(phrase)
+        if key:
+            uses[key] = uses.get(key, 0) + 1
+            template = self.query(key)
+            if uses[key] in GRADUATION_TIP_AT and template:
+                tip = (f'You\'ve asked for "{key}" {uses[key]} times. '
+                       f'Next time you can type it yourself: {template}')
+                if re.search(r"<[a-z]", template):
+                    tip += " (fill in the <...> parts)"
+                tips.append(tip)
+        else:
+            cheered = self.data.setdefault('cheered', [])
+            command = command.strip()
+            if command not in cheered and any(
+                    self.query(p) == command for p in uses):
+                cheered.append(command)
+                tips.append(f"Nice, you typed {command} yourself instead of asking!")
+        self.save_data()
+        return tips
+
+    # ---------- the shell shortcut (clishe-bind.bash) ----------
+
+    def resolve_line(self, text, use_ai=True):
+        """Turn whatever is on the user's own prompt into something to put
+        back there. Never runs anything. Returns a dict with:
+          mode: 'command' (replace the line), 'explain' (print an
+          explanation, keep the line) or 'none' (print a note)."""
+        text = (text or "").strip()
+        if not text:
+            return {"mode": "none",
+                    "note": "Type what you want in plain English, then press the key again."}
+
+        command = self.query(text)
+        if command:
+            return self._line_result(command, "")
+
+        words = text.split()
+        if shutil.which(words[0]) and (
+                len(words) == 1 or any(w.startswith(("-", "/", "./", "~")) for w in words[1:])):
+            result = self.explain(text)
+            if result["status"] == "ok":
+                return {"mode": "explain", "explanation": result["explanation"]}
+
+        match = self.suggest(text)
+        if match:
+            return self._line_result(match[1], f'Closest thing I know: "{match[0]}"')
+
+        if use_ai:
+            result = self.resolve(text)
+            if result["status"] == "ok":
+                return self._line_result(result["command"], result["explanation"],
+                                         provider=result["provider"])
+
+        return {"mode": "none",
+                "note": "I don't know that one yet. Run clishe to teach me, "
+                        "or set up an AI provider (see the README)."}
+
+    def _line_result(self, command, note, provider=""):
+        return {"mode": "command", "command": command, "note": note,
+                "provider": provider, "reasons": check_command(command)}
+
+    # ---------- trash instead of rm ----------
+
+    def trash_command(self, command):
+        """If `command` is a plain `rm` and a trash tool is installed, return
+        the same files sent to the trash instead (so they can be restored).
+        Returns {'command', 'restore', 'mode'} or None."""
+        mode = str(load_config().get("trash", "ask")).lower()
+        if mode == "never":
+            return None
+        tool = _trash_tool()
+        if not tool:
+            return None
+        # Only simple, single commands: no pipes, chains, redirects or
+        # command substitution that could change what gets deleted.
+        if re.search(r"[;&|<>`]|\$\(", command):
+            return None
+        try:
+            # posix=False keeps quotes and globs exactly as typed.
+            words = shlex.split(command, posix=False)
+        except ValueError:
+            return None
+        if not words or words[0] != "rm":
+            return None
+        files, end_of_flags = [], False
+        for w in words[1:]:
+            if not end_of_flags and w == "--":
+                end_of_flags = True
+            elif not end_of_flags and w.startswith("-"):
+                continue
+            else:
+                files.append(w)
+        if not files:
+            return None
+        if any(f.startswith("-") for f in files):
+            files = ["--"] + files  # so "-name" stays a file, not an option
+        return {"command": " ".join(tool[0] + files), "restore": tool[1], "mode": mode}
+
     # ---------- AI provider actions ----------
 
     def resolve(self, phrase):
@@ -407,6 +519,15 @@ class ClisheBrain:
 
 # ---------- output helpers for clishe.sh ----------
 
+def _trash_tool():
+    """(command words, how to get files back) for the first trash tool found."""
+    if shutil.which("gio"):
+        return ["gio", "trash"], "Open Trash in your file manager"
+    if shutil.which("trash-put"):
+        return ["trash-put"], "Run trash-restore"
+    return None
+
+
 def _one_line(value: str) -> str:
     """Values are sent as single KEY=value lines. Multi-line commands become
     '; '-joined (same meaning to the shell for simple commands), so what the
@@ -425,11 +546,13 @@ def main():
     parser = argparse.ArgumentParser(description='Clishe Brain - Command Backend')
     parser.add_argument('--action', required=True,
                         choices=['query', 'suggest', 'learn', 'forget', 'list', 'log',
-                                 'predict', 'resolve', 'explain', 'diagnose', 'check'],
+                                 'predict', 'resolve', 'explain', 'diagnose', 'check',
+                                 'line', 'trash'],
                         help='Action to perform')
     parser.add_argument('--phrase', default='', help='Natural language phrase')
     parser.add_argument('--command', default='', help='Bash command')
     parser.add_argument('--error', default='', help='Captured stderr text to diagnose')
+    parser.add_argument('--no-ai', action='store_true', help='line: offline only')
 
     args = parser.parse_args()
     brain = ClisheBrain()
@@ -460,6 +583,30 @@ def main():
     elif args.action == 'log':
         ok = brain.log(args.command)
         print('logged' if ok else 'error')
+        for tip in brain.record_use(args.command, args.phrase):
+            print(f"TIP={_one_line(tip)}")
+
+    elif args.action == 'line':
+        result = brain.resolve_line(args.phrase, use_ai=not args.no_ai)
+        print(f"MODE={result['mode']}")
+        for key in ('command', 'provider'):
+            if result.get(key):
+                print(f"{key.upper()}={_one_line(result[key])}")
+        for key in ('note', 'explanation'):
+            if result.get(key):
+                print(f"{key.upper()}={_encoded(result[key])}")
+        if result.get('reasons'):
+            print(f"REASON={_encoded(chr(10).join(result['reasons']))}")
+
+    elif args.action == 'trash':
+        result = brain.trash_command(args.command)
+        if result:
+            print("STATUS=ok")
+            print(f"COMMAND={_one_line(result['command'])}")
+            print(f"RESTORE={_one_line(result['restore'])}")
+            print(f"MODE={result['mode']}")
+        else:
+            print("STATUS=none")
 
     elif args.action == 'predict':
         print(brain.predict(args.command))
