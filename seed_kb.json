@@ -83,5 +83,20 @@
   "show running services": "systemctl list-units --type=service --state=running",
   "show recent system logs": "journalctl -n 50 --no-pager",
   "show folder tree": "find . -maxdepth 2 -not -path '*/.*'",
-  "go back": "cd -"
+  "go back": "cd -",
+  "show git status": "git status",
+  "what did i change": "git diff",
+  "show staged changes": "git diff --staged",
+  "which branch am i on": "git branch --show-current",
+  "list local branches": "git branch",
+  "show recent commits": "git log --oneline -n 10",
+  "show the last commit": "git show HEAD",
+  "stage a file": "git add <file>",
+  "save my work": "git add -A && git commit -m <message>",
+  "create a git branch": "git switch -c <branch>",
+  "switch git branch": "git switch <branch>",
+  "stash my changes": "git stash push -m <message>",
+  "list saved stashes": "git stash list",
+  "restore my stashed work": "git stash pop",
+  "undo my last commit": "git reset --soft HEAD~1"
 }
