@@ -39,8 +39,10 @@ please read this before trusting it with anything important.
 - **Clishe should not be run as root**, and should be treated as early-stage
   software. Running it with elevated privileges multiplies the impact of any
   gap in the above protections.
-- **API keys and local model access.** If you configure a cloud provider
-  (e.g. Anthropic), your typed phrases are sent to that provider's API. Keys
+- **API keys and local model access.** By default Clishe only talks to model
+  servers on your computer or local network, and refuses others unless you
+  set `"allow_remote_ai": true`. The cloud provider (Anthropic) is off until
+  you set `"enabled": true`; once on, your typed phrases are sent to its API. Keys
   are best supplied via the `ANTHROPIC_API_KEY` environment variable rather
   than stored in `~/.config/clishe/config.json`, though the file is created with
   restrictive (`0600`) permissions if you do store it there.

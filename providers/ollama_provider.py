@@ -8,31 +8,13 @@ import urllib.request
 import urllib.error
 from typing import Optional
 
-from .base import (Provider, ProviderError, Resolution, distro_note,
-                   parse_json_reply, resolution_from_reply)
+from .base import (EXPLAIN_PROMPT, RESOLVE_PROMPT, Provider, ProviderError,
+                   Resolution, distro_note, parse_json_reply, resolution_from_reply)
 
 DEFAULT_HOST = "http://localhost:11434"
 DEFAULT_MODEL = "llama3.2"
 TIMEOUT_SECONDS = 30  # local models on modest hardware can be slow
 AVAILABILITY_CHECK_TIMEOUT = 1.5  # keep the "is this even running" check snappy
-
-
-RESOLVE_PROMPT_TEMPLATE = (
-    "You translate a beginner's plain-English request into a single Linux "
-    "shell command. Respond with ONLY raw JSON, no markdown fences, no "
-    "commentary, in exactly this shape: "
-    '{{"command": "<the shell command or null>", "explanation": "<one short sentence>"}}. '
-    "Use null for command if the request is unclear, unsafe, or not a shell task. "
-    "If the command needs a value the user did not give (like a file or folder name), write it as a short lowercase placeholder in angle brackets, e.g. \"cat <file>\" or \"cp <file> <destination>\". \n\n"
-    "Request: {phrase}"
-)
-
-EXPLAIN_PROMPT_TEMPLATE = (
-    "Explain this Linux shell command to a beginner in one or two short "
-    "plain-English sentences. Respond with ONLY raw JSON: "
-    '{{"explanation": "<text>"}}.\n\n'
-    "Command: {command}"
-)
 
 
 class OllamaProvider(Provider):
@@ -43,6 +25,7 @@ class OllamaProvider(Provider):
         self.host = self.config.get("host", DEFAULT_HOST).rstrip("/")
         self.model = self.config.get("model", DEFAULT_MODEL)
         self.distro = self.config.get("distro", "unknown")
+        self.family = self.config.get("distro_family", [])
 
     def is_available(self) -> bool:
         """Ping the server's tag list endpoint - fast, no model load needed."""
@@ -55,9 +38,10 @@ class OllamaProvider(Provider):
 
     # ---------- internal ----------
 
-    def _generate(self, prompt: str) -> dict:
+    def _generate(self, system: str, prompt: str) -> dict:
         payload = {
             "model": self.model,
+            "system": system,
             "prompt": prompt,
             "stream": False,
             "format": "json",  # ask Ollama to constrain output to valid JSON
@@ -88,15 +72,16 @@ class OllamaProvider(Provider):
     # ---------- public API ----------
 
     def resolve_with_explanation(self, phrase: str) -> Optional[Resolution]:
-        prompt = RESOLVE_PROMPT_TEMPLATE.format(phrase=phrase) + distro_note(self.distro)
-        return resolution_from_reply(self._generate(prompt))
+        system = RESOLVE_PROMPT + distro_note(self.distro, self.family)
+        return resolution_from_reply(self._generate(system, f"Request: {phrase}"))
 
     def resolve_command(self, phrase: str) -> Optional[str]:
         result = self.resolve_with_explanation(phrase)
         return result.command if result else None
 
     def explain_command(self, command: str) -> Optional[str]:
-        data = self._generate(EXPLAIN_PROMPT_TEMPLATE.format(command=command))
+        system = EXPLAIN_PROMPT + distro_note(self.distro, self.family)
+        data = self._generate(system, f"Command: {command}")
         explanation = data.get("explanation")
         if not explanation or not isinstance(explanation, str):
             return None

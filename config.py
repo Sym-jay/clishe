@@ -22,14 +22,22 @@ CONFIG_FILE = CONFIG_DIR / "config.json"
 
 OS_RELEASE_FILE = Path('/etc/os-release')
 
+# Local first: Ollama, then any OpenAI-style local server (llama.cpp, LM
+# Studio, Jan...). The cloud provider is listed but off until "enabled": true.
 DEFAULT_CONFIG = {
-    "provider_priority": ["ollama", "anthropic"],
+    "provider_priority": ["ollama", "local", "anthropic"],
+    "allow_remote_ai": False,
     "trash": "ask",
     "ollama": {
         "host": "http://localhost:11434",
         "model": "llama3.2"
     },
+    "local": {
+        "host": "",
+        "model": ""
+    },
     "anthropic": {
+        "enabled": False,
         "api_key": "",
         "model": "claude-haiku-4-5-20251001"
     }
@@ -99,6 +107,12 @@ def load_config() -> dict:
             # Merge shallowly over defaults so a partial user config still works.
             config = dict(DEFAULT_CONFIG)
             config.update(user_config)
+            # Configs from before the "local" provider existed don't list it.
+            priority = config.get("provider_priority")
+            if (isinstance(priority, list) and "local" not in priority
+                    and "local" not in user_config):
+                at = priority.index("ollama") + 1 if "ollama" in priority else 0
+                config["provider_priority"] = priority[:at] + ["local"] + priority[at:]
         except (json.JSONDecodeError, OSError):
             # Corrupted config shouldn't take down the whole tool - fall back to
             # KB-only behavior (empty priority list means no providers get built).
@@ -108,13 +122,15 @@ def load_config() -> dict:
     # change without a fresh install anyway, and this keeps it accurate
     # without a stale cached value surviving an OS upgrade.
     config["distro"] = detect_distro()
+    config["distro_family"] = detect_distro_family()
     return config
 
 
 def _write_default_config():
     """Create the config file with owner-only read/write permissions (0600).
 
-    This file may eventually hold a plaintext Anthropic API key, so it
+    This file may hold a plaintext Anthropic API key (if the user opts in to
+    the cloud provider), so it
     should never be created with default (often world-readable) permissions
     on shared or multi-user systems. os.O_EXCL also means this safely does
     nothing if another process created the file between our exists() check

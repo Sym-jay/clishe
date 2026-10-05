@@ -5,8 +5,10 @@ Keeping this interface tiny on purpose: two operations, both optional-returning.
 Anything provider-specific (auth, prompt format, HTTP client) lives inside the
 provider subclass, never leaks into clishe_brain.py.
 """
+import ipaddress
 import json
 import re
+import socket
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Optional
@@ -48,13 +50,76 @@ def parse_json_reply(text: str) -> dict:
     return data
 
 
-def distro_note(distro: str) -> str:
-    """Extra prompt text so package-manager answers fit the user's distro."""
+# The same instructions for every model, local or cloud, so a small local
+# model gets the same safety rules as a big one.
+RESOLVE_PROMPT = (
+    "You translate a beginner's plain-English request into a single Linux "
+    "shell command. Reply with ONLY a JSON object, no markdown fences, no "
+    "extra text, in this exact shape: "
+    '{"command": "<the shell command>", "explanation": "<one short sentence>"}. '
+    "If the request is unclear, unsafe (e.g. would delete/overwrite data, "
+    "modify permissions recursively, or affect the whole system), or isn't "
+    "really a shell task, reply with "
+    '{"command": null, "explanation": "<why, in one short sentence>"}. '
+    "If the command needs a value the user did not give (like a file or folder "
+    "name), write it as a short lowercase placeholder in angle brackets, e.g. "
+    '"cat <file>" or "cp <file> <destination>". '
+    "Prefer simple, common commands a beginner can learn and reuse."
+)
+
+EXPLAIN_PROMPT = (
+    "You explain Linux shell commands to a beginner in one or two short, "
+    "plain-English sentences. Reply with ONLY a JSON object, no markdown "
+    'fences: {"explanation": "<text>"}. Be concrete about what the command '
+    "does and flag anything destructive or irreversible."
+)
+
+# Package manager for each distro family, for the prompt.
+_PACKAGE_MANAGERS = {
+    "debian": "apt", "ubuntu": "apt", "fedora": "dnf", "rhel": "dnf",
+    "centos": "dnf", "arch": "pacman", "opensuse": "zypper", "suse": "zypper",
+    "alpine": "apk",
+}
+
+
+def distro_note(distro: str, family=None) -> str:
+    """Extra prompt text so package-manager answers fit the user's distro.
+    `family` is ID plus ID_LIKE from /etc/os-release, so a derivative like
+    Linux Mint (ID_LIKE="ubuntu debian") is told to use apt."""
     if not distro or distro == "unknown":
         return ""
-    return (f" The user's system is running the '{distro}' Linux distribution - "
-            f"use its native package manager and conventions (e.g. apt for "
-            f"debian/ubuntu, dnf for fedora, pacman for arch) when relevant.")
+    note = f" The user's system is running the '{distro}' Linux distribution"
+    based_on = [d for d in (family or []) if d != distro]
+    if based_on:
+        note += f" (based on {', '.join(based_on)})"
+    manager = next((_PACKAGE_MANAGERS[d] for d in [distro, *(family or [])]
+                    if d in _PACKAGE_MANAGERS), None)
+    if manager:
+        return note + f". Its package manager is {manager}; use it for installs."
+    return (note + " - use its native package manager and conventions (e.g. apt for "
+            "debian/ubuntu, dnf for fedora, pacman for arch) when relevant.")
+
+
+def is_local_address(url: str) -> bool:
+    """True if `url` points at this computer or the local network (a home
+    server, say). Clishe's promise is that your phrases never leave your
+    own machines unless you opt in to a cloud provider."""
+    from urllib.parse import urlparse
+    host = (urlparse(url).hostname or "").lower()
+    if not host:
+        return False
+    if host == "localhost" or host.endswith(".localhost") or host.endswith(".local"):
+        return True
+    try:
+        addresses = [ipaddress.ip_address(host)]
+    except ValueError:
+        try:
+            infos = socket.getaddrinfo(host, None)
+        except OSError:
+            return False
+        addresses = [ipaddress.ip_address(info[4][0].split("%")[0]) for info in infos]
+    return bool(addresses) and all(
+        a.is_loopback or a.is_private or a.is_link_local for a in addresses)
 
 
 def resolution_from_reply(data: dict) -> Optional[Resolution]:
@@ -72,6 +137,9 @@ def resolution_from_reply(data: dict) -> Optional[Resolution]:
 class Provider(ABC):
     #: short machine name, e.g. "ollama", "anthropic" - used in config & logs
     name = "base"
+    #: False for providers that send your phrases over the internet. Those
+    #: are only used when the user turns them on ("enabled": true).
+    local = True
 
     def __init__(self, config: dict):
         self.config = config or {}

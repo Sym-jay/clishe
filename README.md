@@ -6,7 +6,7 @@
 
 An offline-first command-line companion for Linux beginners.
 Type plain English, get a real shell command, and see exactly what will run before it does.
-AI assistance is optional.
+AI assistance is optional, and when you use it, it runs on your own machine.
 
 [![Tests](https://github.com/Sym-jay/clishe/actions/workflows/tests.yml/badge.svg)](https://github.com/Sym-jay/clishe/actions/workflows/tests.yml)
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
@@ -53,7 +53,7 @@ $ df -h                     ← press Enter when you're ready
 Most command-line tools assume you already know the command you want. Clishe assumes you don't, and treats that as normal.
 
 - **It shows its work.** Every command is displayed as it runs. AI suggestions and "did you mean...?" matches wait for your OK first (and AI suggestions can be edited), each AI suggestion comes with a one-line reason, and `explain` breaks down the exact flags you used.
-- **It works offline.** A bundled knowledge base, a command dictionary and an error-hint database need no network and no account.
+- **It works offline, and stays local.** A bundled knowledge base, a command dictionary and an error-hint database need no network and no account. The AI, if you add one, is a model running on your own computer. Nothing you type is sent to the internet unless you deliberately turn on a cloud provider.
 - **It learns from you.** Anything you teach it, or approve from an AI suggestion, is remembered once it has worked, so the same phrase is instant next time. A command that fails is never saved.
 - **It stays out of your way.** It's a small bash + Python (standard library) tool that keeps its files in the standard XDG locations.
 
@@ -74,8 +74,10 @@ Most command-line tools assume you already know the command you want. Clishe ass
 - Manage what it knows from inside a session: `learned`, `teach`, `forget <phrase>`.
 
 **AI (optional)**
-- Local models through [Ollama](https://ollama.com), or the Anthropic API, with a configurable priority order and automatic fallback when a provider is unreachable.
-- Distro-aware suggestions: your distro ID (from `/etc/os-release`) is passed to the model so it can prefer `apt`, `dnf` or `pacman` as appropriate.
+- Local models only, by default: [Ollama](https://ollama.com), or any server with an OpenAI-style API ([llama.cpp](https://github.com/ggml-org/llama.cpp)'s `llama-server`, [LM Studio](https://lmstudio.ai), [Jan](https://jan.ai), LocalAI, vLLM). Clishe finds a running server on its usual port by itself.
+- Your phrases never leave your machine or local network. A model server on the internet is refused unless you set `"allow_remote_ai": true`.
+- A cloud provider (Anthropic) is available as an **opt-in**: it does nothing until you set `"enabled": true`.
+- Distro-aware suggestions: your distro and the distro it's based on (from `/etc/os-release`) are passed to the model, so Linux Mint gets `apt` and Fedora gets `dnf`.
 - AI suggestions are saved only after you approve them and they run successfully. If you reject one, or it fails, nothing is stored.
 
 **Safety and scripting**
@@ -294,28 +296,36 @@ The config file is created on first run with owner-only permissions (`0600`):
 
 ```json
 {
-  "provider_priority": ["ollama", "anthropic"],
+  "provider_priority": ["ollama", "local", "anthropic"],
+  "allow_remote_ai": false,
   "trash": "ask",
   "ollama": {
     "host": "http://localhost:11434",
     "model": "llama3.2"
   },
+  "local": {
+    "host": "",
+    "model": ""
+  },
   "anthropic": {
+    "enabled": false,
     "api_key": "",
     "model": "claude-haiku-4-5-20251001"
   }
 }
 ```
 
-Providers are tried in `provider_priority` order. A provider that isn't configured or can't be reached is skipped.
+Providers are tried in `provider_priority` order. A provider that isn't running, isn't turned on, or can't be reached is skipped.
+
+`allow_remote_ai` lets `ollama` and `local` use a model server outside your computer and local network. It's off, so a mistyped host can't send your phrases to the internet.
 
 `trash` decides what happens when you delete files with `rm` and a Trash tool (`gio` or `trash-put`) is installed: `"ask"` (the default), `"always"` (use the Trash without asking) or `"never"`.
 
 ## AI providers (optional)
 
-Clishe is useful without any AI. This section is for resolving phrases it hasn't seen before.
+Clishe is useful without any AI. This section is for resolving phrases it hasn't seen before. Everything here runs on your own computer: free, private, and it works on a plane.
 
-### Local: Ollama (free, private, works offline)
+### Ollama
 
 1. Install [Ollama](https://ollama.com/download).
 2. Pull a small model: `ollama pull llama3.2`
@@ -323,23 +333,31 @@ Clishe is useful without any AI. This section is for resolving phrases it hasn't
 
 Clishe detects the local server automatically. No key and no network are needed.
 
-### Cloud: Anthropic
+### llama.cpp, LM Studio, Jan, LocalAI, vLLM
+
+Start the server with a model loaded, and Clishe finds it on the usual port (`8080`, `1234`, `1337` or `8000`) and uses the first model it lists. To pick a specific server or model, set them under `"local"`:
+
+```json
+"local": { "host": "http://localhost:8080", "model": "qwen2.5-3b-instruct" }
+```
+
+A small instruct model (1–3B parameters) is enough for turning phrases into commands, and runs on a laptop CPU.
+
+### Optional: a cloud provider (Anthropic)
+
+Off by default, because it sends what you type over the internet. To turn it on:
 
 1. Get an API key from [console.anthropic.com](https://console.anthropic.com).
-2. Provide it as an environment variable (preferred, so no secret lives in a file):
+2. Set `"enabled": true` under `"anthropic"` in `~/.config/clishe/config.json`.
+3. Provide the key as an environment variable (so no secret lives in a file):
    ```bash
    export ANTHROPIC_API_KEY="sk-ant-..."
    ```
-   Or put it in `~/.config/clishe/config.json` under `anthropic.api_key`.
+   Or put it in the config under `anthropic.api_key`.
 
-### What gets sent to a cloud provider
+A key in your environment alone doesn't turn it on, so having `ANTHROPIC_API_KEY` set for another tool won't make Clishe use the cloud.
 
-If you use the Anthropic provider, these are sent to its API:
-- phrases you type that aren't in your KB or seed KB,
-- commands you ask Clishe to `explain` that aren't in the offline dictionary,
-- your distro ID (for example `ubuntu`).
-
-Your knowledge base, command history and command output are never sent. With Ollama, nothing leaves your machine.
+When it's on, these are sent to the API: phrases you type that aren't in your KB or seed KB, commands you ask Clishe to `explain` that aren't in the offline dictionary, and your distro name (for example `ubuntu`). Your knowledge base, command history and command output are never sent.
 
 ## How it works
 
@@ -385,7 +403,7 @@ To report a way to bypass the confirmation checks, see [SECURITY.md](SECURITY.md
 `~/.local/bin` isn't on your `PATH`. Add `export PATH="$HOME/.local/bin:$PATH"` to your `~/.bashrc`, then restart your shell.
 
 **"No AI provider is available"**
-No provider is configured or reachable. Clishe prints the underlying error under this message (for example an HTTP 401 for a bad API key). Check that `ollama serve` is running, or that `ANTHROPIC_API_KEY` is set. Clishe still works from your KB, the seed KB and teach-me mode.
+No provider is configured or reachable. Clishe prints the underlying error under this message (for example an HTTP 401 for a bad API key). Check that `ollama serve` (or your llama.cpp / LM Studio / Jan server) is running. Clishe still works from your KB, the seed KB and teach-me mode.
 
 **Suggestions in the wrong package manager**
 Clishe reads your distro from `/etc/os-release`. If that file is missing or unusual, the AI gets no distro hint. Rejecting a suggestion saves nothing, so you can retry.
@@ -408,7 +426,7 @@ clishe_brain.py         backend: KB, history, prediction, AI resolution
 config.py               config loading, distro detection
 knowledge.py            offline explain / diagnose engine
 safety.py               destructive-command check
-providers/              AI provider interface, Ollama and Anthropic backends
+providers/              AI provider interface: Ollama, OpenAI-style local servers, Anthropic (opt-in)
 seed_kb.json            bundled starter phrases (read-only)
 command_dictionary.json offline command explanations
 output_guides.json      offline "what does this mean?" guides
