@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Every part labelled.** AI suggestions, and known phrases the first
+  time you use them, are drawn with each part of the command labelled
+  underneath (`find` → search for files, `-size +100M` → bigger than 100M).
+  Options written together get a line each (`-xzvf` → `-x`, `-z`, `-v`,
+  `-f`). Labels come from the offline dictionary and your man pages.
+  Commands with pipes or redirects, or too wide for the terminal, are
+  shown the usual way.
+
+### Changed
+- "Clishe:" is now bright blue. The dark blue was hard to read on dark
+  terminal themes, such as Ubuntu's.
+
 ## 0.5.1 (2026-10-05)
 
 ### Added

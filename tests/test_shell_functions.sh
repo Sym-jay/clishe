@@ -314,5 +314,24 @@ assert_eq "asks you to type it after three asks" "yes" \
 rm -rf "$TURN_HOME"
 
 echo ""
+echo "=== guided breakdown ==="
+
+python3() {
+    printf '%s\n' "STATUS=ok" "CMD=df  -h" $'LINE=│   └─ \thuman-readable sizes' \
+        $'LINE=└─ \tdisplay free disk space'
+}
+get_breakdown "df -h"
+bd_status=$?
+unset -f python3
+assert_eq "breakdown is drawn" "0" "$bd_status"
+assert_eq "breakdown lines" $'  df  -h\n  │   └─ human-readable sizes\n  └─ display free disk space' \
+    "${BREAKDOWN%$'\n'}"
+python3() { echo "STATUS=none"; }
+get_breakdown "du -sh * | sort -h"
+bd_status=$?
+unset -f python3
+assert_eq "no breakdown falls back" "1" "$bd_status"
+
+echo ""
 echo "=== Results: $pass_count passed, $fail_count failed ==="
 [ "$fail_count" -eq 0 ]
