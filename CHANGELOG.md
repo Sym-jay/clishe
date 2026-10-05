@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 (2026-10-05)
 
 ### Added
 - **`clishe setup`.** Checks your memory and suggests a local model that
@@ -37,6 +37,9 @@
 - **`progress`**: which everyday commands you've typed yourself, which
   ones you still ask for, and what to learn next.
 - `clishe practice` and `clishe progress` work from your normal shell too.
+- 16 bundled git phrases for beginners ("what did i change", "undo my
+  last commit", "which branch am i on"...), chosen so none of them throws
+  away work. Thanks @nawaaaaaAaar (#13).
 
 ### Changed
 - **Local only by default.** The Anthropic provider is now opt-in:
