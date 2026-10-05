@@ -286,5 +286,33 @@ assert_eq "made-up flags are flagged" "yes" \
     "$([[ "$ai_out" == *"doesn't mention: find -bigger"* ]] && echo yes || echo no)"
 
 echo ""
+echo "=== practice ==="
+
+PRACTICE_HOME="$(mktemp -d)"
+practice_out=$(printf '%s\n' pwd ls "mkdir notes" hint "cd notes" quit \
+    | HOME="$PRACTICE_HOME" "$CLISHE_SH" practice 2>&1)
+assert_eq "practice checks each step" "4" "$(grep -c "Nice!" <<< "$practice_out")"
+assert_eq "practice gives hints" "yes" \
+    "$([[ "$practice_out" == *"cd means 'change directory'"* ]] && echo yes || echo no)"
+assert_eq "practice remembers where you stopped" "4" \
+    "$(cat "$PRACTICE_HOME/.local/share/clishe/practice_done")"
+resume_out=$(printf '%s\n' y "touch todo.txt" quit | HOME="$PRACTICE_HOME" "$CLISHE_SH" practice 2>&1)
+assert_eq "practice picks up where you left off" "yes" \
+    "$([[ "$resume_out" == *"5/14 Create an empty file"*"Nice!"* ]] && echo yes || echo no)"
+assert_eq "practice cleans up its folder" "" \
+    "$(find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'clishe-practice.*' 2>/dev/null)"
+rm -rf "$PRACTICE_HOME"
+
+echo ""
+echo "=== your turn ==="
+
+TURN_HOME="$(mktemp -d)"
+turn_out=$(printf '%s\n' "list files" "list files" "list files" "list files" "ls -al" exit \
+    | HOME="$TURN_HOME" "$CLISHE_SH" 2>&1)
+assert_eq "asks you to type it after three asks" "yes" \
+    "$([[ "$turn_out" == *"Your turn!"*"That's it!"* ]] && echo yes || echo no)"
+rm -rf "$TURN_HOME"
+
+echo ""
 echo "=== Results: $pass_count passed, $fail_count failed ==="
 [ "$fail_count" -eq 0 ]
