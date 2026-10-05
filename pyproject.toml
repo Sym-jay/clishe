@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "clishe"
-version = "0.5.0"
-description = "A friendly, adaptive command-line assistant that helps Linux beginners learn the shell"
+version = "0.5.1"
+description = "Plain English to shell commands for Linux beginners: offline-first, learn as you go, optional local AI"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
