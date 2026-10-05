@@ -15,6 +15,10 @@ def brain(tmp_path, monkeypatch):
     """A ClisheBrain instance backed by a throwaway temp HOME, so tests never
     touch the real ~/.clishe_kb.json etc."""
     monkeypatch.setenv("HOME", str(tmp_path))
+    # No man pages unless a test brings its own, so results don't depend on
+    # what's installed on the machine running the tests.
+    import manual
+    monkeypatch.setattr(manual, "read_manual", lambda name: ("", ""))
     import importlib
     import clishe_brain
     importlib.reload(clishe_brain)  # re-evaluate KB_FILE/DATA_FILE against new HOME
@@ -269,7 +273,8 @@ def test_resolve_returns_command_and_explanation(brain, monkeypatch):
     monkeypatch.setattr(clishe_brain, "build_provider_chain", lambda config: [Fake()])
     result = brain.resolve("disk space")
     assert result == {"status": "ok", "command": "df -h",
-                      "explanation": "Shows free disk space.", "provider": "fake"}
+                      "explanation": "Shows free disk space.", "provider": "fake",
+                      "manual": [], "unverified": []}
 
 
 def test_resolve_falls_through_failing_provider(brain, monkeypatch):
@@ -441,3 +446,51 @@ def test_offline_calls_do_not_load_the_ai_providers():
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
                          cwd=str(Path(__file__).resolve().parent.parent))
     assert out.stdout.strip() == "False", out.stderr
+
+
+# ---------- the manual installed on this computer ----------
+
+FIND_MAN = """FIND(1)                     General Commands Manual                    FIND(1)
+
+NAME
+       find - search for files in a directory hierarchy
+
+OPTIONS
+       -size n[cwbkMG]
+              File uses less than, more than or exactly n units of space,
+              rounding up.  The following suffixes can be used:
+
+       -type c
+              File is of type c:
+"""
+
+
+def test_explain_any_installed_command_from_its_manual(brain, monkeypatch):
+    import manual
+    monkeypatch.setattr(manual, "read_manual",
+                        lambda name: (FIND_MAN, "man find") if name == "fd-find" else ("", ""))
+    result = brain.explain("fd-find -size +1M")
+    assert result["status"] == "ok"
+    assert result["provider"] == "your system's manual"
+    assert "search for files" in result["explanation"]
+    assert "-size  File uses less than, more than or exactly n units of space," in result["explanation"]
+
+
+def test_ai_suggestion_is_checked_against_the_manual(brain, monkeypatch):
+    import clishe_brain
+    import manual
+    from providers.base import Resolution
+
+    class Fake:
+        name = "fake"
+
+        def resolve_with_explanation(self, phrase):
+            return Resolution("sudo find / -size +100M -bigger", "Big files.")
+
+    monkeypatch.setattr(clishe_brain, "build_provider_chain", lambda config: [Fake()])
+    monkeypatch.setattr(manual, "read_manual",
+                        lambda name: (FIND_MAN, "man find") if name == "find" else ("", ""))
+    result = brain.resolve("big files")
+    assert result["manual"] == ["find -size: File uses less than, more than or exactly "
+                                "n units of space, rounding up."]
+    assert result["unverified"] == ["find -bigger"]

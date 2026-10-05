@@ -143,12 +143,12 @@ parse_brain_output() {
     local key value k
     # Reset first, so an empty or failed call can't leave the previous
     # call's STATUS or COMMAND behind.
-    for k in STATUS COMMAND PROVIDER EXPLANATION HINT REASON PHRASE RESTORE MODE; do
+    for k in STATUS COMMAND PROVIDER EXPLANATION HINT REASON PHRASE RESTORE MODE MANUAL UNVERIFIED; do
         printf -v "${prefix}_${k}" '%s' ""
     done
     while IFS='=' read -r key value; do
         case "$key" in
-            STATUS|COMMAND|PROVIDER|EXPLANATION|HINT|REASON|PHRASE|RESTORE|MODE)
+            STATUS|COMMAND|PROVIDER|EXPLANATION|HINT|REASON|PHRASE|RESTORE|MODE|MANUAL|UNVERIFIED)
                 printf -v "${prefix}_${key}" '%s' "$value" ;;
         esac
     done <<< "$output"
@@ -454,7 +454,7 @@ teach_prompt() {
 # Nothing is saved here: the caller saves only after the safety check.
 resolve_with_ai() {
     local phrase="$1"
-    local approve resolve_output err_file provider_errors
+    local approve resolve_output err_file provider_errors line
     say "I don't know that. Let me think..."
 
     err_file=$(mktemp)
@@ -469,6 +469,17 @@ resolve_with_ai() {
             "$BLUE" "$RS_PROVIDER" "$NC" "$YELLOW" "$command_to_run" "$NC"
         if [ -n "$RS_EXPLANATION" ]; then
             printf '  %b%s%b\n' "$DIM" "$(decode_lines "$RS_EXPLANATION")" "$NC"
+        fi
+        # What your own manual says about each flag: learn it from the
+        # source, and catch a flag the model made up.
+        if [ -n "$RS_MANUAL" ]; then
+            printf '  %bFrom the manual:%b\n' "$DIM" "$NC"
+            while IFS= read -r line; do
+                [ -n "$line" ] && printf '    %b%s%b\n' "$DIM" "$line" "$NC"
+            done <<< "$(decode_lines "$RS_MANUAL")"
+        fi
+        if [ -n "$RS_UNVERIFIED" ]; then
+            warn "  ⚠ The manual doesn't mention: $RS_UNVERIFIED. The AI may have made it up, so check before running."
         fi
         read -r -p "Run this? [Y/n/e=edit]: " approve
         if [[ "$approve" =~ ^[Nn]$ ]]; then

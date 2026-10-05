@@ -66,7 +66,8 @@ Most command-line tools assume you already know the command you want. Clishe ass
 - Natural language to shell commands, resolved in this order: your knowledge base, the bundled seed KB, a native command you typed directly, a close match to a phrase it already knows ("did you mean...?"), then an AI provider (if configured), then "teach me".
 - Forgiving matching: case, punctuation and filler like "please" or "can you" are ignored, so `Please show me disk usage?` finds `show me disk usage`. Different wording with the same meaning gets a "did you mean...?" too (`remove a directory` → `delete a folder`).
 - Fill-in-the-blank commands: entries like `cp <file> <destination>` ask for each value, quote it safely, and show the final command before running it. You can teach your own (`ssh <server>`).
-- `explain`-style questions: `explain tar -xzvf`, `what does chmod do`, `what's grep`, `tell me about find`. The offline dictionary explains each flag you used (`-x`, `-z`, `-v`, `-f`) and points to `man` for ones it doesn't know. An AI provider is asked only if the command isn't in the dictionary.
+- `explain`-style questions: `explain tar -xzvf`, `what does chmod do`, `what's grep`, `tell me about find`. The offline dictionary explains each flag you used (`-x`, `-z`, `-v`, `-f`). For anything else that's installed, Clishe reads **your own system's manual** (`man`, or `--help`) and picks out the lines for the flags you used, still offline. An AI is asked only when there's no manual at all.
+- AI suggestions are checked against your manual: under each suggestion, Clishe shows what `man` says about every flag in it, and warns if a flag isn't in the manual (small models sometimes invent them). You learn from the real documentation, not just the model.
 - Plain-English hints when a command fails (permission denied, no such file, pip's "externally-managed-environment", apt without sudo, no internet, and more), fully offline. If a program isn't installed, it tells you the install command for your distro (`apt`, `dnf`, `pacman`, `zypper` or `apk`).
 - "What does this mean?" after `ls -l`, `df -h`, `free -h`, `ps aux`, `git status` and others walks you through the columns of the output you just saw. Offline, and your output never leaves your machine.
 - Next-command suggestions based on your own history. They appear once you have a few dozen logged commands.
@@ -425,6 +426,7 @@ clishe-bind.bash        Ctrl+G shortcut for your normal bash prompt
 clishe_brain.py         backend: KB, history, prediction, AI resolution
 config.py               config loading, distro detection
 knowledge.py            offline explain / diagnose engine
+manual.py               reads the man pages installed on your system
 safety.py               destructive-command check
 providers/              AI provider interface: Ollama, OpenAI-style local servers, Anthropic (opt-in)
 seed_kb.json            bundled starter phrases (read-only)

@@ -270,5 +270,21 @@ assert_eq "welcome on the first run" "yes" "$([[ "$first" == *"First time here?"
 assert_eq "no welcome after that" "no" "$([[ "$second" == *"First time here?"* ]] && echo yes || echo no)"
 
 echo ""
+echo "=== AI suggestions are checked against the manual ==="
+
+# Stand in for the brain: an AI answer with one real and one made-up flag.
+python3() {
+    printf '%s\n' "STATUS=ok" "COMMAND=find . -size +100M -bigger" \
+        "EXPLANATION=Big files." "PROVIDER=local" \
+        "MANUAL=find -size: File uses n units of space." "UNVERIFIED=find -bigger"
+}
+ai_out=$(echo "n" | resolve_with_ai "big files" 2>&1)
+unset -f python3
+assert_eq "manual lines are shown" "yes" \
+    "$([[ "$ai_out" == *"From the manual:"*"find -size: File uses n units of space."* ]] && echo yes || echo no)"
+assert_eq "made-up flags are flagged" "yes" \
+    "$([[ "$ai_out" == *"doesn't mention: find -bigger"* ]] && echo yes || echo no)"
+
+echo ""
 echo "=== Results: $pass_count passed, $fail_count failed ==="
 [ "$fail_count" -eq 0 ]
