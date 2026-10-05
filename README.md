@@ -45,7 +45,7 @@ Run this? [Y/n/e=edit]: y
 
 Most command-line tools assume you already know the command you want. Clishe assumes you don't, and treats that as normal.
 
-- **It shows its work.** Every command is displayed before it runs, and you can edit it first. AI suggestions come with a one-line reason, and `explain` breaks down the exact flags you used.
+- **It shows its work.** Every command is displayed as it runs. AI suggestions and "did you mean...?" matches wait for your OK first (and AI suggestions can be edited), each AI suggestion comes with a one-line reason, and `explain` breaks down the exact flags you used.
 - **It works offline.** A bundled knowledge base, a command dictionary and an error-hint database need no network and no account.
 - **It learns from you.** Anything you teach it, or approve from an AI suggestion, is remembered, so the same phrase is instant next time.
 - **It stays out of your way.** It's a small bash + Python (standard library) tool that keeps its files in the standard XDG locations.
@@ -54,7 +54,7 @@ Most command-line tools assume you already know the command you want. Clishe ass
 
 **Everyday use**
 - Natural language to shell commands, resolved in this order: your knowledge base, the bundled seed KB, a native command you typed directly, a close match to a phrase it already knows ("did you mean...?"), then an AI provider (if configured), then "teach me".
-- Forgiving matching: case, punctuation and filler like "please" or "can you" are ignored, so `Please show me disk usage?` finds `show me disk usage`.
+- Forgiving matching: case, punctuation and filler like "please" or "can you" are ignored, so `Please show me disk usage?` finds `show me disk usage`. Different wording with the same meaning gets a "did you mean...?" too (`remove a directory` → `delete a folder`).
 - Fill-in-the-blank commands: entries like `cp <file> <destination>` ask for each value, quote it safely, and show the final command before running it. You can teach your own (`ssh <server>`).
 - `explain`-style questions: `explain tar -xzvf`, `what does chmod do`, `what's grep`, `tell me about find`. The offline dictionary explains each flag you used (`-x`, `-z`, `-v`, `-f`) and points to `man` for ones it doesn't know. An AI provider is asked only if the command isn't in the dictionary.
 - Plain-English hints when a command fails (permission denied, no such file, and so on), fully offline.

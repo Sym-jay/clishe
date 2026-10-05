@@ -167,6 +167,44 @@ def test_suggest_returns_none_for_unrelated_phrase(brain):
     assert brain.suggest("book a flight to paris") is None
 
 
+@pytest.mark.parametrize("said,expected", [
+    ("remove a directory", "delete a folder"),
+    ("erase a directory", "delete a folder"),
+    ("how much disk is left", "how much space do i have"),
+    ("how much ram is available", "how much memory is free"),
+    ("what programs are running", "show running processes"),
+    ("display my files", "list files"),
+    ("find a file", "search for a file"),
+    ("delete my photos", "delete a file"),  # still asks which file, then confirms
+])
+def test_suggest_matches_on_meaning(brain, said, expected):
+    match = brain.suggest(said)
+    assert match is not None and match[0] == expected, match
+
+
+@pytest.mark.parametrize("said", [
+    "my files",              # must not turn into "delete a file"
+    "unzip a file",
+    "files",
+    "kill chrome",
+    "where am i going",
+])
+def test_suggest_by_meaning_never_adds_an_action(brain, said):
+    match = brain.suggest(said)
+    assert match is None or not match[1].startswith(("rm", "kill", "pkill")), match
+
+
+def test_meaning_tokens_drop_filler_and_map_synonyms():
+    import clishe_brain
+    assert clishe_brain.meaning_tokens("Please remove the directories") == {"delete", "folder"}
+    assert clishe_brain.meaning_tokens("can you show me all of it") == frozenset()
+
+
+def test_suggest_by_meaning_prefers_users_own_phrases(brain):
+    brain.learn("delete a folder", "trash-put <folder>")
+    assert brain.suggest("remove a directory") == ("delete a folder", "trash-put <folder>")
+
+
 def test_suggest_returns_none_for_exact_match(brain):
     # Exact matches are query()'s job; suggest is only for near misses.
     assert brain.suggest("show me disk usage") is None

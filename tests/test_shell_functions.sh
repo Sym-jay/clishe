@@ -156,6 +156,13 @@ case "$out" in
     *) assert_eq "blank placeholder cancels instead of hanging on 'cat'" "Cancelled" "$out" ;;
 esac
 
+# teach runs the safety check before saving, so cancelling saves nothing
+out=$(printf '%s\n' "teach" "wipe build" "rm -rf build" "no" "learned" | timeout 10 "$CLISHE_SH" 2>&1)
+case "$out" in
+    *"potentially destructive"*"Cancelled."*"haven't taught me anything"*) assert_eq "teach: risky command needs YES to save" "ok" "ok" ;;
+    *) assert_eq "teach: risky command needs YES to save" "warning, then nothing saved" "$out" ;;
+esac
+
 out=$(printf '%s\n' "teach" "deploy site" "echo deployed-ok" "deploy site" | timeout 10 "$CLISHE_SH" 2>&1)
 case "$out" in
     *"deployed-ok"*) assert_eq "teach, then use the phrase" "ok" "ok" ;;

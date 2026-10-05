@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- "Did you mean...?" now matches on meaning, not just spelling: "remove a
+  directory" finds "delete a folder", "how much disk is left" finds "how much
+  space do i have". It uses a small synonym table, stays offline and still
+  asks before running. A match never adds an action you didn't ask for, and
+  on a tie the less risky command wins.
+- 30 more bundled phrases (disk partitions, CPU info, open ports, zip/unzip,
+  file details, services, logs and more).
+
+### Fixed
+- The safety check now also catches `rm *` (and `rm ./*`, `rm dir/*`),
+  emptying a file with `> file` or `truncate -s 0`, commands hidden in
+  `bash -c '...'`, `su -c '...'` and `eval`, scripts piped into `python3`,
+  `perl`, `ruby` or `node`, and `cp`/`tee` onto a disk device.
+  `rm *.log`, `echo hi > out.txt` and `>> file` are still not flagged.
+- `teach` now runs the safety check before saving, as the README says, so a
+  risky command needs a typed YES to be saved.
+- README: "shows its work" now describes what actually asks before running.
+
 ## 0.3.0
 
 ### Fixed
