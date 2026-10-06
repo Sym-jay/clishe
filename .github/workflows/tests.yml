@@ -27,8 +27,12 @@ jobs:
       - name: Run tests
         run: python -m pytest tests/ -v
 
+      - name: Install zsh
+        run: sudo apt-get install -y zsh
+
       - name: Check shell scripts
         run: |
+          zsh -n clishe-bind.zsh
           bash -n clishe.sh install.sh clishe-bind.bash
           shellcheck -S warning clishe.sh clishe-bind.bash install.sh tests/test_shell_functions.sh
 
@@ -38,6 +42,9 @@ jobs:
 
       - name: Run shell-level regression tests
         run: bash tests/test_shell_functions.sh
+
+      - name: Run zsh shortcut tests
+        run: zsh tests/test_zsh_bind.zsh
 
       - name: Install as a package and run it
         run: |

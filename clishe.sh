@@ -109,8 +109,9 @@ Usage:
   clishe progress           the commands you've learned to type yourself
   clishe setup              find or set up a local AI model
   clishe tour               a quick tour of your computer
-  clishe --init bash        print the Ctrl+G shortcut for your normal shell
-                            (add  eval "$(clishe --init bash)"  to ~/.bashrc)
+  clishe --init bash|zsh    print the Ctrl+G shortcut for your normal shell
+                            (add  eval "$(clishe --init bash)"  to ~/.bashrc,
+                             or   eval "$(clishe --init zsh)"   to ~/.zshrc)
   clishe --version          show the version
   clishe --help             show this help
 
@@ -146,6 +147,7 @@ change that.
 
 Want this in your normal shell too? Add this line to ~/.bashrc:
   eval "$(clishe --init bash)"
+(or, for zsh, eval "$(clishe --init zsh)" to ~/.zshrc)
 Then type plain English at any prompt and press Ctrl+G.
 EOF
 }
@@ -1030,13 +1032,15 @@ if [ $# -gt 0 ]; then
             exit 0
             ;;
         --init)
-            case "${2:-bash}" in
-                bash)
+            # Default to the shell the user runs, so a plain --init works too.
+            init_shell="${2:-$(basename "${SHELL:-bash}")}"
+            case "$init_shell" in
+                bash|zsh)
                     printf '__CLISHE_BRAIN=%q\nsource %q\n' \
-                        "$PYTHON_SCRIPT" "$SCRIPT_DIR/clishe-bind.bash"
+                        "$PYTHON_SCRIPT" "$SCRIPT_DIR/clishe-bind.$init_shell"
                     exit 0 ;;
                 *)
-                    echo "Only bash is supported for now: eval \"\$(clishe --init bash)\"" >&2
+                    echo "The Ctrl+G shortcut works in bash and zsh: eval \"\$(clishe --init bash)\" or --init zsh" >&2
                     exit 1 ;;
             esac
             ;;
