@@ -294,10 +294,11 @@ cd: note: No such file or directory
 
 ### Your normal shell (Ctrl+G)
 
-Add this line to your `~/.bashrc`, then open a new terminal:
+Add this line to your `~/.bashrc` (bash) or `~/.zshrc` (zsh), then open a new terminal:
 
 ```bash
-eval "$(clishe --init bash)"
+eval "$(clishe --init bash)"   # in ~/.bashrc
+eval "$(clishe --init zsh)"    # in ~/.zshrc
 ```
 
 Now, at any prompt:
@@ -310,7 +311,7 @@ Now, at any prompt:
 | `tar -xzvf backup.tgz` | Each flag is explained. Your line stays as it was. |
 | something new | Asks your AI provider, if you set one up. |
 
-Nothing runs until you press Enter. Prefer another key? Set `CLISHE_KEY='\eg'` (Alt+G) before the `eval` line. Bash only for now.
+Nothing runs until you press Enter. Prefer another key? Set `CLISHE_KEY` before the `eval` line: `CLISHE_KEY='\eg'` in bash or `CLISHE_KEY='^[g'` in zsh for Alt+G.
 
 ### Session commands
 
@@ -340,6 +341,7 @@ clishe progress                   # what you've learned
 clishe setup                      # find or set up a local AI model
 clishe tour                       # a quick tour of your computer
 clishe --init bash                # the Ctrl+G shortcut, for your ~/.bashrc
+clishe --init zsh                 # the same, for your ~/.zshrc
 clishe --version
 ```
 
@@ -497,6 +499,7 @@ Delete `~/.local/share/clishe/kb.json` to forget everything you've taught it.
 ```text
 clishe.sh               interactive shell front end
 clishe-bind.bash        Ctrl+G shortcut for your normal bash prompt
+clishe-bind.zsh         the same shortcut for zsh
 clishe_brain.py         backend: KB, history, prediction, AI resolution
 config.py               config loading, distro detection
 knowledge.py            offline explain / diagnose engine

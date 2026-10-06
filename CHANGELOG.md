@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- **Ctrl+G in zsh.** Add `eval "$(clishe --init zsh)"` to `~/.zshrc` and the
+  shortcut works the same as in bash: plain English becomes the command on
+  your line, the cursor lands on the first `<placeholder>`, real commands
+  get explained, and risky ones get a warning. `clishe --init` with no
+  shell name picks the one you're using.
 - **`fix that`** (also "what went wrong", "why did that fail"): after a
   command fails, Clishe explains why and offers a fixed command, run
   through the usual safety check. Offline fixes for common mistakes: a

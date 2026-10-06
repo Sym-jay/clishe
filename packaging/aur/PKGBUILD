@@ -18,7 +18,7 @@ package() {
   local dest="$pkgdir/usr/share/$pkgname"
   install -d "$dest/providers" "$pkgdir/usr/bin"
   install -m755 clishe.sh "$dest/"
-  install -m644 clishe-bind.bash ./*.py ./*.json "$dest/"
+  install -m644 clishe-bind.* ./*.py ./*.json "$dest/"
   install -m644 providers/*.py "$dest/providers/"
   # clishe.sh follows this link back to /usr/share/clishe to find its files.
   ln -s "/usr/share/$pkgname/clishe.sh" "$pkgdir/usr/bin/clishe"
