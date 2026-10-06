@@ -350,6 +350,7 @@ assert_eq "q ends the tour early" "no" \
 echo ""
 echo "=== fix that ==="
 
+# shellcheck disable=SC2034  # read by fix_last
 LAST_RUN_COMMAND="pwd" LAST_EXIT=0
 assert_eq "nothing to fix after a success" "yes" \
     "$([[ "$(fix_last 2>&1)" == *"didn't fail"* ]] && echo yes || echo no)"
@@ -357,6 +358,7 @@ python3() {
     printf '%s\n' "STATUS=ok" "EXPLANATION=There's a folder called Documents." \
         "PROVIDER=offline" "COMMAND=cd Documents"
 }
+# shellcheck disable=SC2034  # read by fix_last
 LAST_RUN_COMMAND="cd Documnets" LAST_EXIT=1 LAST_STDERR="cd: Documnets: No such file or directory"
 fix_out=$(echo "n" | fix_last 2>&1)
 unset -f python3
