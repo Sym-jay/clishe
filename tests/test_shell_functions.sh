@@ -348,5 +348,23 @@ assert_eq "q ends the tour early" "no" \
     "$([[ "$tour_stop" == *"Your disk"* ]] && echo yes || echo no)"
 
 echo ""
+echo "=== fix that ==="
+
+LAST_RUN_COMMAND="pwd" LAST_EXIT=0
+assert_eq "nothing to fix after a success" "yes" \
+    "$([[ "$(fix_last 2>&1)" == *"didn't fail"* ]] && echo yes || echo no)"
+python3() {
+    printf '%s\n' "STATUS=ok" "EXPLANATION=There's a folder called Documents." \
+        "PROVIDER=offline" "COMMAND=cd Documents"
+}
+LAST_RUN_COMMAND="cd Documnets" LAST_EXIT=1 LAST_STDERR="cd: Documnets: No such file or directory"
+fix_out=$(echo "n" | fix_last 2>&1)
+unset -f python3
+assert_eq "fix that explains and offers the fix" "yes" \
+    "$([[ "$fix_out" == *"called Documents"*"Try: cd Documents"* ]] && echo yes || echo no)"
+fix_match=$(shopt -s nocasematch; [[ "What went wrong?" =~ $RE_FIX ]] && echo yes || echo no)
+assert_eq "'what went wrong?' counts as fix that" "yes" "$fix_match"
+
+echo ""
 echo "=== Results: $pass_count passed, $fail_count failed ==="
 [ "$fail_count" -eq 0 ]

@@ -74,6 +74,15 @@ EXPLAIN_PROMPT = (
     "does and flag anything destructive or irreversible."
 )
 
+FIX_PROMPT = (
+    "A beginner ran a Linux shell command and it failed. In one or two short, "
+    "plain-English sentences, explain what went wrong, and give a corrected "
+    "command if there is one. Reply with ONLY a JSON object, no markdown fences: "
+    '{"explanation": "<text>", "command": "<the corrected command, or null>"}. '
+    "Never suggest a command that deletes or overwrites data. Only add sudo when "
+    "the error is about permissions. If you're not sure of a fix, use null."
+)
+
 # Package manager for each distro family, for the prompt.
 _PACKAGE_MANAGERS = {
     "debian": "apt", "ubuntu": "apt", "fedora": "dnf", "rhel": "dnf",
@@ -166,6 +175,23 @@ class Provider(ABC):
         that can't give a reason don't need to override this."""
         command = self.resolve_command(phrase)
         return Resolution(command) if command else None
+
+    def fix_command(self, command: str, error: str) -> Optional[dict]:
+        """Explain why a command failed and suggest a corrected one:
+        {"explanation", "command"} (command may be ""), or None if unsure.
+        Works for any provider that has an _ask(system, user) -> dict
+        helper; others don't support it."""
+        ask = getattr(self, "_ask", None)
+        if ask is None:
+            return None
+        system = FIX_PROMPT + distro_note(getattr(self, "distro", ""), getattr(self, "family", []))
+        data = ask(system, f"Command: {command}\nError:\n{(error or '')[-1500:]}")
+        explanation = data.get("explanation")
+        if not isinstance(explanation, str) or not explanation.strip():
+            return None
+        command = data.get("command")
+        return {"explanation": explanation.strip(),
+                "command": command.strip() if isinstance(command, str) else ""}
 
     @abstractmethod
     def explain_command(self, command: str) -> Optional[str]:

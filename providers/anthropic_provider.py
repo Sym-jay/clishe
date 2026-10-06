@@ -74,6 +74,8 @@ class AnthropicProvider(Provider):
 
         return parse_json_reply(raw_text)
 
+    _ask = _call
+
     # ---------- public API ----------
 
     def resolve_with_explanation(self, phrase: str) -> Optional[Resolution]:

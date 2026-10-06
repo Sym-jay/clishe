@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Added
+- **`fix that`** (also "what went wrong", "why did that fail"): after a
+  command fails, Clishe explains why and offers a fixed command, run
+  through the usual safety check. Offline fixes for common mistakes: a
+  misspelled command (`gti` → `git`, `sl` → `ls`), a misspelled file or
+  folder, a missing `sudo`, a script that isn't executable, `cp` on a
+  folder without `-r`, `cat` on a folder, an out-of-date apt package list.
+  Anything else goes to your local AI, and its fix is checked against the
+  man page. For `rm`, `mv` and other destructive commands it never puts a
+  guessed file name in the fix. After a failed command, a hint mentions
+  `fix that`.
 - **`clishe tour`** (or `tour` in a session): a walk through your own
   computer in plain English, one stop at a time. Your Linux and what it's
   based on, processor and memory, free disk space, desktop and shell, what

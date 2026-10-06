@@ -69,6 +69,8 @@ class OllamaProvider(Provider):
 
         return parse_json_reply(raw_text)
 
+    _ask = _generate
+
     # ---------- public API ----------
 
     def resolve_with_explanation(self, phrase: str) -> Optional[Resolution]:
