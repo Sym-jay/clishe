@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- **`clishe tour`** (or `tour` in a session): a walk through your own
+  computer in plain English, one stop at a time. Your Linux and what it's
+  based on, processor and memory, free disk space, desktop and shell, what
+  the main folders are for, how software is installed, and whether you can
+  use sudo. Each stop has commands to try. Offline: it reads /etc, /proc
+  and the environment.
 - **Every part labelled.** AI suggestions, and known phrases the first
   time you use them, are drawn with each part of the command labelled
   underneath (`find` → search for files, `-size +100M` → bigger than 100M).

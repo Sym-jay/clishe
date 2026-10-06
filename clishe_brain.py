@@ -737,7 +737,7 @@ def main():
                                  'predict', 'resolve', 'explain', 'diagnose', 'check',
                                  'line', 'trash', 'missing', 'output',
                                  'turn', 'attempt', 'progress',
-                                 'setup', 'set-model', 'breakdown'],
+                                 'setup', 'set-model', 'breakdown', 'tour'],
                         help='Action to perform')
     parser.add_argument('--phrase', default='', help='Natural language phrase')
     parser.add_argument('--command', default='', help='Bash command')
@@ -863,6 +863,18 @@ def main():
                 print(f"CMD={_one_line(result['command'])}")
                 for tree, label in result['lines']:
                     print(f"LINE={tree}\t{_one_line(label)}")
+
+    elif args.action == 'tour':
+        from tour import tour
+        for stop in tour():
+            print(f"STOP={_one_line(stop['title'])}")
+            for label, value in stop['facts']:
+                print(f"FACT={_one_line(label)}\t{_one_line(value)}")
+            import textwrap
+            for line in textwrap.wrap(stop['note'], width=max(40, args.width - 2)):
+                print(f"NOTE={line}")
+            if stop['try']:
+                print(f"TRY={_one_line('   '.join(stop['try']))}")
 
     elif args.action == 'predict':
         print(brain.predict(args.command))
