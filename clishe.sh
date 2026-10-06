@@ -106,13 +106,14 @@ Usage:
   clishe practice           hands-on exercises in a safe, throwaway folder
   clishe progress           the commands you've learned to type yourself
   clishe setup              find or set up a local AI model
+  clishe tour               a quick tour of your computer
   clishe --init bash        print the Ctrl+G shortcut for your normal shell
                             (add  eval "$(clishe --init bash)"  to ~/.bashrc)
   clishe --version          show the version
   clishe --help             show this help
 
 Inside a session, also try: help, learned, teach, forget <phrase>, practice,
-progress, setup, exit
+progress, setup, tour, exit
 EOF
 }
 
@@ -129,6 +130,7 @@ shell command. Clishe shows you the command before it runs.
   practice            hands-on exercises in a safe, throwaway folder
   progress            the commands you've learned to type yourself
   setup               find or set up a local AI model
+  tour                a quick tour of your computer
   help                show this message
   exit                leave (Ctrl-D works too)
 
@@ -890,6 +892,41 @@ practice_session() {
     : > "$done_file"
 }
 
+# A walk through this computer in plain English, one stop at a time.
+tour_session() {
+    local key value label answer stops=0
+    local -a lines=()
+    while IFS= read -r value; do lines+=("$value"); done \
+        < <(brain --action tour --width "$(( $(tput cols 2>/dev/null || echo 80) - 2 ))")
+    if [ "${#lines[@]}" -eq 0 ]; then
+        warn "I couldn't look around this computer, sorry."
+        return 1
+    fi
+    say "Here's a quick tour of your computer. Each stop has a command you can try later."
+    for value in "${lines[@]}" "STOP="; do
+        key="${value%%=*}"
+        value="${value#*=}"
+        case "$key" in
+            STOP)
+                if [ "$stops" -gt 0 ]; then
+                    [ -z "$value" ] && break
+                    echo ""
+                    read -r -p "Enter for the next stop, q to finish: " answer || break
+                    [[ "$answer" =~ ^[Qq] ]] && break
+                fi
+                stops=$((stops + 1))
+                printf '\n%b%s%b\n' "$BLUE" "$value" "$NC" ;;
+            FACT)
+                label="${value%%$'\t'*}"
+                printf '  %-20s %s\n' "$label" "${value#*$'\t'}" ;;
+            NOTE) printf '  %b%s%b\n' "$DIM" "$value" "$NC" ;;
+            TRY) printf '  Try: %b%s%b\n' "$YELLOW" "$value" "$NC" ;;
+        esac
+    done
+    echo ""
+    say "That's the tour. Ask me 'explain <command>' about any command you saw."
+}
+
 # Check this computer for a local AI model and help get one running.
 setup_session() {
     local output key value model="" running=0 ready=0 configured="" answer
@@ -965,6 +1002,8 @@ if [ $# -gt 0 ]; then
             [ $# -eq 1 ] && { show_progress; exit 0; } ;;
         setup)
             [ $# -eq 1 ] && { setup_session; exit 0; } ;;
+        tour)
+            [ $# -eq 1 ] && { tour_session; exit $?; } ;;
         explain)
             if [ $# -gt 1 ]; then
                 shift
@@ -1025,6 +1064,7 @@ First time here? Try typing one of these:
   how much memory is free   how much RAM you have left
   explain tar -xzvf         what each part of a command means
   delete a file             (I always ask before anything risky)
+  tour                      a quick tour of your own computer
 
 After any command, ask "what does this mean" to understand its output.
 You can also use me in your normal terminal with Ctrl+G. Type 'help' to see how.
@@ -1081,6 +1121,8 @@ while true; do
             teach_session; echo ""; continue ;;
         setup)
             setup_session; echo ""; continue ;;
+        tour|"show me around"|"tour my computer")
+            tour_session; echo ""; continue ;;
         forget|"forget "*)
             forget_target="${user_input#forget}"
             forget_phrase "${forget_target# }"; echo ""; continue ;;

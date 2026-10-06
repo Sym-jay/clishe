@@ -72,6 +72,7 @@ Most command-line tools assume you already know the command you want. Clishe ass
 - Mistakes you can undo: when you delete something with `rm`, Clishe offers to move it to the Trash instead (if `gio` or `trash-cli` is installed), so you can get it back.
 - Helps you outgrow it: after you've asked for the same thing three times, Clishe shows you the command. The next time, it's **your turn**: Clishe asks you to type it yourself, and checks it (`ls -al` counts for `ls -la`). Once you've got it right twice, it stops asking.
 - `practice`: 14 hands-on exercises (pwd, ls, mkdir, cd, touch, echo, cat, cp, mv, find, grep, rm) in a throwaway folder, with hints. It remembers where you stopped.
+- `tour`: a walk through your own computer in plain English: which Linux you run (and what it's based on), processor and memory, free disk space, desktop and shell, what folders like `/etc` and `/usr/bin` are for, how software gets installed, and whether you can use `sudo`. Each stop has a command to try, so you can find it all again yourself. Offline.
 - `progress`: the everyday commands you've typed yourself, the ones you still ask for, and good ones to learn next.
 - Natural language to shell commands, resolved in this order: your knowledge base, the bundled seed KB, a native command you typed directly, a close match to a phrase it already knows ("did you mean...?"), then an AI provider (if configured), then "teach me".
 - Forgiving matching: case, punctuation and filler like "please" or "can you" are ignored, so `Please show me disk usage?` finds `show me disk usage`. Different wording with the same meaning gets a "did you mean...?" too (`remove a directory` → `delete a folder`).
@@ -321,6 +322,7 @@ Nothing runs until you press Enter. Prefer another key? Set `CLISHE_KEY='\eg'` (
 | `practice` | Hands-on exercises in a throwaway folder |
 | `progress` | The commands you've learned to type yourself |
 | `setup` | Find or set up a local AI model |
+| `tour` | A quick tour of your own computer |
 | `explain <command>` | Explain a command and its flags |
 | `what does this mean` | Explain the output of the command you just ran |
 | `exit` / Ctrl-D | Leave |
@@ -334,6 +336,7 @@ clishe --list                     # the phrases you've taught, tab-separated
 clishe practice                   # hands-on exercises
 clishe progress                   # what you've learned
 clishe setup                      # find or set up a local AI model
+clishe tour                       # a quick tour of your computer
 clishe --init bash                # the Ctrl+G shortcut, for your ~/.bashrc
 clishe --version
 ```
@@ -497,6 +500,7 @@ config.py               config loading, distro detection
 knowledge.py            offline explain / diagnose engine
 manual.py               reads the man pages installed on your system
 breakdown.py            draws a command with each part labelled
+tour.py                 clishe tour: your computer in plain English
 safety.py               destructive-command check
 setup_check.py          clishe setup: memory, local model servers, model suggestion
 providers/              AI provider interface: Ollama, OpenAI-style local servers, Anthropic (opt-in)

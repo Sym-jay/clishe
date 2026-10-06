@@ -333,5 +333,20 @@ unset -f python3
 assert_eq "no breakdown falls back" "1" "$bd_status"
 
 echo ""
+echo "=== tour ==="
+
+python3() {
+    printf '%s\n' "STOP=Your Linux" $'FACT=Distribution\tLinux Mint 22' "NOTE=Linux is the kernel." \
+        "TRY=uname -r" "STOP=Your disk" $'FACT=This computer (/)\t20 GB free' "TRY=df -h"
+}
+tour_out=$(printf '\n' | tour_session 2>&1)
+tour_stop=$(printf 'q\n' | tour_session 2>&1)
+unset -f python3
+assert_eq "tour shows each stop" "yes" \
+    "$([[ "$tour_out" == *"Your Linux"*"Linux Mint 22"*"Try: uname -r"*"Your disk"*"Try: df -h"* ]] && echo yes || echo no)"
+assert_eq "q ends the tour early" "no" \
+    "$([[ "$tour_stop" == *"Your disk"* ]] && echo yes || echo no)"
+
+echo ""
 echo "=== Results: $pass_count passed, $fail_count failed ==="
 [ "$fail_count" -eq 0 ]
