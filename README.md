@@ -81,6 +81,7 @@ Most command-line tools assume you already know the command you want. Clishe ass
 - **Every part labelled.** AI suggestions, and known phrases the first time you use them, are drawn with each part of the command labelled underneath, using the offline dictionary and your own `man` pages. You see the shape of a command, not just a one-liner. Commands with pipes or redirects are shown the usual way.
 - AI suggestions are checked against your manual, and Clishe warns if a flag isn't in it (small models sometimes invent them). You learn from the real documentation, not just the model.
 - Plain-English hints when a command fails (permission denied, no such file, pip's "externally-managed-environment", apt without sudo, no internet, and more), fully offline. If a program isn't installed, it tells you the install command for your distro (`apt`, `dnf`, `pacman`, `zypper` or `apk`).
+- **`fix that`** after a command fails: Clishe explains what went wrong and offers a fixed command to run (with the usual safety check). Common mistakes are fixed offline: a misspelled command (`gti` → `git`), a misspelled file or folder (`cd Documnets` → `cd Documents`), a missing `sudo`, a script that isn't executable, `cp` on a folder without `-r`, an out-of-date apt package list. Anything else goes to your local AI. It never guesses a different file name for `rm` or `mv`; it only mentions it.
 - "What does this mean?" after `ls -l`, `df -h`, `free -h`, `ps aux`, `git status` and others walks you through the columns of the output you just saw. Offline, and your output never leaves your machine.
 - Next-command suggestions based on your own history. They appear once you have a few dozen logged commands.
 - A comfortable prompt: arrow keys and line editing work, your inputs are remembered across sessions, and Ctrl-C stops a running command without closing Clishe.
@@ -325,6 +326,7 @@ Nothing runs until you press Enter. Prefer another key? Set `CLISHE_KEY='\eg'` (
 | `tour` | A quick tour of your own computer |
 | `explain <command>` | Explain a command and its flags |
 | `what does this mean` | Explain the output of the command you just ran |
+| `fix that` | Explain why the last command failed, and offer a fix |
 | `exit` / Ctrl-D | Leave |
 
 ### One-shot mode
@@ -430,7 +432,7 @@ Off by default, because it sends what you type over the internet. To turn it on:
 
 A key in your environment alone doesn't turn it on, so having `ANTHROPIC_API_KEY` set for another tool won't make Clishe use the cloud.
 
-When it's on, these are sent to the API: phrases you type that aren't in your KB or seed KB, commands you ask Clishe to `explain` that aren't in the offline dictionary, and your distro name (for example `ubuntu`). Your knowledge base, command history and command output are never sent.
+When it's on, these are sent to the API: phrases you type that aren't in your KB or seed KB, commands you ask Clishe to `explain` that aren't in the offline dictionary, a failed command and its error message when you ask `fix that` and no offline rule fits, and your distro name (for example `ubuntu`). Your knowledge base, command history and command output are never sent.
 
 ## How it works
 
@@ -501,6 +503,7 @@ knowledge.py            offline explain / diagnose engine
 manual.py               reads the man pages installed on your system
 breakdown.py            draws a command with each part labelled
 tour.py                 clishe tour: your computer in plain English
+fix.py                  fix that: offline fixes for common mistakes
 safety.py               destructive-command check
 setup_check.py          clishe setup: memory, local model servers, model suggestion
 providers/              AI provider interface: Ollama, OpenAI-style local servers, Anthropic (opt-in)

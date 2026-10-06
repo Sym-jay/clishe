@@ -58,6 +58,8 @@ RE_WHAT_IS='^what[[:space:]]+(is|are)[[:space:]]+(.+)$'
 RE_WHATS="^what's[[:space:]]+(.+)\$"
 RE_TELL_ME='^tell[[:space:]]+me[[:space:]]+about[[:space:]]+(.+)$'
 # "what does this mean?" about the output of the last command.
+# "fix that" after a command fails.
+RE_FIX="^(fix (that|it|this)|what went wrong|why did (that|it) fail|why didn'?t (that|it) work|help me fix (that|it))[?!. ]*\$"
 RE_OUTPUT_QUESTION="^(what (does|do) (this|that|it|these|those) mean|explain (this|that|it|the output)|what am i looking at|i don'?t understand( (this|that|it))?)[?!. ]*\$"
 
 # A placeholder in a KB or AI command, e.g. "cp <file> <destination>".
@@ -124,6 +126,7 @@ shell command. Clishe shows you the command before it runs.
 
   explain <command>   what does a command do? (also: "what does ls do")
   what does this mean explain the output of the command you just ran
+  fix that            explain why the last command failed, and fix it
   learned             list the phrases you've taught me
   teach               teach me a phrase -> command (or fix a wrong one)
   forget <phrase>     forget a phrase you taught me
@@ -410,6 +413,45 @@ missing_hint() {
     return 0
 }
 
+# "fix that": explain why the last command failed and offer a fixed one.
+fix_last() {
+    local output answer fixed
+    if [ -z "${LAST_RUN_COMMAND:-}" ]; then
+        say "Run a command first. If it fails, ask me to fix it."
+        return
+    fi
+    if [ "$LAST_EXIT" -eq 0 ] || [ "$LAST_EXIT" -eq 130 ]; then
+        say_cmd "Your last command didn't fail: " "$LAST_RUN_COMMAND"
+        return
+    fi
+    say "Let me look at what went wrong..."
+    output=$(brain --action fix --command "$LAST_RUN_COMMAND" --error "$LAST_STDERR")
+    parse_brain_output "$output" FX
+    if [ "$FX_STATUS" != "ok" ]; then
+        say "I'm not sure what went wrong. Try 'man ${LAST_RUN_COMMAND%% *}', or read the error message above carefully: it usually names the problem."
+        return
+    fi
+    if [ "$FX_PROVIDER" = "offline" ]; then
+        say "$(decode_lines "$FX_EXPLANATION")"
+    else
+        printf '%bClishe (via %s): %b%s\n' "$BLUE" "$FX_PROVIDER" "$NC" "$(decode_lines "$FX_EXPLANATION")"
+    fi
+    [ -n "$FX_COMMAND" ] || return
+    say_cmd "Try: " "$FX_COMMAND"
+    if [ -n "$FX_UNVERIFIED" ]; then
+        warn "  ⚠ The manual doesn't mention: $FX_UNVERIFIED. The AI may have made it up, so check before running."
+    fi
+    read -r -p "Run it? [Y/n/e=edit]: " answer
+    [[ "$answer" =~ ^[Nn] ]] && return
+    fixed="$FX_COMMAND"
+    if [[ "$answer" =~ ^[Ee] ]]; then
+        read -r -e -i "$fixed" -p "Edit command: " fixed
+        [ -z "$fixed" ] && return
+    fi
+    TIP_PHRASE=""
+    prepare_and_run "$fixed"
+}
+
 # Explain the output of the last command that ran ("what does this mean?").
 explain_last_output() {
     local output
@@ -652,6 +694,8 @@ run_command() {
                 printf '%b💡 %b%s\n' "$YELLOW" "$NC" "$DX_HINT"
             fi
         fi
+        [ "$LAST_EXIT" -ne 130 ] && \
+            printf "%b(Type 'fix that' and I'll suggest a fix.)%b\n" "$DIM" "$NC"
     else
         # Only successful commands are logged, so failed guesses don't
         # pollute the next-command suggestions.
@@ -1097,6 +1141,16 @@ while true; do
     command_to_run=""
     learn_phrase=""
     input_kind=""
+
+    # "fix that" after a command fails.
+    shopt -s nocasematch
+    if [[ "$user_input" =~ $RE_FIX ]]; then
+        shopt -u nocasematch
+        fix_last
+        echo ""
+        continue
+    fi
+    shopt -u nocasematch
 
     # "what does this mean?" right after a command.
     shopt -s nocasematch

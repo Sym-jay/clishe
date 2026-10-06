@@ -624,6 +624,33 @@ class ClisheBrain:
 
         return {"status": "unavailable"}
 
+    def fix(self, command, error):
+        """Why a command failed and how to fix it. Offline rules first (typos,
+        missing sudo, scripts that aren't executable...), then the AI.
+        Returns {"status": "ok", "explanation", "command", "provider",
+        "unverified"} or {"status": "none"}."""
+        from fix import offline_fix
+        result = offline_fix(command, error)
+        if result and result["command"]:
+            return dict(result, status="ok", provider="offline", unverified=[])
+
+        from providers import ProviderError
+        for provider in build_provider_chain(load_config()):
+            try:
+                suggestion = provider.fix_command(command, error)
+            except ProviderError as e:
+                print(f"[{provider.name}] {e}", file=sys.stderr)
+                continue
+            if suggestion:
+                _, unverified = self.manual_notes(suggestion["command"]) \
+                    if suggestion["command"] else ([], [])
+                return dict(suggestion, status="ok", provider=provider.name,
+                            unverified=unverified)
+            break
+        if result:  # advice, but no single command to run
+            return dict(result, status="ok", provider="offline", unverified=[])
+        return {"status": "none"}
+
     def manual_notes(self, command):
         """Check an AI suggestion against the manuals on this computer.
         Returns (lines, unverified): what the manual says about each flag
@@ -737,7 +764,7 @@ def main():
                                  'predict', 'resolve', 'explain', 'diagnose', 'check',
                                  'line', 'trash', 'missing', 'output',
                                  'turn', 'attempt', 'progress',
-                                 'setup', 'set-model', 'breakdown', 'tour'],
+                                 'setup', 'set-model', 'breakdown', 'tour', 'fix'],
                         help='Action to perform')
     parser.add_argument('--phrase', default='', help='Natural language phrase')
     parser.add_argument('--command', default='', help='Bash command')
@@ -875,6 +902,17 @@ def main():
                 print(f"NOTE={line}")
             if stop['try']:
                 print(f"TRY={_one_line('   '.join(stop['try']))}")
+
+    elif args.action == 'fix':
+        result = brain.fix(args.command, args.error)
+        print(f"STATUS={result['status']}")
+        if result['status'] == 'ok':
+            print(f"EXPLANATION={_encoded(result['explanation'])}")
+            print(f"PROVIDER={result['provider']}")
+            if result['command']:
+                print(f"COMMAND={_one_line(result['command'])}")
+            if result['unverified']:
+                print(f"UNVERIFIED={_one_line(', '.join(result['unverified']))}")
 
     elif args.action == 'predict':
         print(brain.predict(args.command))

@@ -98,6 +98,8 @@ class LocalProvider(Provider):
             raise ProviderError("Empty response from local model")
         return parse_json_reply(raw_text)
 
+    _ask = _chat
+
     # ---------- public API ----------
 
     def resolve_with_explanation(self, phrase: str) -> Optional[Resolution]:
