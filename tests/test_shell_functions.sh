@@ -253,8 +253,11 @@ route() { if looks_like_command "$1"; then echo command; else echo english; fi; 
 assert_eq "Clishe's own functions aren't commands (say hi)" "english" "$(route "say hi")"
 assert_eq "Clishe's own functions aren't commands (brain)" "english" "$(route "brain")"
 assert_eq "go back is English" "english" "$(route "go back")"
-assert_eq "go build is a command" "command" "$(route "go build")"
-assert_eq "go mod tidy is a command" "command" "$(route "go mod tidy")"
+# Only where Go is installed: without it, "go build" can't be a command.
+if command -v go >/dev/null 2>&1; then
+    assert_eq "go build is a command" "command" "$(route "go build")"
+    assert_eq "go mod tidy is a command" "command" "$(route "go mod tidy")"
+fi
 assert_eq "builtins still count (cd)" "command" "$(route "cd /tmp")"
 
 echo ""
