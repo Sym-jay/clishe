@@ -1,0 +1,42 @@
+name: Something went wrong
+description: Clishe did something wrong, confusing or unsafe
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! If Clishe ran something risky **without** asking for YES first, please follow SECURITY.md instead.
+  - type: textarea
+    id: typed
+    attributes:
+      label: What did you type?
+      placeholder: "find files bigger than 100MB"
+    validations:
+      required: true
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened, and what did you expect?
+      description: Paste Clishe's output if you can.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Clishe version
+      description: The output of `clishe --version`
+      placeholder: clishe 0.6.0
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: Your system and shell
+      placeholder: "Ubuntu 24.04, bash / macOS 15, zsh / WSL"
+    validations:
+      required: true
+  - type: input
+    id: ai
+    attributes:
+      label: AI model, if one answered
+      placeholder: "none / Ollama llama3.2 / LM Studio qwen2.5-3b"

@@ -2,6 +2,29 @@
 
 Thanks for considering a contribution! This covers the most common ways to help.
 
+## Good places to start
+
+Much of what Clishe knows lives in plain JSON files, so you can make a real
+difference without touching the code. Issues labelled
+[`good first issue`](https://github.com/Sym-jay/clishe/labels/good%20first%20issue)
+and [`data only (no code)`](https://github.com/Sym-jay/clishe/labels/data%20only%20%28no%20code%29)
+are the easiest way in.
+
+| You want to... | Edit | Checked by |
+|---|---|---|
+| Add a phrase ("show me disk usage" → `df -h`) | `seed_kb.json` | `tests/test_data_files.py` |
+| Explain a command and its flags (`explain tar -xzvf`) | `command_dictionary.json` | `tests/test_data_files.py`, `tests/test_knowledge.py` |
+| Explain an error message beginners hit | `error_patterns.json` | `tests/test_knowledge.py` |
+| Explain a command's output ("what does this mean?") | `output_guides.json` | `tests/test_knowledge.py` |
+| Add a practice exercise | `add_exercise` in `clishe.sh` | `tests/test_shell_functions.sh` |
+| Teach `fix that` a new mistake | a rule function in `fix.py` (add it to `RULES`) | `tests/test_fix.py` |
+| Teach `undo that` a new command | `before()`, `after()` and `plan()` in `undo.py` | `tests/test_undo.py` |
+| Teach `clishe check` a new effect | `_facts()` and `describe()` in `check.py` | `tests/test_check.py` |
+| Catch a new dangerous command | `safety.py` (see below) | `tests/test_safety.py` |
+
+Try your change in a real session too (`./clishe.sh` from the repo folder).
+Nothing to set up: Clishe uses only the Python standard library.
+
 ## Adding a new AI provider
 
 Clishe's provider system is designed so a new backend (OpenAI, Gemini, a

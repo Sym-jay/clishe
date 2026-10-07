@@ -1,0 +1,21 @@
+name: Idea
+description: Something that would make Clishe better for people learning the terminal
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's hard or missing today?
+      description: Describe it from the point of view of someone learning Linux.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like Clishe to do?
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: |
+        Clishe is offline-first and local-first: features should work without the internet, and AI (if any) runs on the user's own computer.
