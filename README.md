@@ -82,6 +82,7 @@ Most command-line tools assume you already know the command you want. Clishe ass
 - AI suggestions are checked against your manual, and Clishe warns if a flag isn't in it (small models sometimes invent them). You learn from the real documentation, not just the model.
 - Plain-English hints when a command fails (permission denied, no such file, pip's "externally-managed-environment", apt without sudo, no internet, and more), fully offline. If a program isn't installed, it tells you the install command for your distro (`apt`, `dnf`, `pacman`, `zypper` or `apk`).
 - **`fix that`** after a command fails: Clishe explains what went wrong and offers a fixed command to run (with the usual safety check). Common mistakes are fixed offline: a misspelled command (`gti` → `git`), a misspelled file or folder (`cd Documnets` → `cd Documents`), a missing `sudo`, a script that isn't executable, `cp` on a folder without `-r`, an out-of-date apt package list. Anything else goes to your local AI. It never guesses a different file name for `rm` or `mv`; it only mentions it.
+- **`undo that`** reverses the last change, after showing you the command that does it: `mv` moves it back, `mkdir` removes the folder while it's empty, `touch` removes the empty file, `cp` sends the copy to the Trash, `chmod` restores the old permissions, `cd` goes back, and files moved to the Trash are put back where they were (on a Mac, Clishe tells you how to use Finder's Put Back, since macOS hides the Trash from the terminal). It checks nothing has changed since and refuses rather than guess. Package installs get the matching remove command. A plain `rm` can't be undone, and Clishe says so.
 - **"Is this safe to run?"** Paste a command you found online, or point at a script: `clishe check 'curl … | sudo bash'` or `clishe check install.sh` (in a session: `is this safe: <command>` or `check <command>`). Nothing is run. You get each part explained, what it would change (files created or deleted, software installed, admin rights, which websites it talks to), any risky patterns, and for downloaded scripts a safer way: download, read, then check. It exits with 1 when there are warnings, so it works in scripts too.
 - "What does this mean?" after `ls -l`, `df -h`, `free -h`, `ps aux`, `git status` and others walks you through the columns of the output you just saw. Offline, and your output never leaves your machine.
 - Next-command suggestions based on your own history. They appear once you have a few dozen logged commands.
@@ -329,6 +330,7 @@ Nothing runs until you press Enter. Prefer another key? Set `CLISHE_KEY` before 
 | `explain <command>` | Explain a command and its flags |
 | `what does this mean` | Explain the output of the command you just ran |
 | `fix that` | Explain why the last command failed, and offer a fix |
+| `undo that` | Reverse the last change (shows the command first) |
 | `check <command>` / `is this safe: <command>` | What a command or script would do, without running it |
 | `exit` / Ctrl-D | Leave |
 
@@ -508,6 +510,7 @@ breakdown.py            draws a command with each part labelled
 tour.py                 clishe tour: your computer in plain English
 fix.py                  fix that: offline fixes for common mistakes
 check.py                clishe check: what a command or script would do
+undo.py                 undo that: notes before a change, and how to reverse it
 safety.py               destructive-command check
 setup_check.py          clishe setup: memory, local model servers, model suggestion
 providers/              AI provider interface: Ollama, OpenAI-style local servers, Anthropic (opt-in)
