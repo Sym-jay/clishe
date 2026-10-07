@@ -1,6 +1,6 @@
 pkgbase = clishe
 	pkgdesc = Plain English to shell commands for Linux beginners: offline, learn as you go, optional local AI
-	pkgver = 0.5.1
+	pkgver = 0.6.0
 	pkgrel = 1
 	url = https://github.com/Sym-jay/clishe
 	arch = any
@@ -10,7 +10,7 @@ pkgbase = clishe
 	optdepends = ollama: local AI for phrases Clishe does not know yet
 	optdepends = man-db: explain any installed command from its manual
 	optdepends = glib2: move deleted files to the Trash instead of erasing them
-	source = clishe-0.5.1.tar.gz::https://github.com/Sym-jay/clishe/archive/refs/tags/v0.5.1.tar.gz
-	sha256sums = 50f0971bb62f74e7a34673c032f8698be2a81c3b99366d6ed5d5b1586c2966fe
+	source = clishe-0.6.0.tar.gz::https://github.com/Sym-jay/clishe/archive/refs/tags/v0.6.0.tar.gz
+	sha256sums = a7f3589f8070464ac539451c595770e7fc78e9ad518ab97ae41a9dc9712d02fb
 
 pkgname = clishe

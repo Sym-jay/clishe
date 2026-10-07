@@ -13,6 +13,7 @@ instead of defaulting to one distro for everyone.
 """
 import json
 import os
+import sys
 from pathlib import Path
 
 XDG_CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
@@ -67,7 +68,7 @@ def detect_distro() -> str:
     unparseable (e.g. non-Linux systems), so callers never need to
     special-case a missing value."""
     if not OS_RELEASE_FILE.exists():
-        return "unknown"
+        return "macos" if sys.platform == "darwin" else "unknown"
     try:
         with open(OS_RELEASE_FILE, 'r') as f:
             for line in f:
@@ -93,6 +94,8 @@ def detect_distro_family() -> list:
                     ids.extend(value.strip('"').lower().split())
     except OSError:
         pass
+    if not ids and sys.platform == "darwin":
+        ids = ["macos"]
     return ids
 
 

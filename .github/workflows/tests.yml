@@ -53,3 +53,26 @@ jobs:
           clishe --version
           test "$(clishe 'show me disk usage')" = "df -h"
           clishe explain tar -xzvf | grep -q "extract"
+
+  # macOS ships bash 3.2 and BSD tools: run everything there too, so Clishe
+  # keeps working for Mac users.
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dev dependencies
+        run: pip install pytest
+
+      - name: Run tests
+        run: python -m pytest tests/ -v
+
+      - name: Run shell-level regression tests with the system bash (3.2)
+        run: /bin/bash tests/test_shell_functions.sh
+
+      - name: Run zsh shortcut tests
+        run: zsh tests/test_zsh_bind.zsh

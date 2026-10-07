@@ -6,6 +6,7 @@ tier that AI resolution/explanation falls back to only when this misses.
 import json
 import re
 import shlex
+import shutil
 from pathlib import Path
 
 _DATA_DIR = Path(__file__).resolve().parent
@@ -147,23 +148,28 @@ _INSTALLERS = [
     ({"opensuse", "opensuse-leap", "opensuse-tumbleweed", "suse", "sles"}, "zypper",
      "sudo zypper install {}"),
     ({"alpine"}, "apk", "sudo apk add {}"),
+    ({"macos"}, "brew", "brew install {}"),
 ]
 
 # Where the package name differs from the command name.
 _PACKAGE_NAMES = {
     "ifconfig": {"*": "net-tools"},
     "netstat": {"*": "net-tools"},
-    "dig": {"apt": "dnsutils", "dnf": "bind-utils", "pacman": "bind", "zypper": "bind-utils"},
-    "nslookup": {"apt": "dnsutils", "dnf": "bind-utils", "pacman": "bind", "zypper": "bind-utils"},
+    "dig": {"apt": "dnsutils", "dnf": "bind-utils", "pacman": "bind", "zypper": "bind-utils",
+            "brew": "bind"},
+    "nslookup": {"apt": "dnsutils", "dnf": "bind-utils", "pacman": "bind", "zypper": "bind-utils",
+                 "brew": "bind"},
     "pip3": {"apt": "python3-pip", "dnf": "python3-pip", "pacman": "python-pip", "apk": "py3-pip"},
     "rg": {"*": "ripgrep"},
     "fd": {"apt": "fd-find"},
-    "7z": {"apt": "p7zip-full", "dnf": "p7zip", "pacman": "p7zip"},
+    "7z": {"apt": "p7zip-full", "dnf": "p7zip", "pacman": "p7zip", "brew": "p7zip"},
     "convert": {"*": "imagemagick", "dnf": "ImageMagick"},
     "nvim": {"*": "neovim"},
     "node": {"apt": "nodejs", "dnf": "nodejs", "pacman": "nodejs"},
-    "javac": {"apt": "default-jdk", "dnf": "java-latest-openjdk-devel", "pacman": "jdk-openjdk"},
-    "java": {"apt": "default-jre", "dnf": "java-latest-openjdk", "pacman": "jre-openjdk"},
+    "javac": {"apt": "default-jdk", "dnf": "java-latest-openjdk-devel", "pacman": "jdk-openjdk",
+              "brew": "openjdk"},
+    "java": {"apt": "default-jre", "dnf": "java-latest-openjdk", "pacman": "jre-openjdk",
+             "brew": "openjdk"},
 }
 
 # Commands with a different name on most Linux systems.
@@ -208,7 +214,10 @@ def missing_program_hint(name: str, distro_family=None) -> str:
                 f"(the package is usually called {name}).")
     names = _PACKAGE_NAMES.get(name, {})
     package = names.get(manager) or names.get("*") or name
-    return f"'{name}' isn't installed. You can probably install it with: {template.format(package)}"
+    hint = f"'{name}' isn't installed. You can probably install it with: {template.format(package)}"
+    if manager == "brew" and not shutil.which("brew"):
+        hint += " (first install Homebrew, from https://brew.sh)"
+    return hint
 
 
 def diagnose_error(error_text: str):

@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **macOS support.** Clishe now runs with the bash 3.2 that macOS ships:
+  `mapfile`, `read -i` and a bash-version-dependent substitution were
+  replaced. Install hints use Homebrew, the AI is told about macOS's BSD
+  tools, deleted files can go to the Trash (macOS's `trash` command), and
+  `clishe tour` describes your Mac. CI now runs every test on macOS too.
+
+### Changed
+- Editing a suggested command on bash 3.2 shows the command and lets you
+  type a new one (Enter keeps it); bash 4+ still puts it on the line.
+
 ## 0.6.0 (2026-10-07)
 
 ### Added
