@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a safety bypass privately
+    url: https://github.com/Sym-jay/clishe/blob/main/SECURITY.md
+    about: A destructive command that ran without a typed YES. Please don't post the details publicly.

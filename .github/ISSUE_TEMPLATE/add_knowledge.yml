@@ -1,0 +1,32 @@
+name: Add a phrase, command or error hint
+description: Teach Clishe something new. No coding needed - it's a JSON file.
+labels: ["data only (no code)"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Most of what Clishe knows lives in JSON files you can edit without writing code. See "Good places to start" in CONTRIBUTING.md for which file is which.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What would you like to add?
+      options:
+        - A phrase ("show me disk usage" → df -h) - seed_kb.json
+        - A command explanation (explain <command>) - command_dictionary.json
+        - An error hint (a message beginners get stuck on) - error_patterns.json
+        - An output guide ("what does this mean?") - output_guides.json
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: The entries
+      description: The phrase and command, or the command and what its flags mean, or the error text and a plain-English hint.
+    validations:
+      required: true
+  - type: checkboxes
+    id: pr
+    attributes:
+      label: Want to add it yourself?
+      options:
+        - label: I'd like to open the pull request for this
