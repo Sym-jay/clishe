@@ -58,6 +58,8 @@ RE_WHAT_IS='^what[[:space:]]+(is|are)[[:space:]]+(.+)$'
 RE_WHATS="^what's[[:space:]]+(.+)\$"
 RE_TELL_ME='^tell[[:space:]]+me[[:space:]]+about[[:space:]]+(.+)$'
 # "what does this mean?" about the output of the last command.
+# "is this safe?" before running something found online.
+RE_SAFE_QUESTION="^is (this|it|that) safe( to run)?[?:]*[[:space:]]*(.*)\$"
 # "fix that" after a command fails.
 RE_FIX="^(fix (that|it|this)|what went wrong|why did (that|it) fail|why didn'?t (that|it) work|help me fix (that|it))[?!. ]*\$"
 RE_OUTPUT_QUESTION="^(what (does|do) (this|that|it|these|those) mean|explain (this|that|it|the output)|what am i looking at|i don'?t understand( (this|that|it))?)[?!. ]*\$"
@@ -109,6 +111,7 @@ Usage:
   clishe progress           the commands you've learned to type yourself
   clishe setup              find or set up a local AI model
   clishe tour               a quick tour of your computer
+  clishe check '<command>'  is it safe to run? (or: clishe check script.sh)
   clishe --init bash|zsh    print the Ctrl+G shortcut for your normal shell
                             (add  eval "$(clishe --init bash)"  to ~/.bashrc,
                              or   eval "$(clishe --init zsh)"   to ~/.zshrc)
@@ -128,6 +131,7 @@ shell command. Clishe shows you the command before it runs.
   explain <command>   what does a command do? (also: "what does ls do")
   what does this mean explain the output of the command you just ran
   fix that            explain why the last command failed, and fix it
+  check <command>     is it safe? what would it change? (also a script file)
   learned             list the phrases you've taught me
   teach               teach me a phrase -> command (or fix a wrong one)
   forget <phrase>     forget a phrase you taught me
@@ -443,6 +447,61 @@ missing_hint() {
     parse_brain_output "$output" MS
     [ "$MS_STATUS" = "ok" ] || return 1
     printf '%b💡 %b%s\n' "$YELLOW" "$NC" "$MS_HINT"
+    return 0
+}
+
+# "Is this safe to run?" Says what a command or script would do, without
+# running it. Returns 1 if there are warnings (for scripts and CI).
+check_session() {
+    local target="$1" output key value mode="" lines=0 warned=0 bullet="•"
+    local -a effects=() report=() safer=()
+    if [ -z "$target" ]; then
+        read -r -e -p "Paste the command, or a script's file name, to check: " target
+        [ -z "$target" ] && return 0
+    fi
+    output=$(brain --action inspect --command "$target")
+    while IFS='=' read -r key value; do
+        case "$key" in
+            MODE) mode="$value" ;;
+            LINES) lines="$value" ;;
+            EFFECT) effects+=("$value") ;;
+            RLINE) report+=("$(printf '  %b%s%b' "$YELLOW" "$value" "$NC")") ;;
+            WARN) warned=1
+                  report+=("$(printf '  %b⚠ It %s.%b' "$RED" "$value" "$NC")") ;;
+            SAFER) safer+=("$value") ;;
+        esac
+    done <<< "$output"
+    if [ -z "$mode" ]; then
+        warn "I couldn't check that."
+        return 1
+    fi
+
+    if [ "$mode" = "script" ]; then
+        say "Checked $target ($lines lines). Nothing was run."
+    elif get_breakdown "$target"; then
+        say "Here's what each part means (nothing was run):"
+        printf '\n%s\n' "$BREAKDOWN"
+    else
+        say_cmd "Checking (nothing was run): " "$target"
+    fi
+    echo "What it does:"
+    for value in "${effects[@]}"; do
+        printf '  %s %s\n' "$bullet" "$value"
+    done
+    if [ "${#report[@]}" -gt 0 ]; then
+        [ "$mode" = "script" ] && echo "Lines to look at:"
+        printf '%s\n' "${report[@]}"
+    fi
+    if [ "${#safer[@]}" -gt 0 ]; then
+        printf '  %bSafer: download it, read it, then check it:%b\n' "$GREEN" "$NC"
+        printf '    %s\n' "${safer[@]}"
+    fi
+    echo ""
+    if [ "$warned" -eq 1 ]; then
+        printf "%bRead the warnings above before running it.%b\n" "$RED" "$NC"
+        return 1
+    fi
+    printf "%b✓%b Nothing risky that I know of. That's not a guarantee: only run it if you understand what it does.\n" "$GREEN" "$NC"
     return 0
 }
 
@@ -1083,6 +1142,10 @@ if [ $# -gt 0 ]; then
             [ $# -eq 1 ] && { setup_session; exit 0; } ;;
         tour)
             [ $# -eq 1 ] && { tour_session; exit $?; } ;;
+        check)
+            shift
+            check_session "$*"
+            exit $? ;;
         explain)
             if [ $# -gt 1 ]; then
                 shift
@@ -1176,6 +1239,27 @@ while true; do
     command_to_run=""
     learn_phrase=""
     input_kind=""
+
+    # "is this safe?" / "check <command or script>": look, don't run.
+    shopt -s nocasematch
+    if [[ "$user_input" =~ $RE_SAFE_QUESTION ]]; then
+        shopt -u nocasematch
+        check_session "${BASH_REMATCH[3]}"
+        echo ""
+        continue
+    fi
+    shopt -u nocasematch
+    case "$user_input" in
+        "check "*)
+            # Only for a real command or a file, so phrases like
+            # "check my ip address" keep working.
+            check_target="${user_input#check }"
+            if [ -f "$check_target" ] || looks_like_command "$check_target"; then
+                check_session "$check_target"
+                echo ""
+                continue
+            fi ;;
+    esac
 
     # "fix that" after a command fails.
     shopt -s nocasematch

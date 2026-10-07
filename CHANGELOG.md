@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- **`clishe check`**: "is this safe to run?" for a command or a script file,
+  without running it. It explains each part, says what it would change
+  (files created, replaced or deleted, software installed, sudo, services,
+  which websites it contacts) and shows any risky lines. For downloaded
+  scripts piped into a shell it gives a safer way: download, read, check.
+  Exits with 1 when there are warnings. In a session: `is this safe:
+  <command>` or `check <command>` (phrases like "check my ip address" still
+  work as before).
 - **macOS support.** Clishe now runs with the bash 3.2 that macOS ships:
   `mapfile`, `read -i` and a bash-version-dependent substitution were
   replaced. Install hints use Homebrew, the AI is told about macOS's BSD

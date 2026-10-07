@@ -767,7 +767,8 @@ def main():
                                  'predict', 'resolve', 'explain', 'diagnose', 'check',
                                  'line', 'trash', 'missing', 'output',
                                  'turn', 'attempt', 'progress',
-                                 'setup', 'set-model', 'breakdown', 'tour', 'fix'],
+                                 'setup', 'set-model', 'breakdown', 'tour', 'fix',
+                                 'inspect'],
                         help='Action to perform')
     parser.add_argument('--phrase', default='', help='Natural language phrase')
     parser.add_argument('--command', default='', help='Bash command')
@@ -916,6 +917,31 @@ def main():
                 print(f"COMMAND={_one_line(result['command'])}")
             if result['unverified']:
                 print(f"UNVERIFIED={_one_line(', '.join(result['unverified']))}")
+
+    elif args.action == 'inspect':
+        # "Is this safe to run?" for a command, or for a script file.
+        import check
+        text = check.read_script(os.path.expanduser(args.command.strip())) \
+            if args.command.strip() and " " not in args.command.strip() else None
+        if text is not None:
+            result = check.check_script(text)
+            print("MODE=script")
+            print(f"LINES={len(result['results'])}")
+            for effect in result['effects']:
+                print(f"EFFECT={_one_line(effect)}")
+            for risky in result['risky'][:20]:
+                print(f"RLINE={_one_line(risky['command'])}")
+                for warning in risky['warnings']:
+                    print(f"WARN={_one_line(warning)}")
+        else:
+            result = check.inspect(args.command)
+            print("MODE=command")
+            for effect in result['effects']:
+                print(f"EFFECT={_one_line(effect)}")
+            for warning in result['warnings']:
+                print(f"WARN={_one_line(warning)}")
+            for step in result['safer']:
+                print(f"SAFER={_one_line(step)}")
 
     elif args.action == 'predict':
         print(brain.predict(args.command))
