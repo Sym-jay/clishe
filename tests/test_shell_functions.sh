@@ -190,6 +190,9 @@ mkdir -p "$FAKE_BIN" "$FAKE_TRASH"
 printf '#!/bin/sh\n[ "$1" = trash ] && shift && [ "$1" = "--" ] && shift\nmv -- "$@" "%s/"\n' \
     "$FAKE_TRASH" > "$FAKE_BIN/gio"
 chmod +x "$FAKE_BIN/gio"
+# macOS's own "trash" is preferred on a Mac: fake that too, so the tests
+# never touch the real Trash.
+cp "$FAKE_BIN/gio" "$FAKE_BIN/trash"
 
 work="$TEST_HOME/work"
 mkdir -p "$work/old-project"
@@ -405,6 +408,21 @@ check_phrase=$(printf '%s\n' "check my linux version" exit | HOME="$CHECK_HOME" 
 rm -rf "$CHECK_HOME"
 assert_eq "phrases starting with 'check' still work" "yes" \
     "$([[ "$check_phrase" == *"I know this!"* ]] && echo yes || echo no)"
+
+echo ""
+echo "=== undo that ==="
+
+UNDO_DIR="$(mktemp -d)"
+UNDO_HOME="$(mktemp -d)"
+echo hello > "$UNDO_DIR/notes.txt"
+undo_out=$(cd "$UNDO_DIR" && printf '%s\n' "mkdir drafts" "mv notes.txt drafts" "undo that" y "undo that" y "undo that" exit \
+    | HOME="$UNDO_HOME" timeout 30 "$CLISHE_SH" 2>&1)
+assert_eq "undo shows the reverse command" "yes" \
+    "$([[ "$undo_out" == *"mv drafts/notes.txt notes.txt"*"rmdir drafts"* ]] && echo yes || echo no)"
+assert_eq "undo puts everything back" "notes.txt" "$(ls "$UNDO_DIR")"
+assert_eq "and says when there's nothing left" "yes" \
+    "$([[ "$undo_out" == *"nothing (more) for me to undo"* ]] && echo yes || echo no)"
+rm -rf "$UNDO_DIR" "$UNDO_HOME"
 
 echo ""
 echo "=== Results: $pass_count passed, $fail_count failed ==="

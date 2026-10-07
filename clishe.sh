@@ -131,6 +131,7 @@ shell command. Clishe shows you the command before it runs.
   explain <command>   what does a command do? (also: "what does ls do")
   what does this mean explain the output of the command you just ran
   fix that            explain why the last command failed, and fix it
+  undo that           reverse the last change (mv, cp, mkdir, touch, chmod, cd, Trash)
   check <command>     is it safe? what would it change? (also a script file)
   learned             list the phrases you've taught me
   teach               teach me a phrase -> command (or fix a wrong one)
@@ -372,11 +373,20 @@ looks_like_command() {
         if [ "$count" -eq 2 ] && [ -e "${words[1]}" ]; then
             return 0
         fi
+        # touch makes new files, so the file not existing yet is expected.
+        if [ "$first" = "touch" ] && [ "$count" -eq 2 ]; then
+            return 0
+        fi
         return 1
     fi
 
-    # "rm the old files" reads like a sentence, not a file list.
+    # "rm the old files" reads like a sentence, not a file list - unless
+    # the words are files that exist ("mv notes.txt drafts").
     if [[ "$CAUTION_WORDS" == *" $first "* ]] && [ "$count" -ge 3 ]; then
+        local w
+        for w in "${words[@]:1}"; do
+            [ -e "$w" ] && return 0
+        done
         return 1
     fi
 
@@ -503,6 +513,48 @@ check_session() {
     fi
     printf "%b✓%b Nothing risky that I know of. That's not a guarantee: only run it if you understand what it does.\n" "$GREEN" "$NC"
     return 0
+}
+
+# "undo that": reverse the last change, after showing the commands that
+# will do it.
+undo_last() {
+    local output key value status="" original="" explanation="" answer joined
+    local -a commands=()
+    output=$(brain --action undo-plan)
+    while IFS='=' read -r key value; do
+        case "$key" in
+            STATUS) status="$value" ;;
+            ORIGINAL) original="$value" ;;
+            EXPLANATION) explanation="$value" ;;
+            COMMAND) commands+=("$value") ;;
+        esac
+    done <<< "$output"
+
+    if [ "$status" = "none" ] || [ -z "$status" ]; then
+        say "There's nothing (more) for me to undo. I can undo mv, cp, mkdir, touch, chmod, cd and moving files to the Trash."
+        return
+    fi
+    say_cmd "The last change was: " "$original"
+    if [ "$status" = "impossible" ]; then
+        say "$explanation"
+        brain --action undo-done >/dev/null
+        return
+    fi
+    say "$explanation To undo it:"
+    for value in "${commands[@]}"; do
+        printf '  %b%s%b\n' "$YELLOW" "$value" "$NC"
+    done
+    read -r -p "Run it? [Y/n]: " answer
+    [[ "$answer" =~ ^[Nn] ]] && return
+    joined="${commands[0]}"
+    for value in "${commands[@]:1}"; do joined+=" && $value"; done
+    CLISHE_UNDOING=1 TIP_PHRASE=""
+    prepare_and_run "$joined"
+    CLISHE_UNDOING=""
+    if [ "$LAST_EXIT" -eq 0 ]; then
+        brain --action undo-done >/dev/null
+        say "Undone."
+    fi
 }
 
 # "fix that": explain why the last command failed and offer a fixed one.
@@ -715,7 +767,8 @@ prepare_and_run() {
     LAST_STDERR=""
 
     fill_placeholders "$template" || { echo ""; return 1; }
-    offer_trash
+    TRASH_RESTORE=""
+    [ -z "${CLISHE_UNDOING:-}" ] && offer_trash
     # Show the final command whenever it differs from what was shown first
     # (placeholders filled in, or switched to the Trash).
     if [ "$FILLED_COMMAND" != "$template" ]; then
@@ -729,7 +782,20 @@ prepare_and_run() {
         return 1
     fi
 
+    # Note what's there now, so "undo that" can put it back (only for
+    # commands undo knows; see undo.py).
+    local undo_note=""
+    if [ -z "${CLISHE_UNDOING:-}" ]; then
+        case "${FILLED_COMMAND%% *}" in
+            mv|cp|mkdir|touch|chmod|cd|rm|trash|trash-put|gio|sudo|brew|flatpak)
+                undo_note=$(brain --action undo-before --command "$FILLED_COMMAND" --cwd "$PWD") ;;
+        esac
+    fi
+
     run_command "$FILLED_COMMAND"
+    if [ -n "$undo_note" ] && [ "$LAST_EXIT" -eq 0 ]; then
+        brain --action undo-record --state "$undo_note" --cwd "$PWD" >/dev/null
+    fi
     if [ -n "$TRASH_RESTORE" ] && [ "$LAST_EXIT" -eq 0 ]; then
         say "Moved to the Trash. Changed your mind? $TRASH_RESTORE."
         echo ""
@@ -1301,6 +1367,8 @@ while true; do
             forget_phrase "${forget_target# }"; echo ""; continue ;;
         practice)
             practice_session; echo ""; continue ;;
+        undo|"undo that"|"undo it"|"undo last"|"undo the last command"|"take that back")
+            undo_last; echo ""; continue ;;
         progress|"my progress"|"what have i learned")
             show_progress; echo ""; continue ;;
     esac

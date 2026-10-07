@@ -53,6 +53,7 @@ except OSError:
     pass
 
 KB_FILE = DATA_DIR / "kb.json"
+UNDO_FILE = DATA_DIR / "undo.json"
 DATA_FILE = DATA_DIR / "history.json"
 
 # Bundled, read-only seed knowledge base shipped with the repo (never
@@ -736,6 +737,10 @@ def same_command(typed: str, template: str) -> bool:
 
 def _trash_tool():
     """(command words, how to get files back) for the first trash tool found."""
+    # On a Mac, always macOS's own trash: Homebrew's gio reports success but
+    # doesn't put files in the Mac's Trash.
+    if sys.platform == "darwin" and shutil.which("trash"):
+        return ["trash"], "Open the Trash in the Dock"
     if shutil.which("gio"):
         return ["gio", "trash"], "Open Trash in your file manager"
     if shutil.which("trash-put"):
@@ -768,13 +773,16 @@ def main():
                                  'line', 'trash', 'missing', 'output',
                                  'turn', 'attempt', 'progress',
                                  'setup', 'set-model', 'breakdown', 'tour', 'fix',
-                                 'inspect'],
+                                 'inspect', 'undo-before', 'undo-record', 'undo-plan',
+                                 'undo-done'],
                         help='Action to perform')
     parser.add_argument('--phrase', default='', help='Natural language phrase')
     parser.add_argument('--command', default='', help='Bash command')
     parser.add_argument('--error', default='', help='Captured stderr text to diagnose')
     parser.add_argument('--no-ai', action='store_true', help='line: offline only')
     parser.add_argument('--width', type=int, default=80, help='breakdown: terminal width')
+    parser.add_argument('--cwd', default='', help='undo: the folder the command runs in')
+    parser.add_argument('--state', default='', help='undo: the note from undo-before')
 
     args = parser.parse_args()
     brain = ClisheBrain()
@@ -942,6 +950,39 @@ def main():
                 print(f"WARN={_one_line(warning)}")
             for step in result['safer']:
                 print(f"SAFER={_one_line(step)}")
+
+    elif args.action == 'undo-before':
+        import undo
+        note = undo.before(args.command, args.cwd or os.getcwd())
+        if note:
+            print(json.dumps(note))
+
+    elif args.action == 'undo-record':
+        import undo
+        try:
+            note = json.loads(args.state)
+        except ValueError:
+            note = None
+        record = undo.after(note, args.cwd or os.getcwd()) if isinstance(note, dict) else None
+        if record:
+            undo.save(UNDO_FILE, undo.load(UNDO_FILE) + [record])
+
+    elif args.action == 'undo-plan':
+        import undo
+        records = undo.load(UNDO_FILE)
+        if not records:
+            print("STATUS=none")
+        else:
+            result = undo.plan(records[-1])
+            print(f"STATUS={result['status']}")
+            print(f"ORIGINAL={_one_line(records[-1]['command'])}")
+            print(f"EXPLANATION={_one_line(result['explanation'])}")
+            for command in result.get('commands', []):
+                print(f"COMMAND={_one_line(command)}")
+
+    elif args.action == 'undo-done':
+        import undo
+        undo.save(UNDO_FILE, undo.load(UNDO_FILE)[:-1])
 
     elif args.action == 'predict':
         print(brain.predict(args.command))

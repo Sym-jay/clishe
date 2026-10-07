@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Added
+- **`undo that`** (also "undo", "take that back"): reverses the last change,
+  showing the commands first and asking before running them. Undoes `mv`
+  (moves it back), `mkdir` (rmdir while empty, `-p` parents too), `touch`
+  (removes the file while it's still empty), `cp` (sends the copy to the
+  Trash if it hasn't changed), `chmod` (old permissions), `cd` (back), and
+  moving files to the Trash (restored from the freedesktop Trash; on macOS,
+  which hides the Trash from terminal programs, it explains Finder's Put
+  Back). Package installs get the matching remove command. It refuses
+  rather than guess when anything has changed since, and says plainly that
+  a plain `rm` can't be undone. Up to the last 10 changes are remembered.
 - **`clishe check`**: "is this safe to run?" for a command or a script file,
   without running it. It explains each part, says what it would change
   (files created, replaced or deleted, software installed, sudo, services,
@@ -18,6 +28,12 @@
   `clishe tour` describes your Mac. CI now runs every test on macOS too.
 
 ### Changed
+- Commands like `mv notes.txt drafts` and `touch new.txt` are now run as
+  commands. Before, `mv`/`cp`/`rm` with three or more words, and `touch`
+  with a file that didn't exist yet, were read as English.
+- On macOS, deleting with the Trash uses macOS's own `trash` command even
+  when Homebrew's `gio` is installed: gio reports success there but the
+  files don't show up in the Mac's Trash.
 - Editing a suggested command on bash 3.2 shows the command and lets you
   type a new one (Enter keeps it); bash 4+ still puts it on the line.
 
