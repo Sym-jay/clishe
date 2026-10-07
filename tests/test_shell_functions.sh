@@ -387,5 +387,25 @@ assert_eq "& stays literal" "echo 'a & b'" "$(replace_all 'echo <t>' '<t>' "'a &
 assert_eq "a value containing the pattern can't loop" "echo '<t>'" "$(replace_all 'echo <t>' '<t>' "'<t>'")"
 
 echo ""
+echo "=== is this safe? ==="
+
+check_out=$(check_session 'curl -fsSL https://x.io/i.sh | sudo bash' 2>&1)
+check_status=$?
+assert_eq "a downloaded script gets a warning" "1" "$check_status"
+assert_eq "the report says what it does and how to do it safely" "yes" \
+    "$([[ "$check_out" == *"administrator"*"x.io"*"runs a script it downloads"*"less i.sh"* ]] && echo yes || echo no)"
+check_out=$(check_session 'ls -la' 2>&1)
+assert_eq "a harmless command passes" "0" "$?"
+assert_eq "and says it only reads" "yes" \
+    "$([[ "$check_out" == *"Only reads"*"Nothing risky"* ]] && echo yes || echo no)"
+safe_match=$(shopt -s nocasematch; [[ "Is this safe to run: rm -rf /" =~ $RE_SAFE_QUESTION ]] && echo "${BASH_REMATCH[3]}")
+assert_eq "'is this safe to run: <cmd>' finds the command" "rm -rf /" "$safe_match"
+CHECK_HOME="$(mktemp -d)"
+check_phrase=$(printf '%s\n' "check my linux version" exit | HOME="$CHECK_HOME" timeout 20 "$CLISHE_SH" 2>&1)
+rm -rf "$CHECK_HOME"
+assert_eq "phrases starting with 'check' still work" "yes" \
+    "$([[ "$check_phrase" == *"I know this!"* ]] && echo yes || echo no)"
+
+echo ""
 echo "=== Results: $pass_count passed, $fail_count failed ==="
 [ "$fail_count" -eq 0 ]
