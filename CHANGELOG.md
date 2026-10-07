@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.0 (2026-10-07)
 
 ### Added
 - **Ctrl+G in zsh.** Add `eval "$(clishe --init zsh)"` to `~/.zshrc` and the
