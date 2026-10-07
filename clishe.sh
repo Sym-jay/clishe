@@ -240,13 +240,44 @@ list_placeholders() {
     done
 }
 
+# Let the user edit a command before it runs, and print the result. bash 4+
+# puts the command on the line to edit; the bash 3.2 that macOS ships can't
+# (no read -i), so it shows the command and Enter keeps it unchanged.
+edit_command() {
+    local cmd="$1" edited
+    if [ "${BASH_VERSINFO[0]}" -ge 4 ]; then
+        read -r -e -i "$cmd" -p "Edit command: " edited
+    else
+        printf 'Now: %s\n' "$cmd" >&2
+        read -r -e -p "Type the new command (Enter keeps it): " edited
+        [ -z "$edited" ] && edited="$cmd"
+    fi
+    printf '%s' "$edited"
+}
+
+# replace_all <text> <find> <replacement>: every <find> becomes
+# <replacement>, both taken literally. (Not ${text//find/replacement}: bash
+# 3.2 keeps quotes in the replacement, and bash 5.2 treats & in it as the
+# matched text.) Scans left to right, so a replacement containing <find>
+# can't loop.
+replace_all() {
+    local rest="$1" find="$2" out=""
+    while [[ "$rest" == *"$find"* ]]; do
+        out+="${rest%%"$find"*}$3"
+        rest="${rest#*"$find"}"
+    done
+    printf '%s' "$out$rest"
+}
+
 # Ask for each <placeholder> in a command and substitute the answers.
 # Sets FILLED_COMMAND. Returns 1 if the user left a value blank (cancel).
 fill_placeholders() {
     local cmd="$1" label value
     local -a labels
     FILLED_COMMAND="$cmd"
-    mapfile -t labels < <(list_placeholders "$cmd")
+    while IFS= read -r label; do
+        labels+=("$label")
+    done < <(list_placeholders "$cmd")
     [ "${#labels[@]}" -eq 0 ] && return 0
 
     say "This one needs some details (leave blank to cancel):"
@@ -257,7 +288,7 @@ fill_placeholders() {
             return 1
         fi
         value="$(quote_value "$value")"
-        cmd="${cmd//"<$label>"/"$value"}"
+        cmd="$(replace_all "$cmd" "<$label>" "$value")"
     done
     FILLED_COMMAND="$cmd"
     return 0
@@ -447,7 +478,7 @@ fix_last() {
     [[ "$answer" =~ ^[Nn] ]] && return
     fixed="$FX_COMMAND"
     if [[ "$answer" =~ ^[Ee] ]]; then
-        read -r -e -i "$fixed" -p "Edit command: " fixed
+        fixed=$(edit_command "$fixed")
         [ -z "$fixed" ] && return
     fi
     TIP_PHRASE=""
@@ -576,7 +607,7 @@ resolve_with_ai() {
             say "Okay, skipping. (Not saved - I'll ask again next time.)"
             return 1
         elif [[ "$approve" =~ ^[Ee] ]]; then
-            read -r -e -i "$command_to_run" -p "Edit command: " command_to_run
+            command_to_run=$(edit_command "$command_to_run")
         fi
         if [ -z "$command_to_run" ]; then
             say "Nothing to run. Skipping."

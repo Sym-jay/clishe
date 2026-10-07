@@ -97,6 +97,9 @@ def distro_note(distro: str, family=None) -> str:
     Linux Mint (ID_LIKE="ubuntu debian") is told to use apt."""
     if not distro or distro == "unknown":
         return ""
+    if distro == "macos":
+        return (" The user is on macOS: its tools are the BSD versions, so some options "
+                "differ from GNU/Linux. Use Homebrew (brew install) for installs, never sudo with brew.")
     note = f" The user's system is running the '{distro}' Linux distribution"
     based_on = [d for d in (family or []) if d != distro]
     if based_on:

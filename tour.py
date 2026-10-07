@@ -11,7 +11,11 @@ import getpass
 import grp
 import os
 import platform
+import re
 import shutil
+import subprocess
+import sys
+import time
 from pathlib import Path
 from typing import List, Optional
 
@@ -52,11 +56,32 @@ def _duration(seconds: float) -> str:
     return ", ".join(parts)
 
 
+def _is_mac(root: Path) -> bool:
+    return sys.platform == "darwin" and root == Path("/")
+
+
+def _sysctl(name: str) -> str:
+    """macOS keeps hardware details in sysctl instead of /proc."""
+    try:
+        out = subprocess.run(["sysctl", "-n", name], capture_output=True, text=True, timeout=2)
+        return out.stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
 def _stop(title: str, facts: list, note: str, try_: list) -> dict:
     return {"title": title, "facts": [f for f in facts if f[1]], "note": note, "try": try_}
 
 
 def system(root: Path) -> dict:
+    if _is_mac(root):
+        version = platform.mac_ver()[0]
+        return _stop("Your system", [("System", f"macOS {version}".strip()),
+                                     ("Kernel", f"Darwin {platform.release()}")],
+                     "macOS is built on Darwin, a Unix system, so nearly every command you "
+                     "learn here works the same on Linux. A few options differ (macOS has the "
+                     "BSD versions of tools like ls and sed): man <command> always shows the "
+                     "version on your computer.", ["sw_vers", "uname -a"])
     info = _os_release(root)
     name = info.get("PRETTY_NAME") or info.get("NAME") or "an unknown Linux"
     kernel = _read(root, "/proc/sys/kernel/osrelease").strip() or platform.release()
@@ -88,13 +113,19 @@ def hardware(root: Path) -> dict:
         except (ValueError, OSError, AttributeError):
             pass
     uptime = _read(root, "/proc/uptime").split()
+    if _is_mac(root):
+        cpu = cpu or _sysctl("machdep.cpu.brand_string")
+        boot = re.search(r"sec = (\d+)", _sysctl("kern.boottime"))
+        if boot:
+            uptime = [str(time.time() - int(boot.group(1)))]
     return _stop("Your computer",
                  [("Processor", cpu), ("Cores", str(cores) if cores else ""),
                   ("Memory", memory),
                   ("On for", _duration(float(uptime[0])) if uptime else "")],
-                 "Memory (RAM) is what running programs use. Linux borrows unused memory to "
-                 "speed things up, so 'free' memory always looks low: look at 'available' instead.",
-                 ["free -h", "nproc", "uptime"])
+                 "Memory (RAM) is what running programs use. The system borrows unused memory "
+                 "to speed things up, so 'free' memory always looks low: look at 'available' instead.",
+                 ["top -l 1 | head -n 10", "sysctl -n hw.ncpu", "uptime"] if _is_mac(root)
+                 else ["free -h", "nproc", "uptime"])
 
 
 def disk(home: str) -> dict:
@@ -109,12 +140,15 @@ def disk(home: str) -> dict:
             facts.append((label, line))
     return _stop("Your disk", facts,
                  "Everything lives in one tree of folders starting at / (called 'root'). "
-                 "Other disks and USB sticks appear as folders inside it, usually under /media.",
+                 "Other disks and USB sticks appear as folders inside it, under /media on "
+                 "Linux and /Volumes on a Mac.",
                  ["df -h", "du -sh ~/*"])
 
 
 def desktop(env: dict) -> dict:
     name = env.get("XDG_CURRENT_DESKTOP", "").replace(":", " / ")
+    if not name and sys.platform == "darwin":
+        name = "macOS (Finder and the Dock)"
     session = env.get("XDG_SESSION_TYPE", "")
     shell = os.path.basename(env.get("SHELL", ""))
     kinds = {"wayland": "Wayland (the newer way of drawing windows)",
@@ -125,15 +159,19 @@ def desktop(env: dict) -> dict:
                   ("Shell", shell)],
                  f"The shell is the program reading what you type in this terminal"
                  f"{f' ({shell})' if shell else ''}. The desktop is a separate program, so "
-                 "you can change either one without reinstalling Linux.",
-                 ["echo $SHELL", "echo $XDG_CURRENT_DESKTOP"])
+                 "you can change either one without reinstalling the whole system.",
+                 ["echo $SHELL"] if sys.platform == "darwin"
+                 else ["echo $SHELL", "echo $XDG_CURRENT_DESKTOP"])
 
 
 # The folders every Linux system has, in plain English.
 FOLDERS = [
     ("/home", "everyone's personal folders; yours is {home}"),
+    ("/Users", "everyone's personal folders on a Mac; yours is {home}"),
+    ("/Applications", "the apps you see in Launchpad and Finder"),
+    ("/Volumes", "USB sticks and other disks, when you plug them in"),
     ("/etc", "settings for the whole system (text files you can read)"),
-    ("/usr/bin", "most of the programs you run, like ls and firefox"),
+    ("/usr/bin", "most of the programs you run, like ls and grep"),
     ("/var/log", "logs: what the system has been doing"),
     ("/tmp", "scratch space, emptied when the computer restarts"),
     ("/dev", "your hardware, shown as files (disks, USB, terminals)"),
@@ -145,6 +183,9 @@ FOLDERS = [
 def folders(root: Path, home: str) -> dict:
     facts = [(path, text.format(home=home)) for path, text in FOLDERS
              if (root / path.lstrip("/")).exists()]
+    # A Mac also has an empty /home; say where the homes really are.
+    if any(path == "/Users" for path, _ in facts):
+        facts = [f for f in facts if f[0] != "/home"]
     return _stop("Where things live", facts,
                  "Your own files belong in your home folder (~ is short for it). "
                  "You can look around the rest, but changing it needs sudo.",
@@ -162,6 +203,11 @@ def software(family: List[str]) -> dict:
     note = ("Linux installs software from trusted repositories instead of downloading "
             "installers from websites. The package manager fetches it, checks it, and "
             "keeps it updated.")
+    if manager == "brew":
+        if not shutil.which("brew"):
+            facts = [("Package manager", "Homebrew isn't installed yet (https://brew.sh)")]
+        note = ("On a Mac, apps come from the App Store or the web, and command-line tools "
+                "come from Homebrew, which works like a Linux package manager.")
     try_ = [template.format("htop")] if template else []
     return _stop("Installing software", facts, note, try_)
 

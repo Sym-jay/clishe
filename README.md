@@ -11,7 +11,7 @@ AI assistance is optional, and when you use it, it runs on your own machine.
 [![Tests](https://github.com/Sym-jay/clishe/actions/workflows/tests.yml/badge.svg)](https://github.com/Sym-jay/clishe/actions/workflows/tests.yml)
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue)
-![Platform: Linux](https://img.shields.io/badge/platform-linux-lightgrey)
+![Platform: Linux and macOS](https://img.shields.io/badge/platform-linux%20%7C%20macOS-lightgrey)
 ![Status: alpha](https://img.shields.io/badge/status-alpha-orange)
 
 [Install](#install) · [Usage](#usage) · [AI providers](#ai-providers-optional) · [How it works](#how-it-works) · [Security](#security) · [Contributing](#contributing)
@@ -100,13 +100,13 @@ Most command-line tools assume you already know the command you want. Clishe ass
 
 ## Install
 
-**Requirements:** Linux, bash 4+ and Python 3.9+ (standard library only).
+**Requirements:** Linux or macOS, bash (any version, including the 3.2 that macOS ships) and Python 3.9+ (standard library only).
 
-> **Windows:** use [WSL](https://learn.microsoft.com/windows/wsl/install). **macOS:** untested. The system bash (3.2) is too old and the script uses GNU `sed` features, so you'd need a newer bash and GNU sed from Homebrew.
+> **macOS:** works with the built-in bash and zsh. Install hints use Homebrew, deleted files go to the Trash, and `clishe tour` explains your Mac. Most commands work the same as on Linux; where macOS's BSD tools differ, `explain` reads your Mac's own man pages. **Windows:** use [WSL](https://learn.microsoft.com/windows/wsl/install).
 
 ### With pipx (recommended)
 
-[pipx](https://pipx.pypa.io) installs command-line tools in their own space, and most distros package it (`sudo apt install pipx`, `sudo dnf install pipx`, `sudo pacman -S python-pipx`).
+[pipx](https://pipx.pypa.io) installs command-line tools in their own space, and most distros package it (`sudo apt install pipx`, `sudo dnf install pipx`, `sudo pacman -S python-pipx`). On a Mac: `brew install pipx`.
 
 ```bash
 pipx install clishe
@@ -484,9 +484,6 @@ No provider is configured or reachable. Clishe prints the underlying error under
 
 **Suggestions in the wrong package manager**
 Clishe reads your distro from `/etc/os-release`. If that file is missing or unusual, the AI gets no distro hint. Rejecting a suggestion saves nothing, so you can retry.
-
-**Errors mentioning `read -i` or `sed` on macOS**
-The default macOS bash is too old, and BSD `sed` differs. See [Install](#install).
 
 **It learned the wrong command for a phrase**
 Type `teach` and enter the phrase again with the right command, or `forget <phrase>`.

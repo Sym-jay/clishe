@@ -740,6 +740,9 @@ def _trash_tool():
         return ["gio", "trash"], "Open Trash in your file manager"
     if shutil.which("trash-put"):
         return ["trash-put"], "Run trash-restore"
+    if shutil.which("trash"):  # built into macOS 15+, or from Homebrew
+        return ["trash"], ("Open the Trash in the Dock" if sys.platform == "darwin"
+                           else "Run trash-restore")
     return None
 
 

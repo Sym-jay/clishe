@@ -32,6 +32,11 @@ assert_eq() {
     fi
 }
 
+# macOS has no GNU timeout; perl (which it does have) can do the same job.
+if ! command -v timeout >/dev/null 2>&1; then
+    timeout() { local secs="$1"; shift; perl -e 'alarm shift; exec @ARGV' "$secs" "$@"; }
+fi
+
 # shellcheck source=../clishe.sh
 source "$CLISHE_SH"
 
@@ -96,7 +101,10 @@ check_cmd() {
 }
 assert_eq "'ls -la'" "command" "$(check_cmd 'ls -la')"
 assert_eq "'git status'" "command" "$(check_cmd 'git status')"
-assert_eq "'sudo apt update'" "command" "$(check_cmd 'sudo apt update')"
+# apt only counts as a command where it's installed (not on macOS).
+if command -v apt >/dev/null 2>&1; then
+    assert_eq "'sudo apt update'" "command" "$(check_cmd 'sudo apt update')"
+fi
 assert_eq "'find files bigger than 100MB'" "phrase" "$(check_cmd 'find files bigger than 100MB')"
 assert_eq "'install htop'" "phrase" "$(check_cmd 'install htop')"
 assert_eq "'rm the old files'" "phrase" "$(check_cmd 'rm the old files')"
@@ -245,8 +253,11 @@ route() { if looks_like_command "$1"; then echo command; else echo english; fi; 
 assert_eq "Clishe's own functions aren't commands (say hi)" "english" "$(route "say hi")"
 assert_eq "Clishe's own functions aren't commands (brain)" "english" "$(route "brain")"
 assert_eq "go back is English" "english" "$(route "go back")"
-assert_eq "go build is a command" "command" "$(route "go build")"
-assert_eq "go mod tidy is a command" "command" "$(route "go mod tidy")"
+# Only where Go is installed: without it, "go build" can't be a command.
+if command -v go >/dev/null 2>&1; then
+    assert_eq "go build is a command" "command" "$(route "go build")"
+    assert_eq "go mod tidy is a command" "command" "$(route "go mod tidy")"
+fi
 assert_eq "builtins still count (cd)" "command" "$(route "cd /tmp")"
 
 echo ""
@@ -366,6 +377,14 @@ assert_eq "fix that explains and offers the fix" "yes" \
     "$([[ "$fix_out" == *"called Documents"*"Try: cd Documents"* ]] && echo yes || echo no)"
 fix_match=$(shopt -s nocasematch; [[ "What went wrong?" =~ $RE_FIX ]] && echo yes || echo no)
 assert_eq "'what went wrong?' counts as fix that" "yes" "$fix_match"
+
+echo ""
+echo "=== replace_all (any bash version) ==="
+
+assert_eq "replaces every match" "cp a.txt a.txt" "$(replace_all 'cp <f> <f>' '<f>' 'a.txt')"
+assert_eq "quotes in the value stay" "echo 'a b'" "$(replace_all 'echo <t>' '<t>' "'a b'")"
+assert_eq "& stays literal" "echo 'a & b'" "$(replace_all 'echo <t>' '<t>' "'a & b'")"
+assert_eq "a value containing the pattern can't loop" "echo '<t>'" "$(replace_all 'echo <t>' '<t>' "'<t>'")"
 
 echo ""
 echo "=== Results: $pass_count passed, $fail_count failed ==="
