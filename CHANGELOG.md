@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Lesson packs.** Practice exercises now live in JSON lesson files
+  (`lessons/basics.json` is the built-in one), so teachers, workshops and
+  contributors can write lessons without touching code. Your own lessons go
+  in `~/.local/share/clishe/lessons/`. `clishe practice <lesson>` runs one,
+  `clishe practice --list` shows them, and with several lessons `practice`
+  asks which. Each lesson keeps its own progress. Checks are data (a folder
+  exists, a file contains some text, what you typed matches...), never
+  code, and never look outside the practice folder. A test replays every
+  bundled lesson's answers to make sure each one can be finished.
+
 ## 0.7.0 (2026-10-08)
 
 ### Added

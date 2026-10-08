@@ -71,7 +71,7 @@ Most command-line tools assume you already know the command you want. Clishe ass
 - Works in your normal shell: press Ctrl+G on a line of plain English and it becomes the command, with the cursor on the first blank to fill in. Press it on a real command to have it explained. It never runs anything for you. See [Your normal shell](#your-normal-shell-ctrlg).
 - Mistakes you can undo: when you delete something with `rm`, Clishe offers to move it to the Trash instead (if `gio` or `trash-cli` is installed), so you can get it back.
 - Helps you outgrow it: after you've asked for the same thing three times, Clishe shows you the command. The next time, it's **your turn**: Clishe asks you to type it yourself, and checks it (`ls -al` counts for `ls -la`). Once you've got it right twice, it stops asking.
-- `practice`: 14 hands-on exercises (pwd, ls, mkdir, cd, touch, echo, cat, cp, mv, find, grep, rm) in a throwaway folder, with hints. It remembers where you stopped.
+- `practice`: hands-on lessons in a throwaway folder, with hints. The built-in "basics" lesson has 14 exercises (pwd, ls, mkdir, cd, touch, echo, cat, cp, mv, find, grep, rm), and it remembers where you stopped. Lessons are simple JSON files, so teachers and workshops can write their own: drop one in `~/.local/share/clishe/lessons/` and run `clishe practice <name>` (`clishe practice --list` shows them all).
 - `tour`: a walk through your own computer in plain English: which Linux you run (and what it's based on), processor and memory, free disk space, desktop and shell, what folders like `/etc` and `/usr/bin` are for, how software gets installed, and whether you can use `sudo`. Each stop has a command to try, so you can find it all again yourself. Offline.
 - `progress`: the everyday commands you've typed yourself, the ones you still ask for, and good ones to learn next.
 - Natural language to shell commands, resolved in this order: your knowledge base, the bundled seed KB, a native command you typed directly, a close match to a phrase it already knows ("did you mean...?"), then an AI provider (if configured), then "teach me".
@@ -323,7 +323,7 @@ Nothing runs until you press Enter. Prefer another key? Set `CLISHE_KEY` before 
 | `learned` | List the phrases you've taught |
 | `teach` | Teach a phrase and its command, or fix a wrong one |
 | `forget <phrase>` | Forget a phrase you taught |
-| `practice` | Hands-on exercises in a throwaway folder |
+| `practice [lesson]` | Hands-on exercises in a throwaway folder (`practice list` shows the lessons) |
 | `progress` | The commands you've learned to type yourself |
 | `setup` | Find or set up a local AI model |
 | `tour` | A quick tour of your own computer |
@@ -340,7 +340,7 @@ Nothing runs until you press Enter. Prefer another key? Set `CLISHE_KEY` before 
 clishe explain "tar -xzvf"        # explain a command, then exit
 clishe "show me disk usage"       # look up a phrase in your KB / seed KB (does not run it)
 clishe --list                     # the phrases you've taught, tab-separated
-clishe practice                   # hands-on exercises
+clishe practice [lesson]          # hands-on exercises (--list shows the lessons)
 clishe progress                   # what you've learned
 clishe setup                      # find or set up a local AI model
 clishe tour                       # a quick tour of your computer
@@ -509,6 +509,7 @@ manual.py               reads the man pages installed on your system
 breakdown.py            draws a command with each part labelled
 tour.py                 clishe tour: your computer in plain English
 fix.py                  fix that: offline fixes for common mistakes
+lessons.py, lessons/    practice lessons (JSON) and how they're checked
 check.py                clishe check: what a command or script would do
 undo.py                 undo that: notes before a change, and how to reverse it
 safety.py               destructive-command check

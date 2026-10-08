@@ -16,7 +16,7 @@ are the easiest way in.
 | Explain a command and its flags (`explain tar -xzvf`) | `command_dictionary.json` | `tests/test_data_files.py`, `tests/test_knowledge.py` |
 | Explain an error message beginners hit | `error_patterns.json` | `tests/test_knowledge.py` |
 | Explain a command's output ("what does this mean?") | `output_guides.json` | `tests/test_knowledge.py` |
-| Add a practice exercise | `add_exercise` in `clishe.sh` | `tests/test_shell_functions.sh` |
+| Add a practice exercise, or a whole lesson | `lessons/*.json` (see "Writing a lesson" below) | `tests/test_lessons.py` |
 | Teach `fix that` a new mistake | a rule function in `fix.py` (add it to `RULES`) | `tests/test_fix.py` |
 | Teach `undo that` a new command | `before()`, `after()` and `plan()` in `undo.py` | `tests/test_undo.py` |
 | Teach `clishe check` a new effect | `_facts()` and `describe()` in `check.py` | `tests/test_check.py` |
@@ -99,6 +99,50 @@ value from the user, write it as a placeholder of lowercase words in angle
 brackets, e.g. `"copy a file": "cp <file> <destination>"`. Never add a bare
 command that needs arguments (`"cat"`), since it would hang or fail when run.
 `tests/test_data_files.py` checks this.
+
+## Writing a lesson
+
+A lesson is a JSON file in `lessons/` (bundled with Clishe) or in
+`~/.local/share/clishe/lessons/` (your own, or a workshop's). The file name
+is the lesson's name: `lessons/permissions.json` runs with
+`clishe practice permissions`.
+
+```json
+{
+  "title": "File permissions",
+  "description": "Who can read, change and run a file.",
+  "done": "You just used ls -l and chmod.",
+  "exercises": [
+    {"task": "Make a file called script.sh.",
+     "check": [{"file": "script.sh"}],
+     "hint": "touch <file> creates an empty file.",
+     "answer": "touch script.sh"},
+    {"task": "Let yourself run script.sh.",
+     "check": [{"typed": "^chmod\\b.*\\+x"}],
+     "hint": "chmod +x <file> marks a file as runnable.",
+     "answer": "chmod +x script.sh"}
+  ]
+}
+```
+
+Each exercise runs in a fresh throwaway folder, and its `check` is a list of
+conditions that must all be true after the learner's command. Checks are data,
+never code, so a lesson can't run anything by being checked:
+
+| Condition | True when |
+|---|---|
+| `{"typed": "^ls"}` | what they typed matches the pattern (a regular expression) |
+| `{"dir": "notes"}` | that folder exists |
+| `{"file": "notes/todo.txt"}` | that file exists |
+| `{"missing": "old.txt"}` | nothing is there any more |
+| `{"contains": ["notes/todo.txt", "milk"]}` | the file contains the text |
+| `{"cwd": "notes"}` | they are in that folder (`"."` is the practice folder itself) |
+
+Paths are relative to the practice folder, and checks never look outside it.
+`answer` is what `answer` and `skip` show; it's also run to set the folder up
+when someone picks up a lesson halfway, so each answer should leave things the
+way the next exercise expects. `tests/test_lessons.py` runs every bundled
+lesson's answers in order and fails if any exercise can't be finished.
 
 ## Improving the safety check
 
