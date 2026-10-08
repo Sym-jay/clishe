@@ -16,6 +16,7 @@ are the easiest way in.
 | Explain a command and its flags (`explain tar -xzvf`) | `command_dictionary.json` | `tests/test_data_files.py`, `tests/test_knowledge.py` |
 | Explain an error message beginners hit | `error_patterns.json` | `tests/test_knowledge.py` |
 | Explain a command's output ("what does this mean?") | `output_guides.json` | `tests/test_knowledge.py` |
+| Teach "how do I install <app>?" a new app | `apps.json` (Flathub ID, Homebrew cask, and apt/dnf/pacman only if the app is in that distro's official repositories) | `tests/test_apps.py` |
 | Add a practice exercise, or a whole lesson | `lessons/*.json` (see "Writing a lesson" below) | `tests/test_lessons.py` |
 | Teach `fix that` a new mistake | a rule function in `fix.py` (add it to `RULES`) | `tests/test_fix.py` |
 | Teach `undo that` a new command | `before()`, `after()` and `plan()` in `undo.py` | `tests/test_undo.py` |

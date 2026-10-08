@@ -449,5 +449,30 @@ assert_eq "an unknown lesson says how to list them" "yes" \
 rm -rf "$LESSON_HOME"
 
 echo ""
+echo "=== how do I install X? ==="
+
+python3() {
+    printf '%s\n' "STATUS=ok" "APP=Spotify" "HOW=Flathub has it." \
+        "COMMAND=flatpak install flathub com.spotify.Client" \
+        "SETUP=sudo apt install flatpak" "OTHER=snap install spotify"
+}
+app_out=$(echo "n" | install_app "install spotify" 2>&1)
+app_status=$?
+unset -f python3
+assert_eq "an app it knows is handled" "0" "$app_status"
+assert_eq "shows the setup, the command and other ways" "yes" \
+    "$([[ "$app_out" == *"Flathub has it."*"one-time setup"*"sudo apt install flatpak"*"To install Spotify: flatpak install flathub com.spotify.Client"*"Another way: snap install spotify"* ]] && echo yes || echo no)"
+python3() { echo "STATUS=none"; }
+install_app "install my homework" >/dev/null 2>&1
+app_status=$?
+unset -f python3
+assert_eq "anything else goes on to the usual steps" "1" "$app_status"
+python3() { printf '%s\n' "STATUS=installed" "APP=git"; }
+app_out=$(install_app "install git" 2>&1)
+unset -f python3
+assert_eq "says when it's already installed" "yes" \
+    "$([[ "$app_out" == *"git is already installed"* ]] && echo yes || echo no)"
+
+echo ""
 echo "=== Results: $pass_count passed, $fail_count failed ==="
 [ "$fail_count" -eq 0 ]
