@@ -494,5 +494,26 @@ assert_eq "without it, the usual symbols and tree" "yes" \
     "$([[ "$normal_out" == *"✓"* && "$normal_out" == *"└─"* ]] && echo yes || echo no)"
 
 echo ""
+echo "=== practice tidies up its folder ==="
+
+assert_eq "Ctrl-C at the practice prompt: folder gone, progress kept" "0 0" \
+    "$(bash "$SCRIPT_DIR/tests/stop_practice.sh" "$CLISHE_SH" INT)"
+assert_eq "terminal closed (HUP): folder gone" "0 none" \
+    "$(bash "$SCRIPT_DIR/tests/stop_practice.sh" "$CLISHE_SH" HUP)"
+assert_eq "shutdown (TERM): folder gone" "0 none" \
+    "$(bash "$SCRIPT_DIR/tests/stop_practice.sh" "$CLISHE_SH" TERM)"
+
+SWEEP_TMP="$(mktemp -d)"
+mkdir "$SWEEP_TMP/clishe-practice.OLDOLD" "$SWEEP_TMP/clishe-practice.NEWNEW" \
+      "$SWEEP_TMP/clishe-practice-other" "$SWEEP_TMP/someone.OLDOLD"
+touch -t 202601010000 "$SWEEP_TMP/clishe-practice.OLDOLD" "$SWEEP_TMP/clishe-practice-other" \
+      "$SWEEP_TMP/someone.OLDOLD"
+echo quit | HOME="$TEST_HOME" TMPDIR="$SWEEP_TMP/" timeout 20 "$CLISHE_SH" practice >/dev/null 2>&1
+assert_eq "old practice folders are swept, nothing else" \
+    "clishe-practice-other clishe-practice.NEWNEW someone.OLDOLD" \
+    "$(cd "$SWEEP_TMP" && echo *)"
+rm -rf "$SWEEP_TMP"
+
+echo ""
 echo "=== Results: $pass_count passed, $fail_count failed ==="
 [ "$fail_count" -eq 0 ]

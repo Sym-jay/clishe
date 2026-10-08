@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- Practice no longer leaves its throwaway folder behind when it's stopped
+  early. Ctrl-C at the practice prompt now ends practice like "quit"
+  (progress saved, folder removed), and closing the terminal or a shutdown
+  removes the folder too. Folders that still couldn't be removed (a crash,
+  `kill -9`) are swept up the next time practice starts: only Clishe's own
+  practice folders, owned by you and untouched for a day.
+
 ## 0.8.0 (2026-10-08)
 
 ### Added
