@@ -309,7 +309,7 @@ assert_eq "practice checks each step" "4" "$(grep -c "Nice!" <<< "$practice_out"
 assert_eq "practice gives hints" "yes" \
     "$([[ "$practice_out" == *"cd means 'change directory'"* ]] && echo yes || echo no)"
 assert_eq "practice remembers where you stopped" "4" \
-    "$(cat "$PRACTICE_HOME/.local/share/clishe/practice_done")"
+    "$(cat "$PRACTICE_HOME/.local/share/clishe/practice_done_basics")"
 resume_out=$(printf '%s\n' y "touch todo.txt" quit | HOME="$PRACTICE_HOME" "$CLISHE_SH" practice 2>&1)
 assert_eq "practice picks up where you left off" "yes" \
     "$([[ "$resume_out" == *"5/14 Create an empty file"*"Nice!"* ]] && echo yes || echo no)"
@@ -423,6 +423,30 @@ assert_eq "undo puts everything back" "notes.txt" "$(ls "$UNDO_DIR")"
 assert_eq "and says when there's nothing left" "yes" \
     "$([[ "$undo_out" == *"nothing (more) for me to undo"* ]] && echo yes || echo no)"
 rm -rf "$UNDO_DIR" "$UNDO_HOME"
+
+echo ""
+echo "=== lesson packs ==="
+
+LESSON_HOME="$(mktemp -d)"
+mkdir -p "$LESSON_HOME/.local/share/clishe/lessons"
+cat > "$LESSON_HOME/.local/share/clishe/lessons/tiny.json" <<'JSON'
+{"title": "Tiny", "description": "One folder.", "done": "Well done.",
+ "exercises": [{"task": "Make a folder called box.", "check": [{"dir": "box"}],
+                "hint": "mkdir <name>", "answer": "mkdir box"}]}
+JSON
+list_out=$(HOME="$LESSON_HOME" "$CLISHE_SH" practice --list 2>&1)
+assert_eq "--list shows bundled and your own lessons" "yes" \
+    "$([[ "$list_out" == *"basics"*"tiny"*"Tiny (1 exercises)"* ]] && echo yes || echo no)"
+tiny_out=$(printf '%s\n' "mkdir box" | HOME="$LESSON_HOME" timeout 20 "$CLISHE_SH" practice tiny 2>&1)
+assert_eq "a lesson by name runs and finishes" "yes" \
+    "$([[ "$tiny_out" == *"Practice time: Tiny"*"Nice!"*"All 1 done! Well done."* ]] && echo yes || echo no)"
+pick_out=$(printf '%s\n' 2 "mkdir box" | HOME="$LESSON_HOME" timeout 20 "$CLISHE_SH" practice 2>&1)
+assert_eq "with several lessons, it asks which" "yes" \
+    "$([[ "$pick_out" == *"Which lesson?"*"Practice time: Tiny"* ]] && echo yes || echo no)"
+missing_out=$(HOME="$LESSON_HOME" "$CLISHE_SH" practice nope 2>&1)
+assert_eq "an unknown lesson says how to list them" "yes" \
+    "$([[ "$missing_out" == *"no lesson called 'nope'"*"--list"* ]] && echo yes || echo no)"
+rm -rf "$LESSON_HOME"
 
 echo ""
 echo "=== Results: $pass_count passed, $fail_count failed ==="

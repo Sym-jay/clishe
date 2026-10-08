@@ -107,7 +107,8 @@ Usage:
   clishe explain <command>  explain what a command does, then exit
   clishe "<phrase>"         look up a phrase in your knowledge base (does not run it)
   clishe --list             show the phrases you've taught
-  clishe practice           hands-on exercises in a safe, throwaway folder
+  clishe practice [lesson]  hands-on exercises in a safe, throwaway folder
+                            (clishe practice --list shows the lessons)
   clishe progress           the commands you've learned to type yourself
   clishe setup              find or set up a local AI model
   clishe tour               a quick tour of your computer
@@ -976,58 +977,55 @@ show_progress() {
     echo "Type 'practice' for hands-on exercises in a safe, throwaway folder."
 }
 
-# Hands-on exercises. Each has a task, a check (run after every command
-# you type), a hint, and an answer. They run in a throwaway folder.
-P_TASK=() P_CHECK=() P_HINT=() P_ANSWER=()
-add_exercise() { P_TASK+=("$1"); P_CHECK+=("$2"); P_HINT+=("$3"); P_ANSWER+=("$4"); }
-add_exercise "Show which folder you're in." \
-    '[[ "$PRACTICE_LAST" == pwd* ]]' \
-    "It's short for 'print working directory'." "pwd"
-add_exercise "List what's in this folder (it's empty, and that's fine)." \
-    '[[ "$PRACTICE_LAST" == ls* ]]' \
-    "Two letters, short for 'list'." "ls"
-add_exercise "Make a folder called notes." \
-    '[ -d "$SANDBOX/notes" ]' \
-    "mkdir means 'make directory': mkdir <name>" "mkdir notes"
-add_exercise "Go into the notes folder." \
-    '[ "$PWD" = "$SANDBOX/notes" ]' \
-    "cd means 'change directory': cd <folder>" "cd notes"
-add_exercise "Create an empty file called todo.txt." \
-    '[ -f "$SANDBOX/notes/todo.txt" ]' \
-    "touch <file> creates an empty file." "touch todo.txt"
-add_exercise "Write the words buy milk into todo.txt." \
-    'grep -q "buy milk" "$SANDBOX/notes/todo.txt" 2>/dev/null' \
-    "echo prints text, and > sends it into a file instead of the screen: echo \"some text\" > <file>" \
-    'echo "buy milk" > todo.txt'
-add_exercise "Show what's inside todo.txt." \
-    '[[ "$PRACTICE_LAST" =~ ^(cat|less|more|head|tail)[[:space:]] ]]' \
-    "cat <file> prints a file to the screen." "cat todo.txt"
-add_exercise "Go back up to the folder above this one." \
-    '[ "$PWD" = "$SANDBOX" ]' \
-    ".. means 'the folder above this one'." "cd .."
-add_exercise "Copy notes/todo.txt to a new file here called backup.txt." \
-    '[ -f "$SANDBOX/backup.txt" ]' \
-    "cp <from> <to>" "cp notes/todo.txt backup.txt"
-add_exercise "Rename backup.txt to old.txt." \
-    '[ -f "$SANDBOX/old.txt" ] && [ ! -e "$SANDBOX/backup.txt" ]' \
-    "mv moves files, and moving to a new name renames: mv <old> <new>" "mv backup.txt old.txt"
-add_exercise "Find every file ending in .txt, in this folder and the ones inside it." \
-    '[[ "$PRACTICE_LAST" == find* && "$PRACTICE_LAST" == *txt* ]]' \
-    "find <where> -name <pattern>. Put the pattern in quotes: \"*.txt\"" 'find . -name "*.txt"'
-add_exercise "Search notes/todo.txt for the word milk." \
-    '[[ "$PRACTICE_LAST" == grep* && "$PRACTICE_LAST" == *milk* ]]' \
-    "grep <word> <file> prints the lines that contain the word." "grep milk notes/todo.txt"
-add_exercise "Delete old.txt." \
-    '[ ! -e "$SANDBOX/old.txt" ]' \
-    "rm <file> deletes it. There's no Trash with rm, so it's gone for good." "rm old.txt"
-add_exercise "Delete the notes folder and everything in it." \
-    '[ ! -e "$SANDBOX/notes" ]' \
-    "rm needs -r (recursive) to delete a folder. I'll ask you to confirm: that's the point." "rm -r notes"
-
+# Hands-on exercises from a lesson pack (lessons/*.json, see lessons.py),
+# run in a throwaway folder. With no pack named and more than one around,
+# asks which one.
 practice_session() {
-    local start=0 i cmd status answer done_file="$DATA_DIR/practice_done"
-    local count="${#P_TASK[@]}" orig_dir="$PWD"
+    local pack="${1:-}" start=0 i cmd status answer key value title="" finished="" count
+    local orig_dir="$PWD" choice n
+    local -a names=() tasks=() hints=() answers=()
     mkdir -p "$DATA_DIR" 2>/dev/null
+
+    if [ -z "$pack" ]; then
+        while IFS= read -r value; do
+            names+=("${value%%$'\t'*}")
+        done < <(brain --action lessons | sed -n 's/^PACK=//p')
+        if [ "${#names[@]}" -gt 1 ]; then
+            say "Which lesson? (each runs in a throwaway folder)"
+            n=0
+            while IFS=$'\t' read -r key count title value; do
+                n=$((n + 1))
+                printf '  %s. %s (%s exercises): %s\n' "$n" "$title" "$count" "$value"
+            done < <(brain --action lessons | sed -n 's/^PACK=//p')
+            read -r -p "Pick a number [1]: " choice
+            [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "${#names[@]}" ] || choice=1
+            pack="${names[$((choice - 1))]}"
+        else
+            pack="${names[0]:-basics}"
+        fi
+    fi
+
+    while IFS='=' read -r key value; do
+        case "$key" in
+            STATUS) status="$value" ;;
+            TITLE) title="$value" ;;
+            DONE) finished="$value" ;;
+            TASK) tasks+=("$value") ;;
+            HINT) hints+=("$value") ;;
+            ANSWER) answers+=("$value") ;;
+        esac
+    done < <(brain --action lesson --phrase "$pack")
+    if [ "$status" != "ok" ]; then
+        warn "There's no lesson called '$pack'. See the ones you have with: clishe practice --list"
+        return 1
+    fi
+    count="${#tasks[@]}"
+
+    local done_file="$DATA_DIR/practice_done_$pack"
+    # Progress from before lessons had names belongs to the basics.
+    if [ "$pack" = "basics" ] && [ -f "$DATA_DIR/practice_done" ] && [ ! -f "$done_file" ]; then
+        mv "$DATA_DIR/practice_done" "$done_file" 2>/dev/null
+    fi
     [ -f "$done_file" ] && start=$(cat "$done_file" 2>/dev/null)
     [[ "$start" =~ ^[0-9]+$ ]] || start=0
     if [ "$start" -ge "$count" ]; then
@@ -1043,14 +1041,14 @@ practice_session() {
     # Picking up later: quietly redo the earlier steps, so the folder looks
     # the way the next exercise expects.
     for ((i = 0; i < start; i++)); do
-        eval "${P_ANSWER[$i]}" >/dev/null 2>&1
+        eval "${answers[$i]}" >/dev/null 2>&1
     done
 
-    say "Practice time! You're in a throwaway folder, so nothing here can hurt your files."
+    say "Practice time: $title. You're in a throwaway folder, so nothing here can hurt your files."
     echo "Type real commands. Also: 'hint', 'answer', 'skip', 'quit'."
     for ((i = start; i < count; i++)); do
         echo ""
-        printf '%b%s/%s%b %s\n' "$BLUE" "$((i + 1))" "$count" "$NC" "${P_TASK[$i]}"
+        printf '%b%s/%s%b %s\n' "$BLUE" "$((i + 1))" "$count" "$NC" "${tasks[$i]}"
         local tries=0
         while true; do
             if ! IFS= read -r -e -p "practice\$ " cmd; then
@@ -1058,29 +1056,28 @@ practice_session() {
             fi
             case "$cmd" in
                 "") continue ;;
-                hint) printf '  %b%s%b\n' "$DIM" "${P_HINT[$i]}" "$NC"; continue ;;
-                answer|show) say_cmd "One way: " "${P_ANSWER[$i]}"; continue ;;
-                skip) say_cmd "Skipped. One way: " "${P_ANSWER[$i]}"
-                      eval "${P_ANSWER[$i]}" >/dev/null 2>&1; break ;;
+                hint) printf '  %b%s%b\n' "$DIM" "${hints[$i]}" "$NC"; continue ;;
+                answer|show) say_cmd "One way: " "${answers[$i]}"; continue ;;
+                skip) say_cmd "Skipped. One way: " "${answers[$i]}"
+                      eval "${answers[$i]}" >/dev/null 2>&1; break ;;
                 quit|exit) printf '%s' "$i" > "$done_file"
                       say "See you next time - I'll remember where you got to."
                       cd "$orig_dir" 2>/dev/null || true; rm -rf -- "$SANDBOX"
                       return 0 ;;
             esac
             history -s "$cmd"
-            # shellcheck disable=SC2034  # read by the exercise checks (eval)
-            PRACTICE_LAST="$cmd"
             confirm_dangerous "$cmd" || continue
             eval "$cmd"
             status=$?
             [ "$status" -eq 0 ] && brain --action log --command "$cmd" >/dev/null
-            if eval "${P_CHECK[$i]}"; then
+            if [ "$(brain --action lesson-check --phrase "$pack" --step "$i" \
+                    --command "$cmd" --cwd "$PWD" --state "$SANDBOX")" = "yes" ]; then
                 printf '%b✓ Nice!%b\n' "$GREEN" "$NC"
                 break
             fi
             tries=$((tries + 1))
             if [ "$tries" -ge 2 ]; then
-                printf '  %bHint: %s%b\n' "$DIM" "${P_HINT[$i]}" "$NC"
+                printf '  %bHint: %s%b\n' "$DIM" "${hints[$i]}" "$NC"
             else
                 echo "  Not yet - try again, or type 'hint'."
             fi
@@ -1088,10 +1085,20 @@ practice_session() {
         printf '%s' "$((i + 1))" > "$done_file"
     done
     echo ""
-    say "🎉 All $count done! You just used pwd, ls, mkdir, cd, touch, echo, cat, cp, mv, find, grep and rm."
+    say "🎉 All $count done!${finished:+ $finished}"
     cd "$orig_dir" 2>/dev/null || true
     rm -rf -- "$SANDBOX"
     : > "$done_file"
+}
+
+# The lesson packs you have, for: clishe practice --list
+list_lessons() {
+    local name count title description
+    say "Lessons (start one with: clishe practice <name>)"
+    while IFS=$'\t' read -r name count title description; do
+        printf '  %b%-12s%b %s (%s exercises): %s\n' "$YELLOW" "$name" "$NC" "$title" "$count" "$description"
+    done < <(brain --action lessons | sed -n 's/^PACK=//p')
+    echo "Add your own: put a lesson file in ${XDG_DATA_HOME:-$HOME/.local/share}/clishe/lessons/ (see CONTRIBUTING.md)."
 }
 
 # A walk through this computer in plain English, one stop at a time.
@@ -1201,7 +1208,10 @@ if [ $# -gt 0 ]; then
             esac
             ;;
         practice)
-            [ $# -eq 1 ] && { practice_session; exit $?; } ;;
+            case "${2:-}" in
+                --list|-l|list) list_lessons; exit 0 ;;
+                *) practice_session "${2:-}"; exit $? ;;
+            esac ;;
         progress)
             [ $# -eq 1 ] && { show_progress; exit 0; } ;;
         setup)
@@ -1365,8 +1375,14 @@ while true; do
         forget|"forget "*)
             forget_target="${user_input#forget}"
             forget_phrase "${forget_target# }"; echo ""; continue ;;
-        practice)
-            practice_session; echo ""; continue ;;
+        practice|"practice "*)
+            practice_target="${user_input#practice}"
+            practice_target="${practice_target# }"
+            case "$practice_target" in
+                list|--list) list_lessons ;;
+                *) practice_session "$practice_target" ;;
+            esac
+            echo ""; continue ;;
         undo|"undo that"|"undo it"|"undo last"|"undo the last command"|"take that back")
             undo_last; echo ""; continue ;;
         progress|"my progress"|"what have i learned")

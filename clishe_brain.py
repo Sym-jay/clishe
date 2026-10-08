@@ -774,7 +774,7 @@ def main():
                                  'turn', 'attempt', 'progress',
                                  'setup', 'set-model', 'breakdown', 'tour', 'fix',
                                  'inspect', 'undo-before', 'undo-record', 'undo-plan',
-                                 'undo-done'],
+                                 'undo-done', 'lessons', 'lesson', 'lesson-check'],
                         help='Action to perform')
     parser.add_argument('--phrase', default='', help='Natural language phrase')
     parser.add_argument('--command', default='', help='Bash command')
@@ -782,7 +782,9 @@ def main():
     parser.add_argument('--no-ai', action='store_true', help='line: offline only')
     parser.add_argument('--width', type=int, default=80, help='breakdown: terminal width')
     parser.add_argument('--cwd', default='', help='undo: the folder the command runs in')
-    parser.add_argument('--state', default='', help='undo: the note from undo-before')
+    parser.add_argument('--state', default='', help='undo: the note from undo-before; '
+                                                    'lesson-check: the practice folder')
+    parser.add_argument('--step', type=int, default=0, help='lesson-check: exercise number (0-based)')
 
     args = parser.parse_args()
     brain = ClisheBrain()
@@ -983,6 +985,31 @@ def main():
     elif args.action == 'undo-done':
         import undo
         undo.save(UNDO_FILE, undo.load(UNDO_FILE)[:-1])
+
+    elif args.action == 'lessons':
+        import lessons
+        for pack in lessons.available():
+            print(f"PACK={pack['name']}\t{pack['count']}\t{_one_line(pack['title'])}"
+                  f"\t{_one_line(pack['description'])}")
+
+    elif args.action == 'lesson':
+        import lessons
+        pack = lessons.read(args.phrase)
+        print("STATUS=ok" if pack else "STATUS=none")
+        if pack:
+            print(f"TITLE={_one_line(pack['title'])}")
+            print(f"DONE={_one_line(pack.get('done', ''))}")
+            for ex in pack['exercises']:
+                print(f"TASK={_one_line(ex['task'])}")
+                print(f"HINT={_one_line(ex['hint'])}")
+                print(f"ANSWER={_one_line(ex['answer'])}")
+
+    elif args.action == 'lesson-check':
+        import lessons
+        pack = lessons.read(args.phrase)
+        ok = bool(pack) and 0 <= args.step < len(pack['exercises']) and lessons.passes(
+            pack['exercises'][args.step]['check'], args.command, args.cwd or os.getcwd(), args.state)
+        print("yes" if ok else "no")
 
     elif args.action == 'predict':
         print(brain.predict(args.command))
