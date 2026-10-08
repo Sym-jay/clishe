@@ -774,7 +774,7 @@ def main():
                                  'turn', 'attempt', 'progress',
                                  'setup', 'set-model', 'breakdown', 'tour', 'fix',
                                  'inspect', 'undo-before', 'undo-record', 'undo-plan',
-                                 'undo-done', 'lessons', 'lesson', 'lesson-check'],
+                                 'undo-done', 'lessons', 'lesson', 'lesson-check', 'app'],
                         help='Action to perform')
     parser.add_argument('--phrase', default='', help='Natural language phrase')
     parser.add_argument('--command', default='', help='Bash command')
@@ -1010,6 +1010,30 @@ def main():
         ok = bool(pack) and 0 <= args.step < len(pack['exercises']) and lessons.passes(
             pack['exercises'][args.step]['check'], args.command, args.cwd or os.getcwd(), args.state)
         print("yes" if ok else "no")
+
+    elif args.action == 'app':
+        # "how do I install spotify?"
+        import apps
+        from config import detect_distro_family
+        name = apps.wanted(args.phrase)
+        app = apps.find(name) if name else None
+        family = detect_distro_family()
+        result = apps.plan(app, family) if app else (apps.tool_plan(name, family) if name else None)
+        if not result:
+            print("STATUS=none")
+        elif result.get("installed"):
+            print("STATUS=installed")
+            print(f"APP={_one_line(result['app'])}")
+        else:
+            print("STATUS=ok")
+            print(f"APP={_one_line(result['app'])}")
+            print(f"HOW={_one_line(result['how'])}")
+            if result['command']:
+                print(f"COMMAND={_one_line(result['command'])}")
+            for step in result['setup']:
+                print(f"SETUP={_one_line(step)}")
+            for other in result['others']:
+                print(f"OTHER={_one_line(other)}")
 
     elif args.action == 'predict':
         print(brain.predict(args.command))

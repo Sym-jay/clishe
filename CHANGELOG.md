@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- **"How do I install Spotify?"** (also "install vs code", "get vlc",
+  "download zoom"): for about 25 popular desktop apps, Clishe shows the
+  right way to install them here. It prefers the distro's own package
+  (apt, dnf or pacman) when the app is in its official repositories,
+  otherwise Flathub, adding the one-time Flatpak and Flathub setup for your
+  distro if it's missing, and a Homebrew cask on a Mac. Well-known
+  command-line tools (`install htop`) get the package manager's command, or
+  "already installed". It asks before running anything. The list is
+  `apps.json`, easy to extend.
 - **Lesson packs.** Practice exercises now live in JSON lesson files
   (`lessons/basics.json` is the built-in one), so teachers, workshops and
   contributors can write lessons without touching code. Your own lessons go

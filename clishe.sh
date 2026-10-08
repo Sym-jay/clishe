@@ -58,6 +58,8 @@ RE_WHAT_IS='^what[[:space:]]+(is|are)[[:space:]]+(.+)$'
 RE_WHATS="^what's[[:space:]]+(.+)\$"
 RE_TELL_ME='^tell[[:space:]]+me[[:space:]]+about[[:space:]]+(.+)$'
 # "what does this mean?" about the output of the last command.
+# "how do I install spotify?" / "install vs code" / "get vlc"
+RE_INSTALL_APP="^(how (do i|do you|to|can i) )?(install|get|download) "
 # "is this safe?" before running something found online.
 RE_SAFE_QUESTION="^is (this|it|that) safe( to run)?[?:]*[[:space:]]*(.*)\$"
 # "fix that" after a command fails.
@@ -513,6 +515,53 @@ check_session() {
         return 1
     fi
     printf "%b✓%b Nothing risky that I know of. That's not a guarantee: only run it if you understand what it does.\n" "$GREEN" "$NC"
+    return 0
+}
+
+# "How do I install Spotify?": the right way to get an app on this system
+# (apps.py). Returns 1 when it isn't an app Clishe knows, so the request
+# goes on to the usual steps.
+install_app() {
+    local output key value status="" app="" how="" command="" answer step
+    local -a setup=() others=()
+    output=$(brain --action app --phrase "$1")
+    while IFS='=' read -r key value; do
+        case "$key" in
+            STATUS) status="$value" ;;
+            APP) app="$value" ;;
+            HOW) how="$value" ;;
+            COMMAND) command="$value" ;;
+            SETUP) setup+=("$value") ;;
+            OTHER) others+=("$value") ;;
+        esac
+    done <<< "$output"
+
+    case "$status" in
+        installed)
+            say "$app is already installed. Type $app to start it."
+            return 0 ;;
+        ok) ;;
+        *) return 1 ;;
+    esac
+    say "$how"
+    [ -n "$command" ] || return 0
+    if [ "${#setup[@]}" -gt 0 ]; then
+        say "First, a one-time setup:"
+        for step in "${setup[@]}"; do
+            printf '  %b%s%b\n' "$YELLOW" "$step" "$NC"
+        done
+    fi
+    say_cmd "To install $app: " "$command"
+    for step in "${others[@]}"; do
+        printf '  %bAnother way: %s%b\n' "$DIM" "$step" "$NC"
+    done
+    read -r -p "Run it now? [Y/n]: " answer
+    [[ "$answer" =~ ^[Nn] ]] && return 0
+    TIP_PHRASE=""
+    for step in "${setup[@]}" "$command"; do
+        prepare_and_run "$step"
+        [ "$LAST_EXIT" -eq 0 ] || return 0
+    done
     return 0
 }
 
@@ -1410,6 +1459,17 @@ while true; do
             fi
         fi
     else
+        # "how do I install spotify?": apps and well-known tools.
+        shopt -s nocasematch
+        if [[ "$user_input" =~ $RE_INSTALL_APP ]]; then
+            shopt -u nocasematch
+            if install_app "$user_input"; then
+                echo ""
+                continue
+            fi
+        fi
+        shopt -u nocasematch
+
         # 2. "explain tar", "what does chmod do", "what's grep"
         explain_target=$(detect_explain_target "$user_input")
         if [ -n "$explain_target" ]; then

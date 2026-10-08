@@ -1,0 +1,29 @@
+{
+  "_about": "Desktop apps people ask how to install. flathub is the Flathub app ID (works on any distro once Flatpak is set up), brew is the Homebrew cask, and apt/dnf/pacman are packages in each distro's own repositories - only where that's certain. See apps.py.",
+  "apps": [
+    {"name": "Spotify", "aliases": ["spotify"], "flathub": "com.spotify.Client", "brew": "spotify", "pacman": "spotify-launcher"},
+    {"name": "Visual Studio Code", "aliases": ["vscode", "vs code", "visual studio code", "code"], "flathub": "com.visualstudio.code", "brew": "visual-studio-code", "pacman": "code"},
+    {"name": "Google Chrome", "aliases": ["chrome", "google chrome"], "flathub": "com.google.Chrome", "brew": "google-chrome"},
+    {"name": "Chromium", "aliases": ["chromium"], "flathub": "org.chromium.Chromium", "pacman": "chromium"},
+    {"name": "Firefox", "aliases": ["firefox", "mozilla firefox"], "flathub": "org.mozilla.firefox", "brew": "firefox", "apt": "firefox", "dnf": "firefox", "pacman": "firefox"},
+    {"name": "Brave", "aliases": ["brave", "brave browser"], "flathub": "com.brave.Browser", "brew": "brave-browser"},
+    {"name": "VLC", "aliases": ["vlc", "vlc media player"], "flathub": "org.videolan.VLC", "brew": "vlc", "apt": "vlc", "pacman": "vlc"},
+    {"name": "GIMP", "aliases": ["gimp"], "flathub": "org.gimp.GIMP", "brew": "gimp", "apt": "gimp", "dnf": "gimp", "pacman": "gimp"},
+    {"name": "Inkscape", "aliases": ["inkscape"], "flathub": "org.inkscape.Inkscape", "brew": "inkscape", "apt": "inkscape", "dnf": "inkscape", "pacman": "inkscape"},
+    {"name": "Krita", "aliases": ["krita"], "flathub": "org.kde.krita", "brew": "krita", "apt": "krita", "dnf": "krita", "pacman": "krita"},
+    {"name": "Blender", "aliases": ["blender"], "flathub": "org.blender.Blender", "brew": "blender", "apt": "blender", "dnf": "blender", "pacman": "blender"},
+    {"name": "Audacity", "aliases": ["audacity"], "flathub": "org.audacityteam.Audacity", "brew": "audacity", "apt": "audacity", "dnf": "audacity", "pacman": "audacity"},
+    {"name": "Kdenlive", "aliases": ["kdenlive"], "flathub": "org.kde.kdenlive", "brew": "kdenlive", "apt": "kdenlive", "dnf": "kdenlive", "pacman": "kdenlive"},
+    {"name": "OBS Studio", "aliases": ["obs", "obs studio"], "flathub": "com.obsproject.Studio", "brew": "obs", "apt": "obs-studio", "pacman": "obs-studio"},
+    {"name": "LibreOffice", "aliases": ["libreoffice", "libre office", "office"], "flathub": "org.libreoffice.LibreOffice", "brew": "libreoffice", "apt": "libreoffice", "dnf": "libreoffice", "pacman": "libreoffice-fresh"},
+    {"name": "Thunderbird", "aliases": ["thunderbird"], "flathub": "org.mozilla.Thunderbird", "brew": "thunderbird", "apt": "thunderbird", "dnf": "thunderbird", "pacman": "thunderbird"},
+    {"name": "Discord", "aliases": ["discord"], "flathub": "com.discordapp.Discord", "brew": "discord", "pacman": "discord"},
+    {"name": "Telegram", "aliases": ["telegram", "telegram desktop"], "flathub": "org.telegram.desktop", "brew": "telegram", "pacman": "telegram-desktop"},
+    {"name": "Signal", "aliases": ["signal", "signal desktop"], "flathub": "org.signal.Signal", "brew": "signal", "pacman": "signal-desktop"},
+    {"name": "Slack", "aliases": ["slack"], "flathub": "com.slack.Slack", "brew": "slack"},
+    {"name": "Zoom", "aliases": ["zoom"], "flathub": "us.zoom.Zoom", "brew": "zoom"},
+    {"name": "Steam", "aliases": ["steam"], "flathub": "com.valvesoftware.Steam", "brew": "steam", "pacman": "steam"},
+    {"name": "Obsidian", "aliases": ["obsidian"], "flathub": "md.obsidian.Obsidian", "brew": "obsidian", "pacman": "obsidian"},
+    {"name": "Postman", "aliases": ["postman"], "flathub": "com.getpostman.Postman", "brew": "postman"}
+  ]
+}
