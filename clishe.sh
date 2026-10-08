@@ -1046,6 +1046,28 @@ show_progress() {
     echo "Type 'practice' for hands-on exercises in a safe, throwaway folder."
 }
 
+# The throwaway folder practice works in, and how to tidy it away.
+PRACTICE_PREFIX="clishe-practice."
+
+# Remove this session's practice folder and go back to where the learner
+# started. Safe to call more than once.
+practice_cleanup() {
+    cd "${PRACTICE_HOME_DIR:-$HOME}" 2>/dev/null || true
+    if [[ -n "${SANDBOX:-}" && "$(basename "$SANDBOX")" == "$PRACTICE_PREFIX"* ]]; then
+        rm -rf -- "$SANDBOX"
+    fi
+    SANDBOX=""
+}
+
+# Folders left by a practice that couldn't clean up (kill -9, a crash):
+# only ours (our name, our user, straight in the temp folder), and only
+# when untouched for a day, so a practice open in another terminal is safe.
+sweep_practice_folders() {
+    find "${TMPDIR:-/tmp}" -maxdepth 1 -type d -name "${PRACTICE_PREFIX}??????" \
+        -user "$(id -un)" -mmin +1440 -exec rm -rf -- {} + 2>/dev/null
+    return 0
+}
+
 # Hands-on exercises from a lesson pack (lessons/*.json, see lessons.py),
 # run in a throwaway folder. With no pack named and more than one around,
 # asks which one.
@@ -1104,9 +1126,21 @@ practice_session() {
         [[ "$answer" =~ ^[Nn] ]] && start=0
     fi
 
-    SANDBOX="$(mktemp -d "${TMPDIR:-/tmp}/clishe-practice.XXXXXX")" || return 1
-    cd "$SANDBOX" || return 1
+    sweep_practice_folders
+    SANDBOX="$(mktemp -d "${TMPDIR:-/tmp}/${PRACTICE_PREFIX}XXXXXX")" || return 1
+    cd "$SANDBOX" || { practice_cleanup; return 1; }
     SANDBOX="$PWD"  # the same spelling cd will use (no "//" from TMPDIR)
+    PRACTICE_HOME_DIR="$orig_dir"
+
+    # However practice ends - quit, Ctrl-C, the terminal closing, being
+    # told to stop - the folder goes. The session's own traps come back
+    # afterwards.
+    local saved_traps
+    saved_traps="$(trap -p INT EXIT HUP TERM)"
+    trap 'printf "\n"' INT          # Ctrl-C stops a running command, not practice
+    trap 'practice_cleanup' EXIT
+    trap 'practice_cleanup; exit 129' HUP
+    trap 'practice_cleanup; exit 143' TERM
     # Picking up later: quietly redo the earlier steps, so the folder looks
     # the way the next exercise expects.
     for ((i = 0; i < start; i++)); do
@@ -1120,7 +1154,10 @@ practice_session() {
         printf '%b%s/%s%b %s\n' "$BLUE" "$((i + 1))" "$count" "$NC" "${tasks[$i]}"
         local tries=0
         while true; do
-            if ! IFS= read -r -e -p "practice\$ " cmd; then
+            # Read in a subshell with the normal Ctrl-C, like the main
+            # prompt: Ctrl-C (or the end of input) here means "quit".
+            if ! cmd=$(trap - INT; IFS= read -r -e -p "practice\$ " l; s=$?; printf '%s' "$l"; exit $s); then
+                echo ""
                 cmd="quit"
             fi
             case "$cmd" in
@@ -1131,7 +1168,9 @@ practice_session() {
                       eval "${answers[$i]}" >/dev/null 2>&1; break ;;
                 quit|exit) printf '%s' "$i" > "$done_file"
                       say "See you next time - I'll remember where you got to."
-                      cd "$orig_dir" 2>/dev/null || true; rm -rf -- "$SANDBOX"
+                      practice_cleanup
+                      trap - INT EXIT HUP TERM
+                      eval "$saved_traps"
                       return 0 ;;
             esac
             history -s "$cmd"
@@ -1155,8 +1194,9 @@ practice_session() {
     done
     echo ""
     say "${ICON_CHEER}All $count done!${finished:+ $finished}"
-    cd "$orig_dir" 2>/dev/null || true
-    rm -rf -- "$SANDBOX"
+    practice_cleanup
+    trap - INT EXIT HUP TERM
+    eval "$saved_traps"
     : > "$done_file"
 }
 
