@@ -523,7 +523,7 @@ check_session() {
 # goes on to the usual steps.
 install_app() {
     local output key value status="" app="" how="" command="" answer step
-    local -a setup=() others=()
+    local -a app_setup=() app_others=()
     output=$(brain --action app --phrase "$1")
     while IFS='=' read -r key value; do
         case "$key" in
@@ -531,8 +531,8 @@ install_app() {
             APP) app="$value" ;;
             HOW) how="$value" ;;
             COMMAND) command="$value" ;;
-            SETUP) setup+=("$value") ;;
-            OTHER) others+=("$value") ;;
+            SETUP) app_setup+=("$value") ;;
+            OTHER) app_others+=("$value") ;;
         esac
     done <<< "$output"
 
@@ -545,20 +545,20 @@ install_app() {
     esac
     say "$how"
     [ -n "$command" ] || return 0
-    if [ "${#setup[@]}" -gt 0 ]; then
+    if [ "${#app_setup[@]}" -gt 0 ]; then
         say "First, a one-time setup:"
-        for step in "${setup[@]}"; do
+        for step in "${app_setup[@]}"; do
             printf '  %b%s%b\n' "$YELLOW" "$step" "$NC"
         done
     fi
     say_cmd "To install $app: " "$command"
-    for step in "${others[@]}"; do
+    for step in "${app_others[@]}"; do
         printf '  %bAnother way: %s%b\n' "$DIM" "$step" "$NC"
     done
     read -r -p "Run it now? [Y/n]: " answer
     [[ "$answer" =~ ^[Nn] ]] && return 0
     TIP_PHRASE=""
-    for step in "${setup[@]}" "$command"; do
+    for step in "${app_setup[@]}" "$command"; do
         prepare_and_run "$step"
         [ "$LAST_EXIT" -eq 0 ] || return 0
     done
