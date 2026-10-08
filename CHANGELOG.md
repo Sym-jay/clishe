@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.8.0 (2026-10-08)
 
 ### Added
 - **Plain mode** for screen readers and simple terminals: `clishe --plain`,
