@@ -365,6 +365,8 @@ Clishe follows the [XDG Base Directory](https://specifications.freedesktop.org/b
 
 Your data files are created with owner-only permissions. Files from older versions (`~/.clishe_kb.json` and friends) are moved to the new locations automatically on first run. Set `NO_COLOR=1` to turn off colors.
 
+**Plain mode** is for screen readers and simple terminals: words instead of symbols ("Tip:", "Warning:" instead of 💡 and ⚠), a one-line welcome instead of the box, and each command explained as a simple "part: meaning" list instead of the drawn tree. Turn it on with `clishe --plain`, with `CLISHE_PLAIN=1` in your environment (this also covers the Ctrl+G shortcut), or with `"plain": true` in the config.
+
 The config file is created on first run with owner-only permissions (`0600`):
 
 ```json

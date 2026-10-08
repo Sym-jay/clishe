@@ -188,15 +188,26 @@ def split_parts(command: str) -> Optional[List[Tuple[str, str]]]:
     return parts
 
 
-def draw(command: str, width: int = 80) -> Optional[dict]:
+def draw(command: str, width: int = 80, plain: bool = False) -> Optional[dict]:
     """{"command": the spaced command, "lines": [(tree, label)]}, or None
-    when the breakdown wouldn't help or wouldn't fit."""
+    when the breakdown wouldn't help or wouldn't fit. With plain=True the
+    lines are a simple "part: meaning" list in reading order (no tree), for
+    screen readers."""
     parts = split_parts(command)
     if not parts or len(parts) > MAX_PARTS:
         return None
     labelled = [i for i, (_, label) in enumerate(parts) if label]
     if len(labelled) < 2 or not parts[0][1]:
         return None
+
+    if plain:
+        lines = []
+        for i in labelled:
+            text, label = parts[i]
+            for sub in (label if isinstance(label, list) else [f"{text}  {label}"]):
+                part, _, meaning = sub.partition("  ")
+                lines.append(("", f"{part}: {meaning}"))
+        return {"command": GAP.join(text for text, _ in parts), "lines": lines}
 
     positions, pos = [], 0
     for text, _ in parts:

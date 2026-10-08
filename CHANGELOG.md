@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- **Plain mode** for screen readers and simple terminals: `clishe --plain`,
+  `CLISHE_PLAIN=1`, or `"plain": true` in the config. Words instead of
+  symbols ("Tip:", "Warning:", "OK:" for 💡 ⚠ ✓), a one-line welcome, and
+  each command explained as a "part: meaning" list in reading order instead
+  of the drawn tree. The Ctrl+G shortcut follows `CLISHE_PLAIN` too.
 - **"How do I install Spotify?"** (also "install vs code", "get vlc",
   "download zoom"): for about 25 popular desktop apps, Clishe shows the
   right way to install them here. It prefers the distro's own package
