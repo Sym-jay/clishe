@@ -95,3 +95,20 @@ def test_no_breakdown_when_too_wide():
 ])
 def test_short_labels(text, expected):
     assert breakdown._short(text) == expected
+
+
+def test_plain_mode_is_a_list_in_reading_order():
+    result = breakdown.draw("tar -xzvf backup.tgz", plain=True)
+    assert result["command"] == "tar  -xzvf  backup.tgz"
+    labels = [label for tree, label in result["lines"]]
+    assert all(tree == "" for tree, _ in result["lines"])
+    assert labels[0] == "tar: archives files together, optionally with compression"
+    assert labels[1] == "-x: extract an archive"
+    assert labels[-1].startswith("-f: specify the archive filename")
+
+
+def test_plain_mode_has_no_drawing_characters():
+    result = breakdown.draw("find . -type f -size +100M", plain=True)
+    text = " ".join(label for _, label in result["lines"])
+    assert not set("│└├─") & set(text)
+    assert "-size +100M: bigger than 100M" in text

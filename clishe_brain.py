@@ -774,7 +774,8 @@ def main():
                                  'turn', 'attempt', 'progress',
                                  'setup', 'set-model', 'breakdown', 'tour', 'fix',
                                  'inspect', 'undo-before', 'undo-record', 'undo-plan',
-                                 'undo-done', 'lessons', 'lesson', 'lesson-check', 'app'],
+                                 'undo-done', 'lessons', 'lesson', 'lesson-check', 'app',
+                                 'setting'],
                         help='Action to perform')
     parser.add_argument('--phrase', default='', help='Natural language phrase')
     parser.add_argument('--command', default='', help='Bash command')
@@ -898,7 +899,8 @@ def main():
             print("STATUS=skip")
         else:
             from breakdown import draw
-            result = draw(args.command, width=args.width)
+            result = draw(args.command, width=args.width,
+                          plain=bool(os.environ.get("CLISHE_PLAIN")))
             print("STATUS=ok" if result else "STATUS=none")
             if result:
                 print(f"CMD={_one_line(result['command'])}")
@@ -1034,6 +1036,10 @@ def main():
                 print(f"SETUP={_one_line(step)}")
             for other in result['others']:
                 print(f"OTHER={_one_line(other)}")
+
+    elif args.action == 'setting':
+        value = load_config().get(args.phrase, "")
+        print(str(value).lower() if isinstance(value, bool) else value)
 
     elif args.action == 'predict':
         print(brain.predict(args.command))

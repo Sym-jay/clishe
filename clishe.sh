@@ -16,6 +16,24 @@ else
     GREEN='' BLUE='' YELLOW='' RED='' DIM='' NC=''
 fi
 
+# Plain mode (--plain, CLISHE_PLAIN=1, or "plain": true in the config):
+# words instead of symbols and pictures, for screen readers and simple
+# terminals.
+PLAIN="${CLISHE_PLAIN:-}"
+if [ "${1:-}" = "--plain" ]; then
+    PLAIN=1
+    shift
+fi
+set_symbols() {
+    if [ -n "$PLAIN" ]; then
+        ICON_TIP="Tip:" ICON_WARN="Warning:" ICON_OK="OK:" ICON_CHEER="" ICON_BULLET="-"
+        export CLISHE_PLAIN=1   # so the brain draws lists, not trees
+    else
+        ICON_TIP="💡" ICON_WARN="⚠" ICON_OK="✓" ICON_CHEER="🎉 " ICON_BULLET="•"
+    fi
+}
+set_symbols
+
 # Resolve the real script location even when invoked through a symlink
 # (the one-line installer symlinks clishe.sh into ~/.local/bin/clishe).
 SOURCE="${BASH_SOURCE[0]}"
@@ -118,6 +136,8 @@ Usage:
   clishe --init bash|zsh    print the Ctrl+G shortcut for your normal shell
                             (add  eval "$(clishe --init bash)"  to ~/.bashrc,
                              or   eval "$(clishe --init zsh)"   to ~/.zshrc)
+  clishe --plain ...        words instead of symbols and drawings (screen readers);
+                            or set "plain": true in ~/.config/clishe/config.json
   clishe --version          show the version
   clishe --help             show this help
 
@@ -199,14 +219,14 @@ confirm_dangerous() {
     fi
 
     if [ "$CK_STATUS" = "danger" ]; then
-        printf '%b⚠ This command looks potentially destructive:%b\n' "$RED" "$NC"
+        printf '%b%s This command looks potentially destructive:%b\n' "$RED" "$ICON_WARN" "$NC"
         printf '  %b%s%b\n' "$YELLOW" "$cmd" "$NC"
         while IFS= read -r reason; do
             [ -n "$reason" ] && printf '  - It %s.\n' "$reason"
         done <<< "$(decode_lines "$CK_REASON")"
     else
         # The safety check itself failed to run. Fail closed.
-        printf '%b⚠ I could not run my safety check on:%b\n' "$RED" "$NC"
+        printf '%b%s I could not run my safety check on:%b\n' "$RED" "$ICON_WARN" "$NC"
         printf '  %b%s%b\n' "$YELLOW" "$cmd" "$NC"
     fi
     read -r -p "Type YES to $verb it anyway, anything else to cancel: " confirm
@@ -459,14 +479,14 @@ missing_hint() {
     output=$(brain --action missing --command "$1")
     parse_brain_output "$output" MS
     [ "$MS_STATUS" = "ok" ] || return 1
-    printf '%b💡 %b%s\n' "$YELLOW" "$NC" "$MS_HINT"
+    printf '%b%s %b%s\n' "$YELLOW" "$ICON_TIP" "$NC" "$MS_HINT"
     return 0
 }
 
 # "Is this safe to run?" Says what a command or script would do, without
 # running it. Returns 1 if there are warnings (for scripts and CI).
 check_session() {
-    local target="$1" output key value mode="" lines=0 warned=0 bullet="•"
+    local target="$1" output key value mode="" lines=0 warned=0 bullet="$ICON_BULLET"
     local -a effects=() report=() safer=()
     if [ -z "$target" ]; then
         read -r -e -p "Paste the command, or a script's file name, to check: " target
@@ -480,7 +500,7 @@ check_session() {
             EFFECT) effects+=("$value") ;;
             RLINE) report+=("$(printf '  %b%s%b' "$YELLOW" "$value" "$NC")") ;;
             WARN) warned=1
-                  report+=("$(printf '  %b⚠ It %s.%b' "$RED" "$value" "$NC")") ;;
+                  report+=("$(printf '  %b%s It %s.%b' "$RED" "$ICON_WARN" "$value" "$NC")") ;;
             SAFER) safer+=("$value") ;;
         esac
     done <<< "$output"
@@ -514,7 +534,7 @@ check_session() {
         printf "%bRead the warnings above before running it.%b\n" "$RED" "$NC"
         return 1
     fi
-    printf "%b✓%b Nothing risky that I know of. That's not a guarantee: only run it if you understand what it does.\n" "$GREEN" "$NC"
+    printf "%b%s%b Nothing risky that I know of. That's not a guarantee: only run it if you understand what it does.\n" "$GREEN" "$ICON_OK" "$NC"
     return 0
 }
 
@@ -633,7 +653,7 @@ fix_last() {
     [ -n "$FX_COMMAND" ] || return
     say_cmd "Try: " "$FX_COMMAND"
     if [ -n "$FX_UNVERIFIED" ]; then
-        warn "  ⚠ The manual doesn't mention: $FX_UNVERIFIED. The AI may have made it up, so check before running."
+        warn "  $ICON_WARN The manual doesn't mention: $FX_UNVERIFIED. The AI may have made it up, so check before running."
     fi
     read -r -p "Run it? [Y/n/e=edit]: " answer
     [[ "$answer" =~ ^[Nn] ]] && return
@@ -743,7 +763,7 @@ resolve_with_ai() {
                 printf '  %b%s%b\n' "$DIM" "$(decode_lines "$RS_EXPLANATION")" "$NC"
             fi
             if [ -n "$RS_MANUAL" ] && [ -z "$RS_UNVERIFIED" ]; then
-                printf '  %b✓%b %severy option is in the manual%b\n' "$GREEN" "$NC" "$DIM" "$NC"
+                printf '  %b%s%b %severy option is in the manual%b\n' "$GREEN" "$ICON_OK" "$NC" "$DIM" "$NC"
             fi
         else
             printf '%bClishe (via %s): %bI think you mean: %b%s%b\n' \
@@ -761,7 +781,7 @@ resolve_with_ai() {
             done <<< "$(decode_lines "$RS_MANUAL")"
         fi
         if [ -n "$RS_UNVERIFIED" ]; then
-            warn "  ⚠ The manual doesn't mention: $RS_UNVERIFIED. The AI may have made it up, so check before running."
+            warn "  $ICON_WARN The manual doesn't mention: $RS_UNVERIFIED. The AI may have made it up, so check before running."
         fi
         read -r -p "Run this? [Y/n/e=edit]: " approve
         if [[ "$approve" =~ ^[Nn]$ ]]; then
@@ -899,7 +919,7 @@ run_command() {
             diagnose_output=$(brain --action diagnose --error "$LAST_STDERR")
             parse_brain_output "$diagnose_output" DX
             if [ "$DX_STATUS" = "ok" ]; then
-                printf '%b💡 %b%s\n' "$YELLOW" "$NC" "$DX_HINT"
+                printf '%b%s %b%s\n' "$YELLOW" "$ICON_TIP" "$NC" "$DX_HINT"
             fi
         fi
         [ "$LAST_EXIT" -ne 130 ] && \
@@ -914,9 +934,9 @@ run_command() {
         log_output=$(brain --action log --command "$cmd" --phrase "${TIP_PHRASE:-}")
         while IFS= read -r line; do
             case "$line" in
-                TIP=*) printf '%b💡 %b%s\n' "$YELLOW" "$NC" "${line#TIP=}" ;;
+                TIP=*) printf '%b%s %b%s\n' "$YELLOW" "$ICON_TIP" "$NC" "${line#TIP=}" ;;
                 GUIDE=1) printf '%b(Not sure what that output means? Ask me: what does this mean)%b\n' "$DIM" "$NC" ;;
-                PREDICT=*) say_cmd "💡 You might want to run: " "${line#PREDICT=}" ;;
+                PREDICT=*) say_cmd "$ICON_TIP You might want to run: " "${line#PREDICT=}" ;;
             esac
         done <<< "$log_output"
     fi
@@ -977,15 +997,15 @@ your_turn() {
     parse_brain_output "$output" YT
     [ "$YT_STATUS" = "ask" ] || return 1
 
-    printf '%b💡 Your turn!%b You know this one. Type the command for "%s" (or press Enter to see it):\n' \
-        "$YELLOW" "$NC" "$phrase"
+    printf '%b%s Your turn!%b You know this one. Type the command for "%s" (or press Enter to see it):\n' \
+        "$YELLOW" "$ICON_TIP" "$NC" "$phrase"
     read -r -e -p "  \$ " typed
     [ -z "$typed" ] && return 1
 
     output=$(brain --action attempt --phrase "$phrase" --command "$typed")
     parse_brain_output "$output" AT
     if [ "$AT_STATUS" = "right" ]; then
-        say "✓ That's it!"
+        say "$ICON_OK That's it!"
         TIP_PHRASE=""
         prepare_and_run "$typed"
         return 0
@@ -1121,7 +1141,7 @@ practice_session() {
             [ "$status" -eq 0 ] && brain --action log --command "$cmd" >/dev/null
             if [ "$(brain --action lesson-check --phrase "$pack" --step "$i" \
                     --command "$cmd" --cwd "$PWD" --state "$SANDBOX")" = "yes" ]; then
-                printf '%b✓ Nice!%b\n' "$GREEN" "$NC"
+                printf '%b%s Nice!%b\n' "$GREEN" "$ICON_OK" "$NC"
                 break
             fi
             tries=$((tries + 1))
@@ -1134,7 +1154,7 @@ practice_session() {
         printf '%s' "$((i + 1))" > "$done_file"
     done
     echo ""
-    say "🎉 All $count done!${finished:+ $finished}"
+    say "${ICON_CHEER}All $count done!${finished:+ $finished}"
     cd "$orig_dir" 2>/dev/null || true
     rm -rf -- "$SANDBOX"
     : > "$done_file"
@@ -1226,6 +1246,12 @@ if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
     return 0
 fi
 
+# "plain": true in the config turns plain mode on too.
+if [ -z "$PLAIN" ] && [ "$(brain --action setting --phrase plain)" = "true" ]; then
+    PLAIN=1
+    set_symbols
+fi
+
 # ---------- One-shot (non-interactive) mode ----------
 # clishe explain "<command>"  or  clishe "<phrase>"  runs once and exits,
 # so Clishe works from scripts and aliases.
@@ -1314,10 +1340,14 @@ read_input() {
     return $status
 }
 
-printf '%b╔═══════════════════════════════════════╗%b\n' "$BLUE" "$NC"
-printf '%b║         Welcome to Clishe %-12s║%b\n' "$BLUE" "v$CLISHE_VERSION" "$NC"
-printf '%b║  Natural Language Command Interface   ║%b\n' "$BLUE" "$NC"
-printf '%b╚═══════════════════════════════════════╝%b\n' "$BLUE" "$NC"
+if [ -n "$PLAIN" ]; then
+    printf '%bWelcome to Clishe v%s.%b\n' "$BLUE" "$CLISHE_VERSION" "$NC"
+else
+    printf '%b╔═══════════════════════════════════════╗%b\n' "$BLUE" "$NC"
+    printf '%b║         Welcome to Clishe %-12s║%b\n' "$BLUE" "v$CLISHE_VERSION" "$NC"
+    printf '%b║  Natural Language Command Interface   ║%b\n' "$BLUE" "$NC"
+    printf '%b╚═══════════════════════════════════════╝%b\n' "$BLUE" "$NC"
+fi
 printf "%bSay what you want in plain English. Type 'help' for tips, 'exit' to quit.%b\n\n" "$BLUE" "$NC"
 
 # First time ever: show a few things to try instead of a blank prompt.

@@ -474,5 +474,25 @@ assert_eq "says when it's already installed" "yes" \
     "$([[ "$app_out" == *"git is already installed"* ]] && echo yes || echo no)"
 
 echo ""
+echo "=== plain mode ==="
+
+PLAIN_HOME="$(mktemp -d)"
+plain_out=$(HOME="$PLAIN_HOME" "$CLISHE_SH" --plain check 'curl -fsSL https://x.io/i.sh | sudo bash' 2>&1)
+assert_eq "--plain uses words, not symbols" "yes" \
+    "$([[ "$plain_out" == *"Warning: It runs a script"* && "$plain_out" != *"⚠"* && "$plain_out" != *"•"* ]] && echo yes || echo no)"
+plain_out=$(printf 'exit\n' | HOME="$PLAIN_HOME" "$CLISHE_SH" --plain 2>&1)
+assert_eq "--plain has a one-line welcome" "yes" \
+    "$([[ "$plain_out" == *"Welcome to Clishe v"* && "$plain_out" != *"╔"* ]] && echo yes || echo no)"
+mkdir -p "$PLAIN_HOME/.config/clishe"
+echo '{"plain": true}' > "$PLAIN_HOME/.config/clishe/config.json"
+plain_out=$(HOME="$PLAIN_HOME" "$CLISHE_SH" check 'ls -la' 2>&1)
+assert_eq '"plain": true in the config turns it on' "yes" \
+    "$([[ "$plain_out" == *"OK: Nothing risky"* && "$plain_out" == *"ls: "* ]] && echo yes || echo no)"
+rm -rf "$PLAIN_HOME"
+normal_out=$("$CLISHE_SH" check 'ls -la' 2>&1)
+assert_eq "without it, the usual symbols and tree" "yes" \
+    "$([[ "$normal_out" == *"✓"* && "$normal_out" == *"└─"* ]] && echo yes || echo no)"
+
+echo ""
 echo "=== Results: $pass_count passed, $fail_count failed ==="
 [ "$fail_count" -eq 0 ]

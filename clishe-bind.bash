@@ -64,7 +64,7 @@ __clishe_widget() {
                 __clishe_print 2 "clishe${__CL_PROVIDER:+ (via $__CL_PROVIDER)}: $__CL_NOTE"
             fi
             if [ -n "$__CL_REASON" ]; then
-                __clishe_print 33 "⚠ careful, this command:"
+                __clishe_print 33 "${CLISHE_PLAIN:+Warning:}${CLISHE_PLAIN:-⚠} careful, this command:"
                 while IFS= read -r reason; do
                     [ -n "$reason" ] && __clishe_print 33 "  - $reason"
                 done <<< "${__CL_REASON//\\n/$'\n'}"
