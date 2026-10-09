@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- **`clishe doctor`** (or `doctor` in a session): checks Python, bash,
+  whether `clishe` is on your PATH, the Ctrl+G shortcut for your shell,
+  the config file (invalid JSON, misspelled settings), the data folder,
+  `man`, the Trash, the bundled examples, your local AI (running? model
+  downloaded? host on this computer?) and whether cloud AI is on. Each
+  finding says how to fix it; it exits with 1 when something is broken.
+  The bug report form now asks for its output.
 - **Thousands of commands, offline, from tldr-pages** (CC BY 4.0, see
   NOTICE.md). `explain` now gives a plain-English summary and real
   examples for thousands of commands, with the flags you used explained

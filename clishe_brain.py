@@ -825,7 +825,7 @@ def main():
                                  'setup', 'set-model', 'breakdown', 'tour', 'fix',
                                  'inspect', 'undo-before', 'undo-record', 'undo-plan',
                                  'undo-done', 'lessons', 'lesson', 'lesson-check', 'app',
-                                 'setting'],
+                                 'setting', 'doctor'],
                         help='Action to perform')
     parser.add_argument('--phrase', default='', help='Natural language phrase')
     parser.add_argument('--command', default='', help='Bash command')
@@ -1092,6 +1092,12 @@ def main():
                 print(f"SETUP={_one_line(step)}")
             for other in result['others']:
                 print(f"OTHER={_one_line(other)}")
+
+    elif args.action == 'doctor':
+        import doctor
+        for check in doctor.run(os.environ.get("CLISHE_BASH", ""), os.environ.get("CLISHE_ON_PATH", ""),
+                                os.environ.get("SHELL", "")):
+            print("CHECK=" + "\t".join(_one_line(part) for part in check))
 
     elif args.action == 'setting':
         value = load_config().get(args.phrase, "")

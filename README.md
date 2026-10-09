@@ -329,6 +329,7 @@ Nothing runs until you press Enter. Prefer another key? Set `CLISHE_KEY` before 
 | `progress` | The commands you've learned to type yourself |
 | `setup` | Find or set up a local AI model |
 | `tour` | A quick tour of your own computer |
+| `doctor` | Check your setup, and how to fix anything wrong |
 | `explain <command>` | Explain a command and its flags |
 | `what does this mean` | Explain the output of the command you just ran |
 | `fix that` | Explain why the last command failed, and offer a fix |
@@ -346,6 +347,7 @@ clishe practice [lesson]          # hands-on exercises (--list shows the lessons
 clishe progress                   # what you've learned
 clishe setup                      # find or set up a local AI model
 clishe tour                       # a quick tour of your computer
+clishe doctor                     # check your setup (exit 1 if something's broken)
 clishe check '<command>'          # is it safe to run? (or a script: clishe check setup.sh)
 clishe --init bash                # the Ctrl+G shortcut, for your ~/.bashrc
 clishe --init zsh                 # the same, for your ~/.zshrc
@@ -485,6 +487,8 @@ To report a way to bypass the confirmation checks, see [SECURITY.md](SECURITY.md
 
 ## Troubleshooting
 
+Start with **`clishe doctor`**. It checks your Python and bash, whether `clishe` is on your PATH, the Ctrl+G shortcut, your config file (including misspelled settings), the data folder, `man`, the Trash, your local AI (and whether its model is downloaded) and whether anything could be sent to the internet, and says how to fix whatever is wrong. It exits with 1 when something is actually broken. Please include its output in bug reports.
+
 **`clishe: command not found`**
 `~/.local/bin` isn't on your `PATH`. Add `export PATH="$HOME/.local/bin:$PATH"` to your `~/.bashrc`, then restart your shell.
 
@@ -514,6 +518,7 @@ breakdown.py            draws a command with each part labelled
 tldr.py, tldr.json.gz   summaries and examples from tldr-pages (see NOTICE.md)
 scripts/build_tldr.py   rebuilds tldr.json.gz from a tldr-pages release
 tour.py                 clishe tour: your computer in plain English
+doctor.py               clishe doctor: setup checks and how to fix them
 apps.py, apps.json      "how do I install Spotify?": popular apps per distro
 fix.py                  fix that: offline fixes for common mistakes
 lessons.py, lessons/    practice lessons (JSON) and how they're checked
