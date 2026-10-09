@@ -101,6 +101,14 @@ brackets, e.g. `"copy a file": "cp <file> <destination>"`. Never add a bare
 command that needs arguments (`"cat"`), since it would hang or fail when run.
 `tests/test_data_files.py` checks this.
 
+## Updating the tldr-pages data
+
+`tldr.json.gz` is generated, so don't edit it by hand. To move to a newer
+tldr-pages release, change `VERSION` in `scripts/build_tldr.py`, run
+`python3 scripts/build_tldr.py`, run the tests, and update the version in
+NOTICE.md. Improvements to the examples themselves belong upstream in
+[tldr-pages](https://github.com/tldr-pages/tldr).
+
 ## Writing a lesson
 
 A lesson is a JSON file in `lessons/` (bundled with Clishe) or in

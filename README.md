@@ -77,7 +77,8 @@ Most command-line tools assume you already know the command you want. Clishe ass
 - Natural language to shell commands, resolved in this order: your knowledge base, the bundled seed KB, a native command you typed directly, a close match to a phrase it already knows ("did you mean...?"), then an AI provider (if configured), then "teach me".
 - Forgiving matching: case, punctuation and filler like "please" or "can you" are ignored, so `Please show me disk usage?` finds `show me disk usage`. Different wording with the same meaning gets a "did you mean...?" too (`remove a directory` → `delete a folder`).
 - Fill-in-the-blank commands: entries like `cp <file> <destination>` ask for each value, quote it safely, and show the final command before running it. You can teach your own (`ssh <server>`).
-- `explain`-style questions: `explain tar -xzvf`, `what does chmod do`, `what's grep`, `tell me about find`. The offline dictionary explains each flag you used (`-x`, `-z`, `-v`, `-f`). For anything else that's installed, Clishe reads **your own system's manual** (`man`, or `--help`) and picks out the lines for the flags you used, still offline. An AI is asked only when there's no manual at all.
+- `explain`-style questions: `explain tar -xzvf`, `what does chmod do`, `what's grep`, `tell me about find`. The offline dictionary explains each flag you used (`-x`, `-z`, `-v`, `-f`). For thousands of other commands, Clishe uses the plain-English summaries and real examples from [tldr-pages](https://github.com/tldr-pages/tldr) (bundled, offline), with the flags you used explained from **your own system's manual** (`man`, or `--help`). An AI is asked only when there's nothing at all.
+- **Thousands of things it can do offline.** When a request doesn't match a phrase Clishe knows, it looks through the 31,000 tldr-pages examples for one whose description fits ("count words in a file" → `wc -w <file>`), only for everyday commands that are installed, and asks "Did you mean…?" before running anything. Matching is strict on purpose: no suggestion is better than a wrong one.
 - **Every part labelled.** AI suggestions, and known phrases the first time you use them, are drawn with each part of the command labelled underneath, using the offline dictionary and your own `man` pages. You see the shape of a command, not just a one-liner. Commands with pipes or redirects are shown the usual way.
 - AI suggestions are checked against your manual, and Clishe warns if a flag isn't in it (small models sometimes invent them). You learn from the real documentation, not just the model.
 - Plain-English hints when a command fails (permission denied, no such file, pip's "externally-managed-environment", apt without sudo, no internet, and more), fully offline. If a program isn't installed, it tells you the install command for your distro (`apt`, `dnf`, `pacman`, `zypper` or `apk`).
@@ -510,6 +511,8 @@ config.py               config loading, distro detection
 knowledge.py            offline explain / diagnose engine
 manual.py               reads the man pages installed on your system
 breakdown.py            draws a command with each part labelled
+tldr.py, tldr.json.gz   summaries and examples from tldr-pages (see NOTICE.md)
+scripts/build_tldr.py   rebuilds tldr.json.gz from a tldr-pages release
 tour.py                 clishe tour: your computer in plain English
 apps.py, apps.json      "how do I install Spotify?": popular apps per distro
 fix.py                  fix that: offline fixes for common mistakes
@@ -553,3 +556,5 @@ Found a safety issue? See [SECURITY.md](SECURITY.md).
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+Command summaries and examples come from [tldr-pages](https://github.com/tldr-pages/tldr), © the tldr-pages team and contributors, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). See [NOTICE.md](NOTICE.md) for details and what was changed.

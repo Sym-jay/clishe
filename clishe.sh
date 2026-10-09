@@ -692,8 +692,8 @@ offer_close_match() {
     parse_brain_output "$output" SG
     [ "$SG_STATUS" = "ok" ] || return 1
 
-    printf '%bClishe: %bDid you mean "%s"? That runs: %b%s%b\n' \
-        "$BLUE" "$NC" "$SG_PHRASE" "$YELLOW" "$SG_COMMAND" "$NC"
+    printf '%bClishe%s: %bDid you mean "%s"? That runs: %b%s%b\n' \
+        "$BLUE" "${SG_PROVIDER:+ (via $SG_PROVIDER)}" "$NC" "$SG_PHRASE" "$YELLOW" "$SG_COMMAND" "$NC"
     read -r -p "Use it? [Y/n]: " answer
     if [[ "$answer" =~ ^[Nn] ]]; then
         return 1
