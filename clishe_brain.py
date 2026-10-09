@@ -459,6 +459,31 @@ class ClisheBrain:
         return {"learned": learned, "others": others, "total": len(BASICS),
                 "to_try": to_try, "next": next_up[:3]}
 
+    def cheat_sheet(self):
+        """Your own cheat sheet: the commands you've typed yourself (in the
+        form you use most, with what they do), and the phrases you still ask
+        for. Returns {"learned": [(command, meaning)], "asked": [(phrase, command)]}."""
+        import tldr
+        from collections import Counter
+        from breakdown import _short
+        from knowledge import _COMMAND_DICT
+        typed = self.data.get('typed', {})
+        history = [c for seq in self.data.get('sequences', []) for c in seq] + self.data.get('current', [])
+        forms = Counter(c.strip() for c in history if _command_name(c) in typed)
+        learned = []
+        for name in sorted(typed, key=lambda n: -typed[n]):
+            uses = [(n, c) for c, n in forms.items() if _command_name(c) == name]
+            # The form you use most; shorter on a tie.
+            command = max(uses, key=lambda u: (u[0], -len(u[1])))[1] if uses else name
+            meaning = tldr.summary(name) or (_COMMAND_DICT.get(name) or {}).get("summary", "")
+            learned.append((command, _short(meaning)))
+        asked = []
+        for phrase, count in sorted(self.data.get('phrase_uses', {}).items(), key=lambda p: -p[1]):
+            command = self.query(phrase)
+            if command and _command_name(command) not in typed:
+                asked.append((phrase, command))
+        return {"learned": learned, "asked": asked}
+
     # ---------- the shell shortcut (clishe-bind.bash) ----------
 
     def resolve_line(self, text, use_ai=True):
@@ -825,7 +850,7 @@ def main():
                                  'setup', 'set-model', 'breakdown', 'tour', 'fix',
                                  'inspect', 'undo-before', 'undo-record', 'undo-plan',
                                  'undo-done', 'lessons', 'lesson', 'lesson-check', 'app',
-                                 'setting', 'doctor'],
+                                 'setting', 'doctor', 'sheet'],
                         help='Action to perform')
     parser.add_argument('--phrase', default='', help='Natural language phrase')
     parser.add_argument('--command', default='', help='Bash command')
@@ -1047,14 +1072,19 @@ def main():
     elif args.action == 'lessons':
         import lessons
         for pack in lessons.available():
+            needs = f" (needs {', '.join(pack['missing'])})" if pack['missing'] else ""
             print(f"PACK={pack['name']}\t{pack['count']}\t{_one_line(pack['title'])}"
-                  f"\t{_one_line(pack['description'])}")
+                  f"\t{_one_line(pack['description'])}{needs}")
 
     elif args.action == 'lesson':
         import lessons
         pack = lessons.read(args.phrase)
-        print("STATUS=ok" if pack else "STATUS=none")
-        if pack:
+        absent = lessons.missing(pack) if pack else []
+        print("STATUS=" + ("none" if not pack else "missing" if absent else "ok"))
+        for name in absent:
+            from knowledge import missing_program_hint
+            print(f"MISSING={_one_line(missing_program_hint(name))}")
+        if pack and not absent:
             print(f"TITLE={_one_line(pack['title'])}")
             print(f"DONE={_one_line(pack.get('done', ''))}")
             for ex in pack['exercises']:
@@ -1098,6 +1128,13 @@ def main():
         for check in doctor.run(os.environ.get("CLISHE_BASH", ""), os.environ.get("CLISHE_ON_PATH", ""),
                                 os.environ.get("SHELL", "")):
             print("CHECK=" + "\t".join(_one_line(part) for part in check))
+
+    elif args.action == 'sheet':
+        sheet = brain.cheat_sheet()
+        for command, meaning in sheet['learned']:
+            print(f"LEARNED={_one_line(command)}\t{_one_line(meaning)}")
+        for phrase, command in sheet['asked']:
+            print(f"ASKED={_one_line(phrase)}\t{_one_line(command)}")
 
     elif args.action == 'setting':
         value = load_config().get(args.phrase, "")

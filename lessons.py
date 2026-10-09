@@ -16,12 +16,16 @@ anything on your computer by being checked:
     {"contains": ["f.txt", "milk"]} a file contains some text
     {"cwd": "notes"}                the learner is in that folder ("." = the practice folder)
 
+A pack can list programs it needs ("needs": ["git"]); if one is missing,
+Clishe says how to install it instead of starting.
+
 Bundled packs live in lessons/ next to this file. Your own, or a workshop's,
 go in ~/.local/share/clishe/lessons/ and win if the names clash.
 """
 import json
 import os
 import re
+import shutil
 from pathlib import Path
 from typing import List, Optional
 
@@ -50,6 +54,9 @@ def problems(pack) -> List[str]:
     if not isinstance(pack, dict):
         return ["the file should hold one JSON object"]
     found = [f'missing "{key}"' for key in ("title", "exercises") if key not in pack]
+    needs = pack.get("needs", [])
+    if not isinstance(needs, list) or not all(isinstance(n, str) and _NAME.match(n) for n in needs):
+        found.append('"needs" should be a list of program names, like ["git"]')
     exercises = pack.get("exercises")
     if not isinstance(exercises, list) or not exercises:
         return found + ['"exercises" should be a non-empty list']
@@ -86,6 +93,11 @@ def read(name: str) -> Optional[dict]:
     return None if problems(pack) else pack
 
 
+def missing(pack: dict) -> List[str]:
+    """Programs the pack needs that aren't installed."""
+    return [name for name in pack.get("needs", []) if not shutil.which(name)]
+
+
 def available() -> List[dict]:
     """[{"name", "title", "description", "count"}] for every valid pack,
     the basics first."""
@@ -95,7 +107,7 @@ def available() -> List[dict]:
         if pack:
             packs.append({"name": name, "title": pack["title"],
                           "description": pack.get("description", ""),
-                          "count": len(pack["exercises"])})
+                          "count": len(pack["exercises"]), "missing": missing(pack)})
     packs.sort(key=lambda p: (p["name"] != "basics", p["name"]))
     return packs
 

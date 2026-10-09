@@ -304,13 +304,13 @@ echo "=== practice ==="
 
 PRACTICE_HOME="$(mktemp -d)"
 practice_out=$(printf '%s\n' pwd ls "mkdir notes" hint "cd notes" quit \
-    | HOME="$PRACTICE_HOME" "$CLISHE_SH" practice 2>&1)
+    | HOME="$PRACTICE_HOME" "$CLISHE_SH" practice basics 2>&1)
 assert_eq "practice checks each step" "4" "$(grep -c "Nice!" <<< "$practice_out")"
 assert_eq "practice gives hints" "yes" \
     "$([[ "$practice_out" == *"cd means 'change directory'"* ]] && echo yes || echo no)"
 assert_eq "practice remembers where you stopped" "4" \
     "$(cat "$PRACTICE_HOME/.local/share/clishe/practice_done_basics")"
-resume_out=$(printf '%s\n' y "touch todo.txt" quit | HOME="$PRACTICE_HOME" "$CLISHE_SH" practice 2>&1)
+resume_out=$(printf '%s\n' y "touch todo.txt" quit | HOME="$PRACTICE_HOME" "$CLISHE_SH" practice basics 2>&1)
 assert_eq "practice picks up where you left off" "yes" \
     "$([[ "$resume_out" == *"5/14 Create an empty file"*"Nice!"* ]] && echo yes || echo no)"
 assert_eq "practice cleans up its folder" "" \
@@ -440,7 +440,7 @@ assert_eq "--list shows bundled and your own lessons" "yes" \
 tiny_out=$(printf '%s\n' "mkdir box" | HOME="$LESSON_HOME" timeout 20 "$CLISHE_SH" practice tiny 2>&1)
 assert_eq "a lesson by name runs and finishes" "yes" \
     "$([[ "$tiny_out" == *"Practice time: Tiny"*"Nice!"*"All 1 done! Well done."* ]] && echo yes || echo no)"
-pick_out=$(printf '%s\n' 2 "mkdir box" | HOME="$LESSON_HOME" timeout 20 "$CLISHE_SH" practice 2>&1)
+pick_out=$(printf '%s\n' tiny "mkdir box" | HOME="$LESSON_HOME" timeout 20 "$CLISHE_SH" practice 2>&1)
 assert_eq "with several lessons, it asks which" "yes" \
     "$([[ "$pick_out" == *"Which lesson?"*"Practice time: Tiny"* ]] && echo yes || echo no)"
 missing_out=$(HOME="$LESSON_HOME" "$CLISHE_SH" practice nope 2>&1)
@@ -508,7 +508,7 @@ mkdir "$SWEEP_TMP/clishe-practice.OLDOLD" "$SWEEP_TMP/clishe-practice.NEWNEW" \
       "$SWEEP_TMP/clishe-practice-other" "$SWEEP_TMP/someone.OLDOLD"
 touch -t 202601010000 "$SWEEP_TMP/clishe-practice.OLDOLD" "$SWEEP_TMP/clishe-practice-other" \
       "$SWEEP_TMP/someone.OLDOLD"
-echo quit | HOME="$TEST_HOME" TMPDIR="$SWEEP_TMP/" timeout 20 "$CLISHE_SH" practice >/dev/null 2>&1
+echo quit | HOME="$TEST_HOME" TMPDIR="$SWEEP_TMP/" timeout 20 "$CLISHE_SH" practice basics >/dev/null 2>&1
 assert_eq "old practice folders are swept, nothing else" \
     "clishe-practice-other clishe-practice.NEWNEW someone.OLDOLD" \
     "$(cd "$SWEEP_TMP" && echo *)"
@@ -538,6 +538,20 @@ assert_eq "a broken config is a problem (exit 1)" "1" "$?"
 assert_eq "and says how to fix it, in words with --plain" "yes" \
     "$([[ "$doctor_out" == *"Problem: The config file isn't valid JSON"*"Fix: "* ]] && echo yes || echo no)"
 rm -rf "$DOCTOR_HOME"
+
+echo ""
+echo "=== cheat sheet ==="
+
+python3() { printf '%s\n' $'LEARNED=ls -la\tlist directory contents' $'ASKED=count lines in a file\twc -l <file>'; }
+sheet_out=$(cheat_sheet 2>&1)
+unset -f python3
+assert_eq "lists what you type and what you still ask for" "yes" \
+    "$([[ "$sheet_out" == *"MY LINUX CHEAT SHEET: 1 commands"*"ls -la"*"list directory contents"*"STILL LEARNING"*"wc -l <file>"*"count lines in a file"* ]] && echo yes || echo no)"
+python3() { :; }
+sheet_out=$(cheat_sheet 2>&1)
+unset -f python3
+assert_eq "an empty sheet says how to fill it" "yes" \
+    "$([[ "$sheet_out" == *"empty so far"* ]] && echo yes || echo no)"
 
 echo ""
 echo "=== Results: $pass_count passed, $fail_count failed ==="

@@ -27,7 +27,8 @@ def test_bundled_packs_can_be_solved(name, tmp_path):
     sandbox = tmp_path.resolve()
     cwd = sandbox
     for n, ex in enumerate(pack["exercises"], 1):
-        out = subprocess.run(["bash", "-c", f"cd {str(cwd)!r} && {{ {ex['answer']}; }} >/dev/null 2>&1; pwd"],
+        out = subprocess.run(["bash", "-c", f"cd {str(cwd)!r} && {{ {ex['answer']}\n}} >/dev/null 2>&1; "
+                              "kill $(jobs -p) 2>/dev/null; pwd"],
                              capture_output=True, text=True)
         cwd = Path(out.stdout.strip().splitlines()[-1])
         assert lessons.passes(ex["check"], ex["answer"], str(cwd), str(sandbox)), \
@@ -88,3 +89,12 @@ def test_your_own_lessons_are_found_and_win_on_name(tmp_path, monkeypatch):
     assert names[0] == "basics" and "mine" in names and "broken" not in names
     (folder / "basics.json").write_text(json.dumps(pack))
     assert lessons.read("basics")["title"] == "Mine"
+
+
+def test_needs_reports_missing_programs(monkeypatch):
+    pack = {"title": "x", "needs": ["git", "nope-not-here"],
+            "exercises": [{"task": "t", "check": [{"typed": "x"}], "hint": "h", "answer": "x"}]}
+    assert lessons.problems(pack) == []
+    monkeypatch.setattr(lessons.shutil, "which", lambda n: None if n == "nope-not-here" else "/usr/bin/" + n)
+    assert lessons.missing(pack) == ["nope-not-here"]
+    assert lessons.problems({**pack, "needs": "git"})   # must be a list

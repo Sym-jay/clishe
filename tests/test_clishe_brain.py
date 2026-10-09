@@ -589,3 +589,22 @@ def test_dictionary_explanations_gain_tldr_examples(brain):
 def test_spelling_matches_are_only_for_typos(brain):
     assert brain.suggest("show disk usge") == ("show me disk usage", "df -h")
     assert brain.suggest("count words in a file") != ("count lines in a file", "wc -l <file>")
+
+
+# ---------- cheat sheet ----------
+
+def test_cheat_sheet(brain):
+    for command in ["ls -la", "ls -la", "ls", "df -h"]:
+        brain.log(command)
+        brain.record_use(command)                       # typed yourself
+    brain.record_use("wc -l notes.txt", "count lines in a file")   # asked for
+    brain.record_use("df -h", "show me disk usage")     # asked for, but typed too
+    sheet = brain.cheat_sheet()
+    commands = [command for command, _ in sheet["learned"]]
+    assert commands == ["ls -la", "df -h"]               # most-used form, most-used first
+    assert all(meaning for _, meaning in sheet["learned"])
+    assert sheet["asked"] == [("count lines in a file", "wc -l <file>")]
+
+
+def test_cheat_sheet_starts_empty(brain):
+    assert brain.cheat_sheet() == {"learned": [], "asked": []}
