@@ -1233,7 +1233,7 @@ list_lessons() {
 # "clishe sheet": your own cheat sheet, plain text so it can be saved
 # (clishe sheet > cheatsheet.txt) and printed.
 cheat_sheet() {
-    local key value command meaning width=0
+    local key value command width=0
     local -a learned=() asked=()
     while IFS='=' read -r key value; do
         case "$key" in
