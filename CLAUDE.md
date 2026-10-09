@@ -24,11 +24,25 @@ type it yourself. Published on PyPI as `clishe` (`pipx install clishe`).
   happened and what to do next. No jargon, no apologies.
 - **Python standard library only**, plus bash. No runtime dependencies.
 
+**Never:**
+- add a runtime dependency, or make the Anthropic provider (or any cloud AI) a default;
+- edit `tldr.json.gz` by hand (rebuild it with `scripts/build_tldr.py`);
+- loosen "did you mean" or tldr matching without first adding the bad cases to the "no match" tests;
+- run Clishe or tests against the real `HOME` or the real Trash (see Testing).
+
+## Quick start
+
+```bash
+pip install pytest                                  # the only dev dependency
+HOME=$(mktemp -d) NO_COLOR=1 ./clishe.sh            # try it with a throwaway home
+python -m pytest tests/ -q && /bin/bash tests/test_shell_functions.sh
+```
+
 ## Layout
 
 | Path | What it is |
 |---|---|
-| `clishe.sh` | The interactive front end (bash, ~1,700 lines): session loop, routing, prompts, display |
+| `clishe.sh` | The interactive front end (bash, large: search it before adding a helper): session loop, routing, prompts, display |
 | `clishe_brain.py` | Python backend called by `clishe.sh` as `--action <name>`; prints `KEY=value` lines |
 | `launch.py` | The `clishe` console script when installed with pipx; runs `clishe.sh` with bash |
 | `clishe-bind.bash`, `clishe-bind.zsh` | The Ctrl+G shortcut for the user's normal shell |
@@ -49,9 +63,12 @@ type it yourself. Published on PyPI as `clishe` (`pipx install clishe`).
 | `packaging/aur/` | Arch package (not yet submitted to the AUR) |
 
 The installed package keeps this flat layout: `pyproject.toml` maps the repo
-root to the `clishe` package, and lists non-Python files in `package-data`.
-**A new data file must be added to `package-data`** (and to
-`packaging/aur/PKGBUILD`), or it won't ship.
+root to the `clishe` package, and lists non-Python files in `package-data`
+as globs (`*.json`, `*.json.gz`, `lessons/*.json`); `packaging/aur/PKGBUILD`
+uses the same globs. **A new file outside those globs (a new extension, a new
+folder, another shell script) must be added to `package-data` and to the
+PKGBUILD**, or it won't ship. A new Python subfolder also needs an entry in
+`packages` and `package-dir`.
 
 ## How the pieces talk
 
@@ -59,9 +76,45 @@ root to the `clishe` package, and lists non-Python files in `package-data`.
 `python3 clishe_brain.py ... 2>/dev/null`) and parses `KEY=value` lines with
 `parse_brain_output` or a `while IFS='=' read` loop. To add a feature:
 1. Logic in a Python module.
-2. A new action in `clishe_brain.py` (add it to `choices=[...]`, print `KEY=value`; use `_one_line()` / `_encoded()` for values).
+2. A new action in `clishe_brain.py` (add it to `choices=[...]` in `main()`,
+   the full list of actions; print `KEY=value`; use `_one_line()` /
+   `_encoded()` for values).
 3. A bash function in `clishe.sh` that renders it.
-4. Hook it into the one-shot `case "$1"` block and/or the session `case "$user_input"` block, and the `usage` / `session_help` text.
+4. Hook it in, and don't skip the text (the step most often missed):
+   - [ ] the one-shot `case "$1"` block and/or the session `case "$user_input"` block
+   - [ ] `usage` and `session_help`
+   - [ ] README (features, session commands table, one-shot list)
+   - [ ] tests for the Python logic and the bash rendering
+
+## Debugging
+
+`brain()` in `clishe.sh` runs Python with `2>/dev/null`, so a Python
+traceback shows up in bash only as empty output (a feature that "does
+nothing"). Run the backend directly to see the error and exactly what it
+prints (`KEY=value` lines for most actions; `query` prints the bare command):
+
+```bash
+HOME=$(mktemp -d) python3 clishe_brain.py --action explain --command 'ls -la'
+HOME=$(mktemp -d) python3 clishe_brain.py --action query --phrase 'show hidden files'
+```
+
+For the bash side, `HOME=$(mktemp -d) bash -x ./clishe.sh ...` traces each line.
+
+## Config and AI providers
+
+- Config lives in `$XDG_CONFIG_HOME/clishe/config.json` (default
+  `~/.config/clishe/config.json`); defaults are `DEFAULT_CONFIG` in
+  `config.py`. Importing `config.py` creates that folder, which is one more
+  reason to use a throwaway `HOME`.
+- Keys that matter: `provider_priority` (order AI providers are tried),
+  `allow_remote_ai` (off: non-local hosts are refused), and per-provider
+  blocks (`model`, `host`, and for cloud providers `enabled`).
+- A new provider subclasses `Provider` in `providers/base.py`
+  (`is_available`, `resolve_command`, `explain_command`; raise
+  `ProviderError` for expected failures so the chain falls through) and is
+  registered in `REGISTRY` in `providers/__init__.py`, and nowhere else. A
+  cloud provider must be off unless `"enabled": true` (`opted_in`).
+- Tests use fake servers; never call a real AI API in a test.
 
 ## Testing
 
@@ -124,7 +177,11 @@ zsh tests/test_zsh_bind.zsh                # the zsh Ctrl+G widget
   2. Rename `## Unreleased` to `## X.Y.Z (date)` in the CHANGELOG.
   3. Open a PR, and merge it when CI passes.
   4. Run `gh release create vX.Y.Z --target main` with the changelog section as notes. `publish.yml` then uploads to PyPI (trusted publishing).
-  5. Update `packaging/aur` to the new tarball's sha256 in a follow-up PR.
+  5. Check the upload finished (`gh run list --workflow publish.yml`) and the new version is on PyPI.
+  6. Update `packaging/aur` to the new tarball's sha256 in a follow-up PR.
+
+  The two version numbers in step 1 must match: `clishe --version` reads
+  `CLISHE_VERSION`, PyPI reads `pyproject.toml`.
 - Contributor issues use the labels `good first issue`, `data only (no code)`,
   `help wanted` and `testing`. CONTRIBUTING's "Good places to start" table
   maps each kind of contribution to its file and test.
