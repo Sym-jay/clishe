@@ -524,5 +524,21 @@ assert_eq "a tldr-pages example is credited and asked about" "yes" \
     "$([[ "$sg_out" == *"Clishe (via tldr-pages): Did you mean \"Count words in file\"? That runs: wc -w <file>"* ]] && echo yes || echo no)"
 
 echo ""
+echo "=== clishe doctor ==="
+
+DOCTOR_HOME="$(mktemp -d)"
+mkdir -p "$DOCTOR_HOME/.config/clishe"
+doctor_out=$(HOME="$DOCTOR_HOME" timeout 30 "$CLISHE_SH" doctor 2>&1)
+assert_eq "a fresh setup has no problems" "0" "$?"
+assert_eq "it checks the main things" "yes" \
+    "$([[ "$doctor_out" == *"Python"*"Ctrl+G"*"Data folder"*"tldr-pages"* ]] && echo yes || echo no)"
+echo '{broken' > "$DOCTOR_HOME/.config/clishe/config.json"
+doctor_out=$(HOME="$DOCTOR_HOME" timeout 30 "$CLISHE_SH" --plain doctor 2>&1)
+assert_eq "a broken config is a problem (exit 1)" "1" "$?"
+assert_eq "and says how to fix it, in words with --plain" "yes" \
+    "$([[ "$doctor_out" == *"Problem: The config file isn't valid JSON"*"Fix: "* ]] && echo yes || echo no)"
+rm -rf "$DOCTOR_HOME"
+
+echo ""
 echo "=== Results: $pass_count passed, $fail_count failed ==="
 [ "$fail_count" -eq 0 ]

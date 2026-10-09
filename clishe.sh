@@ -27,9 +27,11 @@ fi
 set_symbols() {
     if [ -n "$PLAIN" ]; then
         ICON_TIP="Tip:" ICON_WARN="Warning:" ICON_OK="OK:" ICON_CHEER="" ICON_BULLET="-"
+        ICON_NOTE="Note:" ICON_FAIL="Problem:"
         export CLISHE_PLAIN=1   # so the brain draws lists, not trees
     else
         ICON_TIP="💡" ICON_WARN="⚠" ICON_OK="✓" ICON_CHEER="🎉 " ICON_BULLET="•"
+        ICON_NOTE="!" ICON_FAIL="✗"
     fi
 }
 set_symbols
@@ -132,6 +134,7 @@ Usage:
   clishe progress           the commands you've learned to type yourself
   clishe setup              find or set up a local AI model
   clishe tour               a quick tour of your computer
+  clishe doctor             check your setup, and how to fix anything wrong
   clishe check '<command>'  is it safe to run? (or: clishe check script.sh)
   clishe --init bash|zsh    print the Ctrl+G shortcut for your normal shell
                             (add  eval "$(clishe --init bash)"  to ~/.bashrc,
@@ -163,6 +166,7 @@ shell command. Clishe shows you the command before it runs.
   progress            the commands you've learned to type yourself
   setup               find or set up a local AI model
   tour                a quick tour of your computer
+  doctor              check your setup, and how to fix anything wrong
   help                show this message
   exit                leave (Ctrl-D works too)
 
@@ -1210,6 +1214,36 @@ list_lessons() {
     echo "Add your own: put a lesson file in ${XDG_DATA_HOME:-$HOME/.local/share}/clishe/lessons/ (see CONTRIBUTING.md)."
 }
 
+# "clishe doctor": check what commonly goes wrong and say how to fix it.
+# Returns 1 if there's a real problem.
+doctor_session() {
+    local status title detail fix problems=0 notes=0 mark
+    say "Checking your setup..."
+    echo ""
+    while IFS=$'\t' read -r status title detail fix; do
+        case "$status" in
+            ok)   mark="$(printf '%b%s%b' "$GREEN" "$ICON_OK" "$NC")" ;;
+            note) mark="$(printf '%b%s%b' "$YELLOW" "$ICON_NOTE" "$NC")"; notes=$((notes + 1)) ;;
+            *)    mark="$(printf '%b%s%b' "$RED" "$ICON_FAIL" "$NC")"; problems=$((problems + 1)) ;;
+        esac
+        printf '%s %s\n' "$mark" "$title"
+        [ -n "$detail" ] && printf '    %b%s%b\n' "$DIM" "$detail" "$NC"
+        [ -n "$fix" ] && printf '    Fix: %s\n' "$fix"
+    done < <(CLISHE_BASH="$BASH_VERSION" CLISHE_ON_PATH="$(command -v clishe 2>/dev/null)" \
+             brain --action doctor | sed -n 's/^CHECK=//p')
+    echo ""
+    if [ "$problems" -gt 0 ]; then
+        say "$problems problem(s) to fix, and $notes thing(s) worth knowing. The Fix lines above say how."
+        return 1
+    fi
+    if [ "$notes" -gt 0 ]; then
+        say "Everything works. $notes thing(s) above are worth knowing."
+    else
+        say "Everything looks good."
+    fi
+    return 0
+}
+
 # A walk through this computer in plain English, one stop at a time.
 tour_session() {
     local key value label answer stops=0
@@ -1333,6 +1367,8 @@ if [ $# -gt 0 ]; then
             [ $# -eq 1 ] && { setup_session; exit 0; } ;;
         tour)
             [ $# -eq 1 ] && { tour_session; exit $?; } ;;
+        doctor)
+            [ $# -eq 1 ] && { doctor_session; exit $?; } ;;
         check)
             shift
             check_session "$*"
@@ -1489,6 +1525,8 @@ while true; do
             teach_session; echo ""; continue ;;
         setup)
             setup_session; echo ""; continue ;;
+        doctor|"check my setup"|"is clishe working")
+            doctor_session; echo ""; continue ;;
         tour|"show me around"|"tour my computer")
             tour_session; echo ""; continue ;;
         forget|"forget "*)
