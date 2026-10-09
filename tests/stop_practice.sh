@@ -7,7 +7,7 @@ set -m  # the practice gets its own process group, like a job in a terminal
 clishe="$1" sig="$2"
 work="$(mktemp -d)" home="$(mktemp -d)"
 mkfifo "$work/in"
-HOME="$home" TMPDIR="$work/" NO_COLOR=1 "$clishe" practice < "$work/in" > /dev/null 2>&1 &
+HOME="$home" TMPDIR="$work/" NO_COLOR=1 "$clishe" practice basics < "$work/in" > /dev/null 2>&1 &
 pid=$!
 exec 7>"$work/in"
 for _ in $(seq 1 100); do

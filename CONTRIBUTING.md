@@ -148,6 +148,9 @@ never code, so a lesson can't run anything by being checked:
 | `{"cwd": "notes"}` | they are in that folder (`"."` is the practice folder itself) |
 
 Paths are relative to the practice folder, and checks never look outside it.
+If a lesson needs a program that might not be installed, list it in
+`"needs": ["git"]`: Clishe then explains how to install it instead of
+starting the lesson.
 `answer` is what `answer` and `skip` show; it's also run to set the folder up
 when someone picks up a lesson halfway, so each answer should leave things the
 way the next exercise expects. `tests/test_lessons.py` runs every bundled

@@ -3,6 +3,17 @@
 ## Unreleased
 
 ### Added
+- **Two new lessons:** `clishe practice git` (13 exercises: init, config,
+  status, add, commit, log, diff, all inside the throwaway folder) and
+  `clishe practice processes` (ps, pipes with grep/sort/head, background
+  jobs with & and jobs, kill, uptime). With several lessons, `practice`
+  asks which one; type its number or its name. Lessons can list programs
+  they need (`"needs": ["git"]`), and Clishe explains how to install a
+  missing one instead of starting.
+- **`clishe sheet`**: your own cheat sheet. The commands you type yourself,
+  in the form you use most, with what each does, and the things you still
+  ask for with the command to type instead. Plain text, so
+  `clishe sheet > cheatsheet.txt` saves it for printing.
 - **`clishe doctor`** (or `doctor` in a session): checks Python, bash,
   whether `clishe` is on your PATH, the Ctrl+G shortcut for your shell,
   the config file (invalid JSON, misspelled settings), the data folder,

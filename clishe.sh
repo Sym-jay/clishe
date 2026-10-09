@@ -135,6 +135,7 @@ Usage:
   clishe setup              find or set up a local AI model
   clishe tour               a quick tour of your computer
   clishe doctor             check your setup, and how to fix anything wrong
+  clishe sheet              your own cheat sheet (save: clishe sheet > cheatsheet.txt)
   clishe check '<command>'  is it safe to run? (or: clishe check script.sh)
   clishe --init bash|zsh    print the Ctrl+G shortcut for your normal shell
                             (add  eval "$(clishe --init bash)"  to ~/.bashrc,
@@ -167,6 +168,7 @@ shell command. Clishe shows you the command before it runs.
   setup               find or set up a local AI model
   tour                a quick tour of your computer
   doctor              check your setup, and how to fix anything wrong
+  sheet               your own cheat sheet of the commands you've learned
   help                show this message
   exit                leave (Ctrl-D works too)
 
@@ -1078,7 +1080,7 @@ sweep_practice_folders() {
 practice_session() {
     local pack="${1:-}" start=0 i cmd status answer key value title="" finished="" count
     local orig_dir="$PWD" choice n
-    local -a names=() tasks=() hints=() answers=()
+    local -a names=() tasks=() hints=() answers=() needs=()
     mkdir -p "$DATA_DIR" 2>/dev/null
 
     if [ -z "$pack" ]; then
@@ -1092,9 +1094,15 @@ practice_session() {
                 n=$((n + 1))
                 printf '  %s. %s (%s exercises): %s\n' "$n" "$title" "$count" "$value"
             done < <(brain --action lessons | sed -n 's/^PACK=//p')
-            read -r -p "Pick a number [1]: " choice
-            [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "${#names[@]}" ] || choice=1
-            pack="${names[$((choice - 1))]}"
+            read -r -p "Pick a number or a name [1]: " choice
+            pack=""
+            for value in "${names[@]}"; do
+                [ "$value" = "$choice" ] && pack="$value"
+            done
+            if [ -z "$pack" ]; then
+                [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "${#names[@]}" ] || choice=1
+                pack="${names[$((choice - 1))]}"
+            fi
         else
             pack="${names[0]:-basics}"
         fi
@@ -1108,8 +1116,16 @@ practice_session() {
             TASK) tasks+=("$value") ;;
             HINT) hints+=("$value") ;;
             ANSWER) answers+=("$value") ;;
+            MISSING) needs+=("$value") ;;
         esac
     done < <(brain --action lesson --phrase "$pack")
+    if [ "$status" = "missing" ]; then
+        warn "This lesson needs a program that isn't installed yet:"
+        for value in "${needs[@]}"; do
+            printf '  %s\n' "$value"
+        done
+        return 1
+    fi
     if [ "$status" != "ok" ]; then
         warn "There's no lesson called '$pack'. See the ones you have with: clishe practice --list"
         return 1
@@ -1212,6 +1228,42 @@ list_lessons() {
         printf '  %b%-12s%b %s (%s exercises): %s\n' "$YELLOW" "$name" "$NC" "$title" "$count" "$description"
     done < <(brain --action lessons | sed -n 's/^PACK=//p')
     echo "Add your own: put a lesson file in ${XDG_DATA_HOME:-$HOME/.local/share}/clishe/lessons/ (see CONTRIBUTING.md)."
+}
+
+# "clishe sheet": your own cheat sheet, plain text so it can be saved
+# (clishe sheet > cheatsheet.txt) and printed.
+cheat_sheet() {
+    local key value command meaning width=0
+    local -a learned=() asked=()
+    while IFS='=' read -r key value; do
+        case "$key" in
+            LEARNED) learned+=("$value") ;;
+            ASKED) asked+=("$value") ;;
+        esac
+    done < <(brain --action sheet)
+    if [ "${#learned[@]}" -eq 0 ] && [ "${#asked[@]}" -eq 0 ]; then
+        say "Your cheat sheet is empty so far. Run a few commands (or try 'practice'), then ask again."
+        return 0
+    fi
+    for value in "${learned[@]}" "${asked[@]}"; do
+        command="${value%%$'\t'*}"
+        [ "${#command}" -gt "$width" ] && width="${#command}"
+    done
+    [ "$width" -gt 34 ] && width=34
+    if [ "${#learned[@]}" -gt 0 ]; then
+        printf 'MY LINUX CHEAT SHEET: %s commands I type myself\n\n' "${#learned[@]}"
+        for value in "${learned[@]}"; do
+            printf '  %-*s  %s\n' "$width" "${value%%$'\t'*}" "${value#*$'\t'}"
+        done
+    fi
+    if [ "${#asked[@]}" -gt 0 ]; then
+        printf '\nSTILL LEARNING: what I ask for, and the command to type instead\n\n'
+        for value in "${asked[@]}"; do
+            printf '  %-*s  %s\n' "$width" "${value#*$'\t'}" "${value%%$'\t'*}"
+        done
+    fi
+    [ -t 1 ] && printf '\n%bSave it with: clishe sheet > cheatsheet.txt%b\n' "$DIM" "$NC"
+    return 0
 }
 
 # "clishe doctor": check what commonly goes wrong and say how to fix it.
@@ -1369,6 +1421,8 @@ if [ $# -gt 0 ]; then
             [ $# -eq 1 ] && { tour_session; exit $?; } ;;
         doctor)
             [ $# -eq 1 ] && { doctor_session; exit $?; } ;;
+        sheet|cheatsheet)
+            [ $# -eq 1 ] && { cheat_sheet; exit 0; } ;;
         check)
             shift
             check_session "$*"
@@ -1525,6 +1579,8 @@ while true; do
             teach_session; echo ""; continue ;;
         setup)
             setup_session; echo ""; continue ;;
+        sheet|"cheat sheet"|"my cheat sheet"|"show my cheat sheet")
+            cheat_sheet; echo ""; continue ;;
         doctor|"check my setup"|"is clishe working")
             doctor_session; echo ""; continue ;;
         tour|"show me around"|"tour my computer")
