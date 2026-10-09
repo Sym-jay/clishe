@@ -515,5 +515,14 @@ assert_eq "old practice folders are swept, nothing else" \
 rm -rf "$SWEEP_TMP"
 
 echo ""
+echo "=== tldr-pages suggestions ==="
+
+python3() { printf '%s\n' "STATUS=ok" "PHRASE=Count words in file" "COMMAND=wc -w <file>" "PROVIDER=tldr-pages"; }
+sg_out=$(echo "n" | offer_close_match "count words in a file" 2>&1)
+unset -f python3
+assert_eq "a tldr-pages example is credited and asked about" "yes" \
+    "$([[ "$sg_out" == *"Clishe (via tldr-pages): Did you mean \"Count words in file\"? That runs: wc -w <file>"* ]] && echo yes || echo no)"
+
+echo ""
 echo "=== Results: $pass_count passed, $fail_count failed ==="
 [ "$fail_count" -eq 0 ]

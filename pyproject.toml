@@ -43,4 +43,4 @@ package-dir = {"clishe" = ".", "clishe.providers" = "providers"}
 packages = ["clishe", "clishe.providers"]
 
 [tool.setuptools.package-data]
-clishe = ["clishe.sh", "clishe-bind.bash", "clishe-bind.zsh", "*.json", "lessons/*.json"]
+clishe = ["clishe.sh", "clishe-bind.bash", "clishe-bind.zsh", "*.json", "*.json.gz", "lessons/*.json"]

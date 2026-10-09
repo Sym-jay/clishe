@@ -187,6 +187,15 @@ MEANING_CANDIDATE_COVERAGE = 0.67
 MEANING_QUERY_COVERAGE = 0.5
 
 
+def _only_typos(said: str, phrase: str) -> bool:
+    """A spelling match is only a match if the words that differ are typos
+    of each other: "show disk usge" is "show disk usage", but "count words
+    in a file" is not "count lines in a file"."""
+    wanted, have = meaning_tokens(said), meaning_tokens(phrase)
+    return all(difflib.get_close_matches(w, list(have), n=1, cutoff=0.75)
+               for w in wanted - have)
+
+
 class ClisheBrain:
     def __init__(self):
         self.kb = self.load_kb()
@@ -264,14 +273,28 @@ class ClisheBrain:
         if key in known:
             return None
         by_meaning, perfect = self._suggest_by_meaning(key, known)
+        # A partial match gives way to a tldr-pages example that covers
+        # everything they said ("count words in a file" is wc -w, not
+        # "count files in this folder").
+        if by_meaning and not meaning_tokens(key) <= meaning_tokens(by_meaning[0]) \
+                and self.suggest_example(key):
+            by_meaning = None
         if perfect:
             # Same meaning, different words: better than a spelling match
             # ("find a file" is "search for a file", not "find big files").
             return by_meaning
         match = difflib.get_close_matches(key, list(known), n=1, cutoff=FUZZY_CUTOFF)
-        if match:
+        if match and _only_typos(key, match[0]):
             return match[0], known[match[0]]
         return by_meaning
+
+    def suggest_example(self, phrase):
+        """When no known phrase is close: an example from tldr-pages whose
+        description fits ('count words in a file' -> 'Count words in file',
+        wc -w <file>). Returns (description, command) or None. Strict on
+        purpose, and the caller must still ask before running it."""
+        import tldr
+        return tldr.match(phrase)
 
     def _suggest_by_meaning(self, key, known):
         """Match different wording with the same meaning ('remove a
@@ -459,7 +482,7 @@ class ClisheBrain:
             if result["status"] == "ok":
                 return {"mode": "explain", "explanation": result["explanation"]}
 
-        match = self.suggest(text)
+        match = self.suggest(text) or self.suggest_example(text)
         if match:
             return self._line_result(match[1], f'Closest thing I know: "{match[0]}"')
 
@@ -597,13 +620,33 @@ class ClisheBrain:
         """Explain a shell command. Checks the offline built-in dictionary
         first (free, instant, no network) - only falls through to AI
         providers if the base command isn't in the dictionary."""
+        import tldr
+        from knowledge import _base_name
+        name = os.path.basename(_base_name(command))
+        examples = _examples_text(tldr.examples(name))
+
         entry = lookup_command(command)
         if entry:
-            return {
-                "status": "ok",
-                "explanation": format_explanation(entry, command),
-                "provider": "offline dictionary",
-            }
+            return {"status": "ok",
+                    "explanation": format_explanation(entry, command) + examples,
+                    "provider": "offline dictionary" + (" and tldr-pages" if examples else "")}
+
+        # Any other command: tldr-pages' summary and examples, with the flags
+        # explained from its manual on this computer. Still offline.
+        summary = tldr.summary(name)
+        if summary:
+            from manual import check_flags
+            notes = check_flags(command)
+            flags = notes[0]["flags"] if notes else []
+            parts = [summary]
+            if flags:
+                parts.append(f"In '{command.strip()}':\n" + "\n".join(
+                    f"  {flag}  {text or '(not found in the manual)'}" for flag, text in flags))
+            text = "\n".join(parts) + examples
+            if notes:
+                text += f"\nFull details: {notes[0]['source']}"
+            return {"status": "ok", "explanation": text,
+                    "provider": "tldr-pages" + (" and your system's manual" if notes else "")}
 
         # Any installed command: its own manual, still offline.
         from_manual = explain_from_manual(command)
@@ -682,6 +725,13 @@ class ClisheBrain:
 
 
 # ---------- output helpers for clishe.sh ----------
+
+def _examples_text(examples) -> str:
+    """Examples from tldr-pages, as a block to put under an explanation."""
+    if not examples:
+        return ""
+    lines = [f"  {what}\n    {command}" for what, command in examples]
+    return "\nExamples (from tldr-pages):\n" + "\n".join(lines)
 
 _PLACEHOLDER = re.compile(r"<[a-z]+(?: [a-z]+)*>")
 _WRAPPER_WORDS = {"sudo", "doas", "env", "nice", "nohup", "time", "command"}
@@ -795,10 +845,16 @@ def main():
 
     elif args.action == 'suggest':
         match = brain.suggest(args.phrase)
+        source = ""
+        if not match:
+            match = brain.suggest_example(args.phrase)
+            source = "tldr-pages"
         if match:
             print("STATUS=ok")
             print(f"PHRASE={_one_line(match[0])}")
             print(f"COMMAND={_one_line(match[1])}")
+            if source:
+                print(f"PROVIDER={source}")
         else:
             print("STATUS=none")
 

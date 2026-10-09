@@ -2,7 +2,23 @@
 
 ## Unreleased
 
+### Added
+- **Thousands of commands, offline, from tldr-pages** (CC BY 4.0, see
+  NOTICE.md). `explain` now gives a plain-English summary and real
+  examples for thousands of commands, with the flags you used explained
+  from your own manual; commands in Clishe's dictionary gain examples too.
+  The labels under commands use tldr's short summaries.
+- **More requests answered offline.** When no known phrase fits, Clishe
+  looks for a tldr-pages example whose description matches ("count words
+  in a file" → `wc -w <file>`) and asks "Did you mean…?". Only everyday
+  commands that are installed are offered, the request's action must match
+  the example's, and every word you said must be covered.
+
 ### Fixed
+- "Did you mean…?" no longer offers a phrase that only looks alike:
+  "count words in a file" was offered "count lines in a file". Spelling
+  matches now only count when the differing words are typos of each other
+  ("show disk usge" still finds "show me disk usage").
 - Practice no longer leaves its throwaway folder behind when it's stopped
   early. Ctrl-C at the practice prompt now ends practice like "quit"
   (progress saved, folder removed), and closing the terminal or a shutdown

@@ -103,7 +103,7 @@ def test_log_flushes_current_into_sequences_at_threshold(brain):
 def test_explain_uses_offline_dictionary_for_known_command(brain):
     result = brain.explain("chmod 755 script.sh")
     assert result["status"] == "ok"
-    assert result["provider"] == "offline dictionary"
+    assert result["provider"].startswith("offline dictionary")
     assert "permission" in result["explanation"].lower()
 
 
@@ -566,3 +566,26 @@ def test_progress_counts_commands_you_typed(brain):
     assert progress["others"] == ["htop"]
     assert progress["total"] > 20
     assert progress["next"][0] == "pwd"
+
+
+# ---------- tldr-pages ----------
+
+def test_explain_a_command_from_tldr(brain, monkeypatch):
+    import tldr
+    monkeypatch.setattr(tldr, "_platforms", lambda: ("linux", "common"))
+    result = brain.explain("rsync -a src dest")
+    assert result["status"] == "ok"
+    assert result["provider"].startswith("tldr-pages")
+    assert result["explanation"].startswith("Transfer files either to or from a remote host")
+    assert "Examples (from tldr-pages):" in result["explanation"]
+
+
+def test_dictionary_explanations_gain_tldr_examples(brain):
+    result = brain.explain("tar -xzvf a.tgz")
+    assert result["provider"] == "offline dictionary and tldr-pages"
+    assert "Examples (from tldr-pages):" in result["explanation"]
+
+
+def test_spelling_matches_are_only_for_typos(brain):
+    assert brain.suggest("show disk usge") == ("show me disk usage", "df -h")
+    assert brain.suggest("count words in a file") != ("count lines in a file", "wc -l <file>")

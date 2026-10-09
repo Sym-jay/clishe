@@ -45,6 +45,10 @@ def _short(text: str) -> str:
     text = re.split(r"(?<=[a-z])\. |;", text, maxsplit=1)[0].strip().rstrip(".:,")
     if text[:1].isupper() and not text[1:2].isupper():
         text = text[0].lower() + text[1:]
+    # Too long: end at a comma if that still leaves a full phrase
+    # ("..., recursively" -> "..."), else cut with an ellipsis.
+    if len(text) > MAX_LABEL and "," in text[:MAX_LABEL] and text.rindex(",", 0, MAX_LABEL) >= 30:
+        text = text[:text.rindex(",", 0, MAX_LABEL)]
     if len(text) > MAX_LABEL:
         text = text[:MAX_LABEL - 1].rsplit(" ", 1)[0] + "…"
     return text
@@ -75,6 +79,12 @@ def _flag_label(name: str, flag: str) -> str:
 
 
 def _command_label(name: str) -> str:
+    """What the command is, in a few words: tldr-pages' one-line summary
+    (written to be short), then the NAME line of the local manual, then
+    Clishe's own dictionary (full sentences, written for explain)."""
+    import tldr
+    if tldr.summary(name):
+        return _short(tldr.summary(name))
     text = _manual(name)
     if text:
         from manual import summary

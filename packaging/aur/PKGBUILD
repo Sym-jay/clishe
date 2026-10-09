@@ -18,12 +18,13 @@ package() {
   local dest="$pkgdir/usr/share/$pkgname"
   install -d "$dest/providers" "$pkgdir/usr/bin"
   install -m755 clishe.sh "$dest/"
-  install -m644 clishe-bind.* ./*.py ./*.json "$dest/"
+  install -m644 clishe-bind.* ./*.py ./*.json ./*.json.gz "$dest/"
   install -d "$dest/lessons"
   install -m644 lessons/*.json "$dest/lessons/"
   install -m644 providers/*.py "$dest/providers/"
   # clishe.sh follows this link back to /usr/share/clishe to find its files.
   ln -s "/usr/share/$pkgname/clishe.sh" "$pkgdir/usr/bin/clishe"
   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 NOTICE.md "$pkgdir/usr/share/licenses/$pkgname/NOTICE.md"
   install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
 }

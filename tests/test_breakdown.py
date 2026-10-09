@@ -40,7 +40,7 @@ def test_find_is_drawn_with_each_part_labelled():
         "│     │  │        └─ bigger than 100M",
         "│     │  └─ only files, not folders",
         "│     └─ this folder",
-        "└─ search for files in a directory hierarchy",
+        "└─ find files or directories under a directory tree",
     ]
 
 
@@ -49,7 +49,7 @@ def test_options_written_together_get_a_line_each():
     assert lines[0] == "tar  -xzvf  backup.tgz"
     assert lines[1] == "│    ├─ -x  extract an archive"
     assert lines[4].startswith("│    └─ -f  specify the archive filename")
-    assert lines[5] == "└─ archives files together, optionally with compression"
+    assert lines[5] == "└─ archiving utility"
 
 
 def test_placeholders_stay_whole():
@@ -102,7 +102,7 @@ def test_plain_mode_is_a_list_in_reading_order():
     assert result["command"] == "tar  -xzvf  backup.tgz"
     labels = [label for tree, label in result["lines"]]
     assert all(tree == "" for tree, _ in result["lines"])
-    assert labels[0] == "tar: archives files together, optionally with compression"
+    assert labels[0] == "tar: archiving utility"
     assert labels[1] == "-x: extract an archive"
     assert labels[-1].startswith("-f: specify the archive filename")
 
