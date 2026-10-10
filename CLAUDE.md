@@ -98,7 +98,9 @@ HOME=$(mktemp -d) python3 clishe_brain.py --action explain --command 'ls -la'
 HOME=$(mktemp -d) python3 clishe_brain.py --action query --phrase 'show hidden files'
 ```
 
-For the bash side, `HOME=$(mktemp -d) bash -x ./clishe.sh ...` traces each line.
+Or set `CLISHE_DEBUG=1` to let those errors through in a real session:
+`CLISHE_DEBUG=1 HOME=$(mktemp -d) ./clishe.sh ...`. For the bash side,
+`HOME=$(mktemp -d) bash -x ./clishe.sh ...` traces each line.
 
 ## Config and AI providers
 

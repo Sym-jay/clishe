@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Added
+- **`CLISHE_DEBUG=1`** shows Python error messages that Clishe normally
+  hides, for tracking down a bug: `CLISHE_DEBUG=1 clishe`.
 - **Two new lessons:** `clishe practice git` (13 exercises: init, config,
   status, add, commit, log, diff, all inside the throwaway folder) and
   `clishe practice processes` (ps, pipes with grep/sort/head, background
@@ -31,6 +33,12 @@
   in a file" → `wc -w <file>`) and asks "Did you mean…?". Only everyday
   commands that are installed are offered, the request's action must match
   the example's, and every word you said must be covered.
+
+### Changed
+- The optional Anthropic provider's default model is now `claude-haiku-5-5`.
+  It is still off unless you turn it on, and a model already set in your
+  config is left alone.
+- PyPI now lists macOS and the tested Python versions (3.9, 3.11, 3.12).
 
 ### Fixed
 - "Did you mean…?" no longer offers a phrase that only looks alike:

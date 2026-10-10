@@ -116,7 +116,14 @@ say_cmd() { printf '%bClishe: %b%s%b%s%b\n' "$BLUE" "$NC" "$1" "$YELLOW" "$2" "$
 
 warn() { printf '%b%s%b\n' "$YELLOW" "$1" "$NC"; }
 
-brain() { python3 "$PYTHON_SCRIPT" "$@" 2>/dev/null; }
+# CLISHE_DEBUG=1 lets Python's error messages through (for finding bugs).
+brain() {
+    if [[ -n "${CLISHE_DEBUG:-}" ]]; then
+        python3 "$PYTHON_SCRIPT" "$@"
+    else
+        python3 "$PYTHON_SCRIPT" "$@" 2>/dev/null
+    fi
+}
 
 # ---------- Functions ----------
 

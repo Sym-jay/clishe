@@ -391,7 +391,7 @@ The config file is created on first run with owner-only permissions (`0600`):
   "anthropic": {
     "enabled": false,
     "api_key": "",
-    "model": "claude-haiku-4-5-20251001"
+    "model": "claude-haiku-5-5"
   }
 }
 ```

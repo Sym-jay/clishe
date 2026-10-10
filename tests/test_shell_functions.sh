@@ -553,6 +553,12 @@ unset -f python3
 assert_eq "an empty sheet says how to fill it" "yes" \
     "$([[ "$sheet_out" == *"empty so far"* ]] && echo yes || echo no)"
 
+python3() { echo "Traceback: boom" >&2; }
+assert_eq "Python errors are hidden normally" "" "$(brain --action list 2>&1)"
+assert_eq "CLISHE_DEBUG=1 shows Python errors" "Traceback: boom" \
+    "$(CLISHE_DEBUG=1 brain --action list 2>&1)"
+unset -f python3
+
 echo ""
 echo "=== Results: $pass_count passed, $fail_count failed ==="
 [ "$fail_count" -eq 0 ]
