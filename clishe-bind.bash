@@ -82,6 +82,39 @@ __clishe_widget() {
     esac
 }
 
+# Tab completion: "clishe <Tab>" lists what Clishe can do, "clishe practice
+# <Tab>" the lessons, "clishe explain <Tab>" your commands. Lesson names come
+# from the file names, so pressing Tab never starts Python.
+__clishe_lessons() {
+    local file
+    for file in "${__CLISHE_BRAIN%/*}"/lessons/*.json \
+                "${XDG_DATA_HOME:-$HOME/.local/share}"/clishe/lessons/*.json; do
+        [ -f "$file" ] || continue
+        file="${file##*/}"
+        printf '%s\n' "${file%.json}"
+    done
+}
+
+__clishe_complete() {
+    local cur="${COMP_WORDS[COMP_CWORD]}" words="" word
+    COMPREPLY=()
+    if [ "$COMP_CWORD" -eq 1 ]; then
+        words="explain check practice progress sheet tour doctor setup --list --init --plain --version --help"
+    elif [ "$COMP_CWORD" -eq 2 ]; then
+        case "${COMP_WORDS[1]}" in
+            practice) words="$(__clishe_lessons) --list" ;;
+            --init) words="bash zsh" ;;
+            explain)
+                while IFS= read -r word; do COMPREPLY+=("$word"); done < <(compgen -c -- "$cur")
+                return ;;
+        esac
+    fi
+    # Nothing offered (e.g. after "check") falls back to file names.
+    [ -n "$words" ] || return 0
+    while IFS= read -r word; do COMPREPLY+=("$word"); done < <(compgen -W "$words" -- "$cur")
+}
+
 if [[ $- == *i* ]]; then
     bind -x "\"${CLISHE_KEY:-\\C-g}\": __clishe_widget"
+    complete -o default -F __clishe_complete clishe
 fi

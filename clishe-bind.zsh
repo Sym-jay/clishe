@@ -88,7 +88,47 @@ __clishe_widget() {
     esac
 }
 
+# Tab completion: "clishe <Tab>" lists what Clishe can do, "clishe practice
+# <Tab>" the lessons, "clishe explain <Tab>" your commands. Lesson names come
+# from the file names, so pressing Tab never starts Python.
+__clishe_lessons() {
+    local file
+    for file in ${__CLISHE_BRAIN:h}/lessons/*.json(N) \
+                ${XDG_DATA_HOME:-$HOME/.local/share}/clishe/lessons/*.json(N); do
+        print -r -- ${file:t:r}
+    done
+}
+
+# __clishe_words <position> <first word>  -> one suggestion per line
+__clishe_words() {
+    if (( $1 == 2 )); then
+        print -l explain check practice progress sheet tour doctor setup \
+            --list --init --plain --version --help
+    elif (( $1 == 3 )); then
+        case $2 in
+            practice) __clishe_lessons; print -- --list ;;
+            --init) print -l bash zsh ;;
+        esac
+    fi
+}
+
+__clishe_complete() {
+    local -a found
+    if (( CURRENT == 3 )) && [[ ${words[2]} == explain ]]; then
+        _command_names
+        return
+    fi
+    found=(${(f)"$(__clishe_words $CURRENT ${words[2]})"})
+    if (( ${#found} )); then
+        compadd -a found
+    else
+        _files
+    fi
+}
+
 if [[ -o interactive ]]; then
     zle -N __clishe_widget
     bindkey "${CLISHE_KEY:-^G}" __clishe_widget
+    # Needs zsh's completion system (compinit), loaded before this file.
+    (( $+functions[compdef] )) && compdef __clishe_complete clishe
 fi
