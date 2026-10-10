@@ -57,5 +57,16 @@ assert_eq "--init alone picks your shell" "yes" \
     "$([[ $init_out == *"clishe-bind.zsh"* ]] && print yes || print no)"
 
 print ""
+print "=== zsh tab completion ==="
+first=" ${(j: :)${(f)"$(__clishe_words 2 "")"}} "
+assert_eq "first word: what Clishe can do" "yes" \
+    "$([[ $first == *" practice "* && $first == *" doctor "* && $first == *" --help "* ]] && print yes || print $first)"
+lessons=" ${(j: :)${(f)"$(__clishe_words 3 practice)"}} "
+assert_eq "lessons after practice" "yes" \
+    "$([[ $lessons == *" basics "* && $lessons == *" git "* && $lessons == *" --list "* ]] && print yes || print $lessons)"
+assert_eq "shells after --init" "bash zsh" "${(j: :)${(f)"$(__clishe_words 3 --init)"}}"
+assert_eq "nothing of its own after check (file names instead)" "" "$(__clishe_words 3 check)"
+
+print ""
 print "=== Results: $pass_count passed, $fail_count failed ==="
 (( fail_count == 0 ))

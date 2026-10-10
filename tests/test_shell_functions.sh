@@ -237,6 +237,30 @@ assert_eq "widget: cursor lands on the first placeholder" "cp <file> <destinatio
 assert_eq "widget: a real command is explained, line kept" "tar -xzvf a.tgz|15" "$(widget "tar -xzvf a.tgz")"
 assert_eq "widget: never runs anything" "rm -r <folder>|6" "$(widget "delete a folder")"
 
+# tab "clishe" "pr"  -> what Tab offers for the last word
+tab() {
+    # shellcheck disable=SC2016  # expanded by the inner bash
+    __CLISHE_BRAIN="$SCRIPT_DIR/clishe_brain.py" bash -c '
+        source "$1"; shift
+        COMP_WORDS=("$@"); COMP_CWORD=$(( $# - 1 ))
+        __clishe_complete
+        echo "${COMPREPLY[*]}"' _ "$SCRIPT_DIR/clishe-bind.bash" "$@"
+}
+assert_eq "tab: finishes a word" "practice progress" "$(tab clishe pr)"
+assert_eq "tab: lessons after practice" "git" "$(tab clishe practice g)"
+assert_eq "tab: lessons come from the lessons folder" "yes" \
+    "$([[ " $(tab clishe practice "") " == *" basics "*" --list "* ]] && echo yes || tab clishe practice "")"
+assert_eq "tab: shells after --init" "bash zsh" "$(tab clishe --init "")"
+assert_eq "tab: commands after explain" "yes" \
+    "$([[ " $(tab clishe explain ech) " == *" echo "* ]] && echo yes || echo no)"
+assert_eq "tab: file names after check (nothing of its own)" "" "$(tab clishe check "")"
+help_text=$("$CLISHE_SH" --help)
+unknown=""
+for word in $(tab clishe ""); do
+    [[ "$help_text" == *"clishe $word"* ]] || unknown="$unknown $word"
+done
+assert_eq "tab: only offers what --help lists" "" "$unknown"
+
 echo ""
 echo "=== only remember what worked ==="
 

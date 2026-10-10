@@ -39,6 +39,10 @@
   It is still off unless you turn it on, and a model already set in your
   config is left alone.
 - PyPI now lists macOS and the tested Python versions (3.9, 3.11, 3.12).
+- **Tab completion** in bash and zsh, turned on by the same
+  `eval "$(clishe --init bash)"` line as Ctrl+G: `clishe <Tab>` lists what
+  Clishe can do, `clishe practice <Tab>` the lessons, `clishe explain <Tab>`
+  your commands, `clishe check <Tab>` your files.
 
 ### Fixed
 - "Did you mean…?" no longer offers a phrase that only looks alike:

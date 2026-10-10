@@ -144,7 +144,7 @@ Usage:
   clishe doctor             check your setup, and how to fix anything wrong
   clishe sheet              your own cheat sheet (save: clishe sheet > cheatsheet.txt)
   clishe check '<command>'  is it safe to run? (or: clishe check script.sh)
-  clishe --init bash|zsh    print the Ctrl+G shortcut for your normal shell
+  clishe --init bash|zsh    print the Ctrl+G shortcut (and Tab completion) for your normal shell
                             (add  eval "$(clishe --init bash)"  to ~/.bashrc,
                              or   eval "$(clishe --init zsh)"   to ~/.zshrc)
   clishe --plain ...        words instead of symbols and drawings (screen readers);

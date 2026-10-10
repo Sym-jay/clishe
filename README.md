@@ -318,6 +318,8 @@ Now, at any prompt:
 
 Nothing runs until you press Enter. Prefer another key? Set `CLISHE_KEY` before the `eval` line: `CLISHE_KEY='\eg'` in bash or `CLISHE_KEY='^[g'` in zsh for Alt+G.
 
+The same line also turns on **Tab completion**: `clishe <Tab>` lists what Clishe can do, `clishe practice <Tab>` the lessons, `clishe explain <Tab>` your commands, and `clishe check <Tab>` your files. In zsh, put the `eval` line after `compinit` (frameworks like Oh My Zsh already run it for you).
+
 ### Session commands
 
 | Type | What it does |
