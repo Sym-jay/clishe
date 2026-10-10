@@ -11,6 +11,7 @@ Also detects the running Linux distro from /etc/os-release so AI providers
 can give distro-correct package-manager commands (apt vs dnf vs pacman)
 instead of defaulting to one distro for everyone.
 """
+import copy
 import json
 import os
 import sys
@@ -55,6 +56,8 @@ def _migrate_legacy_config():
     if old_path.exists() and not CONFIG_FILE.exists():
         try:
             old_path.rename(CONFIG_FILE)
+            # It may hold an API key, and the old file was often world-readable.
+            os.chmod(CONFIG_FILE, 0o600)
         except OSError:
             pass
 
@@ -102,13 +105,15 @@ def detect_distro_family() -> list:
 def load_config() -> dict:
     if not CONFIG_FILE.exists():
         _write_default_config()
-        config = dict(DEFAULT_CONFIG)
+        config = copy.deepcopy(DEFAULT_CONFIG)
     else:
         try:
             with open(CONFIG_FILE, 'r') as f:
                 user_config = json.load(f)
+            if not isinstance(user_config, dict):
+                raise json.JSONDecodeError("config is not a JSON object", "", 0)
             # Merge shallowly over defaults so a partial user config still works.
-            config = dict(DEFAULT_CONFIG)
+            config = copy.deepcopy(DEFAULT_CONFIG)
             config.update(user_config)
             # Configs from before the "local" provider existed don't list it.
             priority = config.get("provider_priority")
