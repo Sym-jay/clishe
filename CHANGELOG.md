@@ -12,6 +12,10 @@
   asks which one; type its number or its name. Lessons can list programs
   they need (`"needs": ["git"]`), and Clishe explains how to install a
   missing one instead of starting.
+- **Two more lessons:** `clishe practice permissions` (9 exercises: read
+  permissions with ls -l, make a script runnable with chmod +x and run it,
+  make a file private with chmod 600) and `clishe practice archives` (9:
+  pack, list and unpack with tar, then the same with zip and unzip).
 - **`clishe sheet`**: your own cheat sheet. The commands you type yourself,
   in the form you use most, with what each does, and the things you still
   ask for with the command to type instead. Plain text, so
