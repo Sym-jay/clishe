@@ -1154,20 +1154,24 @@ practice_session() {
     fi
 
     sweep_practice_folders
-    SANDBOX="$(mktemp -d "${TMPDIR:-/tmp}/${PRACTICE_PREFIX}XXXXXX")" || return 1
-    cd "$SANDBOX" || { practice_cleanup; return 1; }
-    SANDBOX="$PWD"  # the same spelling cd will use (no "//" from TMPDIR)
-    PRACTICE_HOME_DIR="$orig_dir"
-
     # However practice ends - quit, Ctrl-C, the terminal closing, being
     # told to stop - the folder goes. The session's own traps come back
-    # afterwards.
+    # afterwards. Set before the folder is made, so there's no moment when
+    # the folder exists and nothing would remove it.
     local saved_traps
     saved_traps="$(trap -p INT EXIT HUP TERM)"
+    SANDBOX="" PRACTICE_HOME_DIR="$orig_dir"
     trap 'printf "\n"' INT          # Ctrl-C stops a running command, not practice
     trap 'practice_cleanup' EXIT
     trap 'practice_cleanup; exit 129' HUP
     trap 'practice_cleanup; exit 143' TERM
+    if ! SANDBOX="$(mktemp -d "${TMPDIR:-/tmp}/${PRACTICE_PREFIX}XXXXXX")" || ! cd "$SANDBOX"; then
+        practice_cleanup
+        trap - INT EXIT HUP TERM
+        eval "$saved_traps"
+        return 1
+    fi
+    SANDBOX="$PWD"  # the same spelling cd will use (no "//" from TMPDIR)
     # Picking up later: quietly redo the earlier steps, so the folder looks
     # the way the next exercise expects.
     for ((i = 0; i < start; i++)); do

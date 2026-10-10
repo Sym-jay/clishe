@@ -49,6 +49,9 @@
   your commands, `clishe check <Tab>` your files.
 
 ### Fixed
+- Closing the terminal in the instant `practice` was starting could leave
+  its throwaway folder behind. The tidy-up is now in place before the
+  folder is made.
 - A config file that holds valid JSON of the wrong kind (a list, a word,
   `null`) no longer stops Clishe with a Python error; AI is switched off and
   everything offline keeps working, as with any other broken config.
