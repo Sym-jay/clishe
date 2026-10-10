@@ -41,6 +41,11 @@
 - PyPI now lists macOS and the tested Python versions (3.9, 3.11, 3.12).
 
 ### Fixed
+- A config file that holds valid JSON of the wrong kind (a list, a word,
+  `null`) no longer stops Clishe with a Python error; AI is switched off and
+  everything offline keeps working, as with any other broken config.
+- A config moved from the old `~/.clishe_config.json` is now made readable
+  only by you, since it may hold an API key.
 - "Did you mean…?" no longer offers a phrase that only looks alike:
   "count words in a file" was offered "count lines in a file". Spelling
   matches now only count when the differing words are typos of each other
