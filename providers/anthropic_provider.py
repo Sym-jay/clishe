@@ -18,7 +18,7 @@ from .base import (EXPLAIN_PROMPT, RESOLVE_PROMPT, Provider, ProviderError,
 
 API_URL = "https://api.anthropic.com/v1/messages"
 API_VERSION = "2023-06-01"
-DEFAULT_MODEL = "claude-haiku-4-5-20251001"  # fast + cheap, good fit for this task
+DEFAULT_MODEL = "claude-haiku-5-5"  # fast + cheap, good fit for this task
 TIMEOUT_SECONDS = 15
 
 
