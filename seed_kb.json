@@ -99,5 +99,22 @@
   "stash my changes": "git stash push -m <message>",
   "list saved stashes": "git stash list",
   "restore my stashed work": "git stash pop",
-  "undo my last commit": "git reset --soft HEAD~1"
+  "undo my last commit": "git reset --soft HEAD~1",
+  "what folder am i in": "pwd",
+  "delete a folder and everything in it": "rm -r <folder>",
+  "change a file's name": "mv <old name> <new name>",
+  "read a file": "cat <file>",
+  "show the beginning of a file": "head -n 20 <file>",
+  "show the end of a file": "tail -n 20 <file>",
+  "what time is it": "date",
+  "what's the date": "date",
+  "what shell am i using": "echo $SHELL",
+  "show my gpu": "lspci | grep -iE 'vga|3d|display'",
+  "how long has the computer been on": "uptime",
+  "why is my computer slow": "top",
+  "find text in files": "grep -rn <text> .",
+  "stop a running program": "kill <process id>",
+  "change folder": "cd <folder>",
+  "list all branches": "git branch",
+  "show all git branches": "git branch"
 }

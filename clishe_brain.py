@@ -140,6 +140,7 @@ a an the my me i you your is are am do does did be what whats how much many
 which can could would will should please show display see view list print
 check tell give get let s of to in on for at from with this that these those
 it its all any have has there here want need know
+right now today currently between about saved been
 """.split())
 
 _SYNONYMS = {
@@ -159,6 +160,29 @@ _SYNONYMS = {
     "internet": "network", "wifi": "network",
     "zip": "compress", "unzip": "extract", "unpack": "extract", "decompress": "extract",
     "contents": "content", "inside": "content",
+    "blank": "empty",
+    "beginning": "first", "top": "first", "end": "last", "bottom": "last",
+    "follow": "watch",
+    "difference": "compare", "different": "compare", "diff": "compare", "2": "two",
+    "clean": "clear", "terminal": "screen",
+    "runnable": "executable",
+    "information": "info", "details": "info", "detail": "info",
+    "processor": "cpu",
+    "username": "user",
+    "connected": "connection", "working": "connection",
+    "site": "website",
+    "env": "environment", "vars": "variable", "var": "variable",
+    "recent": "newest", "recently": "newest", "latest": "newest",
+    "kind": "type",
+    "repeated": "copy",
+    "symlink": "shortcut", "link": "shortcut", "symbolic": "shortcut",
+    "structure": "tree",
+    "changed": "change",
+    "checkout": "switch",
+    "word": "text", "words": "text",
+    "stop": "kill",
+    "previous": "last",
+    "slowing": "slow",
 }
 
 
@@ -185,7 +209,7 @@ def meaning_tokens(phrase: str) -> frozenset:
 
 # Generic nouns say little on their own: "unzip a file" sharing only "file"
 # with "list files" is not a match.
-_WEAK_WORDS = {"file": Fraction(3, 10), "folder": Fraction(3, 10)}
+_WEAK_WORDS = {"file": Fraction(3, 10), "folder": Fraction(3, 10), "info": Fraction(3, 10)}
 
 
 def _weight(tokens) -> Fraction:
@@ -199,7 +223,7 @@ def _weight(tokens) -> Fraction:
 # file"), and must cover more than half of what they said (so it can't
 # drop the word that matters: "change my password" is not "what did i
 # change", and "delete my photos" is not "delete a file").
-MEANING_CANDIDATE_COVERAGE = 0.67
+MEANING_CANDIDATE_COVERAGE = Fraction(2, 3)  # two of three words is "mostly"
 MEANING_QUERY_COVERAGE = 0.5
 
 
