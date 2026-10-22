@@ -179,6 +179,12 @@ def test_suggest_returns_none_for_unrelated_phrase(brain):
     ("what programs are running", "show running processes"),
     ("display my files", "list files"),
     ("find a file", "search for a file"),
+    ("make a file executable", "make a script executable"),  # two of three words
+    ("stop a running process", "stop a running program"),     # stop, not show
+    ("find a word in a file", "find text in a file"),         # grep, not find
+    ("go to the last folder", "go back to the previous folder"),
+    ("follow a log file", "watch a log file"),
+    ("show env vars", "show environment variables"),
 ])
 def test_suggest_matches_on_meaning(brain, said, expected):
     match = brain.suggest(said)
@@ -190,6 +196,8 @@ def test_suggest_matches_on_meaning(brain, said, expected):
     "make me a sandwich",    # not "make a new folder"
     "change my password",    # not "what did i change"
     "open youtube",          # not "open a file"
+    "shut down the computer now",          # not "why is my computer slow"
+    "what is linux",                       # not a question about this computer
     "make a zip file of a folder",         # exactly half: not "make a new folder"
     "delete all files in my home folder",  # exactly half: not "delete a file"
 ])

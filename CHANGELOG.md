@@ -9,6 +9,12 @@
   error (which advises against `sudo` and points to a user-owned npm folder).
 
 ### Changed
+- "Did you mean...?" understands more ways of saying things, and guesses
+  wrong less often: "stop a running process" now offers `kill`, not
+  `ps aux`; "find a word in a file" offers `grep`, not `find`; "go to the
+  last folder" offers `cd -`. New phrases and synonyms cover things like
+  "what time is it", "follow a log file", "show env vars" and "list all
+  branches". On 349 test phrasings: 243 right (was 177), 21 wrong (was 31).
 - "Did you mean...?" is stricter: a known phrase is only offered when it
   covers more than half of what you typed, so it no longer drops the word
   that matters ("delete my photos" isn't offered "delete a file", "change
