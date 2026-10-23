@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.10.0 (2026-10-23)
 
 ### Added
 - **More plain-English error hints** for messages beginners get stuck on:
