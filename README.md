@@ -14,7 +14,7 @@ AI assistance is optional, and when you use it, it runs on your own machine.
 ![Platform: Linux and macOS](https://img.shields.io/badge/platform-linux%20%7C%20macOS-lightgrey)
 ![Status: alpha](https://img.shields.io/badge/status-alpha-orange)
 
-[Install](#install) · [Usage](#usage) · [AI providers](#ai-providers-optional) · [How it works](#how-it-works) · [Security](#security) · [Contributing](#contributing)
+[Quick start](#quick-start) · [Install](#install) · [Usage](#usage) · [AI providers](#ai-providers-optional) · [How it works](#how-it-works) · [Security](#security) · [Contributing](#contributing)
 
 </div>
 
@@ -56,6 +56,15 @@ $ show me disk usage        ← press Ctrl+G
 $ df -h                     ← press Enter when you're ready
 ```
 
+## Quick start
+
+```bash
+pipx install clishe   # Linux or macOS (Windows: inside WSL)
+clishe                # then type what you want, e.g. "show me disk usage"
+```
+
+Other ways to install are under [Install](#install).
+
 ## Why Clishe
 
 Most command-line tools assume you already know the command you want. Clishe assumes you don't, and treats that as normal.
@@ -67,41 +76,18 @@ Most command-line tools assume you already know the command you want. Clishe ass
 
 ## Features
 
-**Everyday use**
-- Works in your normal shell: press Ctrl+G on a line of plain English and it becomes the command, with the cursor on the first blank to fill in. Press it on a real command to have it explained. It never runs anything for you. See [Your normal shell](#your-normal-shell-ctrlg).
-- Mistakes you can undo: when you delete something with `rm`, Clishe offers to move it to the Trash instead (if `gio` or `trash-cli` is installed), so you can get it back.
-- Helps you outgrow it: after you've asked for the same thing three times, Clishe shows you the command. The next time, it's **your turn**: Clishe asks you to type it yourself, and checks it (`ls -al` counts for `ls -la`). Once you've got it right twice, it stops asking.
-- `practice`: hands-on lessons in a throwaway folder, with hints, and it remembers where you stopped. Built in: **basics** (14 exercises: pwd, ls, mkdir, cd, touch, echo, cat, cp, mv, find, grep, rm), **git** (13: init, config, status, add, commit, log, diff), **processes** (8: ps, pipes with grep, sort and head, background jobs, kill, uptime), **permissions** (9: ls -l, chmod +x, chmod 600, ls -ld) and **archives** (9: tar and zip: pack, list, unpack). Lessons are simple JSON files, so teachers and workshops can write their own: drop one in `~/.local/share/clishe/lessons/` and run `clishe practice <name>` (`clishe practice --list` shows them all).
-- `tour`: a walk through your own computer in plain English: which Linux you run (and what it's based on), processor and memory, free disk space, desktop and shell, what folders like `/etc` and `/usr/bin` are for, how software gets installed, and whether you can use `sudo`. Each stop has a command to try, so you can find it all again yourself. Offline.
-- `sheet`: your own cheat sheet, the commands you type yourself in the form you use them, each with what it does, plus the things you still ask for and the command to type instead. Save it for printing with `clishe sheet > cheatsheet.txt`.
-- `progress`: the everyday commands you've typed yourself, the ones you still ask for, and good ones to learn next.
-- Natural language to shell commands, resolved in this order: your knowledge base, the bundled seed KB, a native command you typed directly, a close match to a phrase it already knows ("did you mean...?"), then an AI provider (if configured), then "teach me".
-- Forgiving matching: case, punctuation and filler like "please" or "can you" are ignored, so `Please show me disk usage?` finds `show me disk usage`. Different wording with the same meaning gets a "did you mean...?" too (`remove a directory` → `delete a folder`).
-- Fill-in-the-blank commands: entries like `cp <file> <destination>` ask for each value, quote it safely, and show the final command before running it. You can teach your own (`ssh <server>`).
-- `explain`-style questions: `explain tar -xzvf`, `what does chmod do`, `what's grep`, `tell me about find`. The offline dictionary explains each flag you used (`-x`, `-z`, `-v`, `-f`). For thousands of other commands, Clishe uses the plain-English summaries and real examples from [tldr-pages](https://github.com/tldr-pages/tldr) (bundled, offline), with the flags you used explained from **your own system's manual** (`man`, or `--help`). An AI is asked only when there's nothing at all.
-- **Thousands of things it can do offline.** When a request doesn't match a phrase Clishe knows, it looks through the 31,000 tldr-pages examples for one whose description fits ("count words in a file" → `wc -w <file>`), only for everyday commands that are installed, and asks "Did you mean…?" before running anything. Matching is strict on purpose: no suggestion is better than a wrong one.
-- **Every part labelled.** AI suggestions, and known phrases the first time you use them, are drawn with each part of the command labelled underneath, using the offline dictionary and your own `man` pages. You see the shape of a command, not just a one-liner. Commands with pipes or redirects are shown the usual way.
-- AI suggestions are checked against your manual, and Clishe warns if a flag isn't in it (small models sometimes invent them). You learn from the real documentation, not just the model.
-- Plain-English hints when a command fails (permission denied, no such file, pip's "externally-managed-environment", apt without sudo, no internet, and more), fully offline. If a program isn't installed, it tells you the install command for your distro (`apt`, `dnf`, `pacman`, `zypper` or `apk`).
-- **"How do I install Spotify?"** (also "install vs code", "get vlc"): for about 25 popular apps, Clishe knows the right way on your system. It prefers your distro's own package when there is one (it updates with everything else), otherwise Flathub, with the one-time Flatpak setup for your distro if you don't have it yet, and Homebrew on a Mac. Well-known command-line tools (`install htop`) get your package manager's command, or "it's already installed". It shows the commands and asks before running anything.
-- **`fix that`** after a command fails: Clishe explains what went wrong and offers a fixed command to run (with the usual safety check). Common mistakes are fixed offline: a misspelled command (`gti` → `git`), a misspelled file or folder (`cd Documnets` → `cd Documents`), a missing `sudo`, a script that isn't executable, `cp` on a folder without `-r`, an out-of-date apt package list. Anything else goes to your local AI. It never guesses a different file name for `rm` or `mv`; it only mentions it.
-- **`undo that`** reverses the last change, after showing you the command that does it: `mv` moves it back, `mkdir` removes the folder while it's empty, `touch` removes the empty file, `cp` sends the copy to the Trash, `chmod` restores the old permissions, `cd` goes back, and files moved to the Trash are put back where they were (on a Mac, Clishe tells you how to use Finder's Put Back, since macOS hides the Trash from the terminal). It checks nothing has changed since and refuses rather than guess. Package installs get the matching remove command. A plain `rm` can't be undone, and Clishe says so.
-- **"Is this safe to run?"** Paste a command you found online, or point at a script: `clishe check 'curl … | sudo bash'` or `clishe check install.sh` (in a session: `is this safe: <command>` or `check <command>`). Nothing is run. You get each part explained, what it would change (files created or deleted, software installed, admin rights, which websites it talks to), any risky patterns, and for downloaded scripts a safer way: download, read, then check. It exits with 1 when there are warnings, so it works in scripts too.
-- "What does this mean?" after `ls -l`, `df -h`, `free -h`, `ps aux`, `git status` and others walks you through the columns of the output you just saw. Offline, and your output never leaves your machine.
-- Next-command suggestions based on your own history. They appear once you have a few dozen logged commands.
-- A comfortable prompt: arrow keys and line editing work, your inputs are remembered across sessions, and Ctrl-C stops a running command without closing Clishe.
-- Manage what it knows from inside a session: `learned`, `teach`, `forget <phrase>`.
+- **Plain English in, real command out**, offline: your phrases, 100+ built-in ones, and 31,000 tldr-pages examples, with "did you mean...?" when it's close.
+- **Every part labelled**, so you see what each flag does before anything runs.
+- **Ctrl+G in your normal shell** turns a line of English into the command, without running it.
+- **Safe by default**: destructive commands need a typed `YES` and say why; `rm` can go to the Trash; `undo that` reverses the last change.
+- **`fix that`** explains a failed command and offers a fix; plain-English hints for common errors.
+- **`clishe check`**: is this command or script safe to run? Nothing is run.
+- **Learn as you go**: `practice` lessons, "your turn" to type it yourself, your own `sheet` and `progress`.
+- **`explain`** any command using your own man pages; **`tour`** explains your computer.
+- **"How do I install Spotify?"** with the right way for your distro.
+- **AI is optional and local** (Ollama, llama.cpp, LM Studio...); nothing leaves your machine unless you turn on a cloud provider.
 
-**AI (optional)**
-- Local models only, by default: [Ollama](https://ollama.com), or any server with an OpenAI-style API ([llama.cpp](https://github.com/ggml-org/llama.cpp)'s `llama-server`, [LM Studio](https://lmstudio.ai), [Jan](https://jan.ai), LocalAI, vLLM). Clishe finds a running server on its usual port by itself.
-- Your phrases never leave your machine or local network. A model server on the internet is refused unless you set `"allow_remote_ai": true`.
-- A cloud provider (Anthropic) is available as an **opt-in**: it does nothing until you set `"enabled": true`.
-- Distro-aware suggestions: your distro and the distro it's based on (from `/etc/os-release`) are passed to the model, so Linux Mint gets `apt` and Fedora gets `dnf`.
-- AI suggestions are saved only after you approve them and they run successfully. If you reject one, or it fails, nothing is stored.
-
-**Safety and scripting**
-- Commands that look destructive require you to type `YES`, and the warning says why in plain English ("It deletes a folder and everything inside it, permanently"). The check parses the command, so `rm -fr`, `sudo rm -r`, `cd x && rm -rf y`, `curl ... | sh`, `find -delete`, `git reset --hard` and friends are all caught. See [Security](#security).
-- One-shot mode for scripts and aliases: `clishe explain "tar -xzvf"`, `clishe "show me disk usage"` (a knowledge-base lookup that prints the command without running it), `clishe --list`.
+See [all features](#all-features) for the details.
 
 ## Install
 
@@ -358,6 +344,44 @@ clishe --init bash                # the Ctrl+G shortcut, for your ~/.bashrc
 clishe --init zsh                 # the same, for your ~/.zshrc
 clishe --version
 ```
+
+## All features
+
+**Everyday use**
+- Works in your normal shell: press Ctrl+G on a line of plain English and it becomes the command, with the cursor on the first blank to fill in. Press it on a real command to have it explained. It never runs anything for you. See [Your normal shell](#your-normal-shell-ctrlg).
+- Mistakes you can undo: when you delete something with `rm`, Clishe offers to move it to the Trash instead (if `gio` or `trash-cli` is installed), so you can get it back.
+- Helps you outgrow it: after you've asked for the same thing three times, Clishe shows you the command. The next time, it's **your turn**: Clishe asks you to type it yourself, and checks it (`ls -al` counts for `ls -la`). Once you've got it right twice, it stops asking.
+- `practice`: hands-on lessons in a throwaway folder, with hints, and it remembers where you stopped. Built in: **basics** (14 exercises: pwd, ls, mkdir, cd, touch, echo, cat, cp, mv, find, grep, rm), **git** (13: init, config, status, add, commit, log, diff), **processes** (8: ps, pipes with grep, sort and head, background jobs, kill, uptime), **permissions** (9: ls -l, chmod +x, chmod 600, ls -ld) and **archives** (9: tar and zip: pack, list, unpack). Lessons are simple JSON files, so teachers and workshops can write their own: drop one in `~/.local/share/clishe/lessons/` and run `clishe practice <name>` (`clishe practice --list` shows them all).
+- `tour`: a walk through your own computer in plain English: which Linux you run (and what it's based on), processor and memory, free disk space, desktop and shell, what folders like `/etc` and `/usr/bin` are for, how software gets installed, and whether you can use `sudo`. Each stop has a command to try, so you can find it all again yourself. Offline.
+- `sheet`: your own cheat sheet, the commands you type yourself in the form you use them, each with what it does, plus the things you still ask for and the command to type instead. Save it for printing with `clishe sheet > cheatsheet.txt`.
+- `progress`: the everyday commands you've typed yourself, the ones you still ask for, and good ones to learn next.
+- Natural language to shell commands, resolved in this order: your knowledge base, the bundled seed KB, a native command you typed directly, a close match to a phrase it already knows ("did you mean...?"), then an AI provider (if configured), then "teach me".
+- Forgiving matching: case, punctuation and filler like "please" or "can you" are ignored, so `Please show me disk usage?` finds `show me disk usage`. Different wording with the same meaning gets a "did you mean...?" too (`remove a directory` → `delete a folder`).
+- Fill-in-the-blank commands: entries like `cp <file> <destination>` ask for each value, quote it safely, and show the final command before running it. You can teach your own (`ssh <server>`).
+- `explain`-style questions: `explain tar -xzvf`, `what does chmod do`, `what's grep`, `tell me about find`. The offline dictionary explains each flag you used (`-x`, `-z`, `-v`, `-f`). For thousands of other commands, Clishe uses the plain-English summaries and real examples from [tldr-pages](https://github.com/tldr-pages/tldr) (bundled, offline), with the flags you used explained from **your own system's manual** (`man`, or `--help`). An AI is asked only when there's nothing at all.
+- **Thousands of things it can do offline.** When a request doesn't match a phrase Clishe knows, it looks through the 31,000 tldr-pages examples for one whose description fits ("count words in a file" → `wc -w <file>`), only for everyday commands that are installed, and asks "Did you mean…?" before running anything. Matching is strict on purpose: no suggestion is better than a wrong one.
+- **Every part labelled.** AI suggestions, and known phrases the first time you use them, are drawn with each part of the command labelled underneath, using the offline dictionary and your own `man` pages. You see the shape of a command, not just a one-liner. Commands with pipes or redirects are shown the usual way.
+- AI suggestions are checked against your manual, and Clishe warns if a flag isn't in it (small models sometimes invent them). You learn from the real documentation, not just the model.
+- Plain-English hints when a command fails (permission denied, no such file, pip's "externally-managed-environment", apt without sudo, no internet, and more), fully offline. If a program isn't installed, it tells you the install command for your distro (`apt`, `dnf`, `pacman`, `zypper` or `apk`).
+- **"How do I install Spotify?"** (also "install vs code", "get vlc"): for about 25 popular apps, Clishe knows the right way on your system. It prefers your distro's own package when there is one (it updates with everything else), otherwise Flathub, with the one-time Flatpak setup for your distro if you don't have it yet, and Homebrew on a Mac. Well-known command-line tools (`install htop`) get your package manager's command, or "it's already installed". It shows the commands and asks before running anything.
+- **`fix that`** after a command fails: Clishe explains what went wrong and offers a fixed command to run (with the usual safety check). Common mistakes are fixed offline: a misspelled command (`gti` → `git`), a misspelled file or folder (`cd Documnets` → `cd Documents`), a missing `sudo`, a script that isn't executable, `cp` on a folder without `-r`, an out-of-date apt package list. Anything else goes to your local AI. It never guesses a different file name for `rm` or `mv`; it only mentions it.
+- **`undo that`** reverses the last change, after showing you the command that does it: `mv` moves it back, `mkdir` removes the folder while it's empty, `touch` removes the empty file, `cp` sends the copy to the Trash, `chmod` restores the old permissions, `cd` goes back, and files moved to the Trash are put back where they were (on a Mac, Clishe tells you how to use Finder's Put Back, since macOS hides the Trash from the terminal). It checks nothing has changed since and refuses rather than guess. Package installs get the matching remove command. A plain `rm` can't be undone, and Clishe says so.
+- **"Is this safe to run?"** Paste a command you found online, or point at a script: `clishe check 'curl … | sudo bash'` or `clishe check install.sh` (in a session: `is this safe: <command>` or `check <command>`). Nothing is run. You get each part explained, what it would change (files created or deleted, software installed, admin rights, which websites it talks to), any risky patterns, and for downloaded scripts a safer way: download, read, then check. It exits with 1 when there are warnings, so it works in scripts too.
+- "What does this mean?" after `ls -l`, `df -h`, `free -h`, `ps aux`, `git status` and others walks you through the columns of the output you just saw. Offline, and your output never leaves your machine.
+- Next-command suggestions based on your own history. They appear once you have a few dozen logged commands.
+- A comfortable prompt: arrow keys and line editing work, your inputs are remembered across sessions, and Ctrl-C stops a running command without closing Clishe.
+- Manage what it knows from inside a session: `learned`, `teach`, `forget <phrase>`.
+
+**AI (optional)**
+- Local models only, by default: [Ollama](https://ollama.com), or any server with an OpenAI-style API ([llama.cpp](https://github.com/ggml-org/llama.cpp)'s `llama-server`, [LM Studio](https://lmstudio.ai), [Jan](https://jan.ai), LocalAI, vLLM). Clishe finds a running server on its usual port by itself.
+- Your phrases never leave your machine or local network. A model server on the internet is refused unless you set `"allow_remote_ai": true`.
+- A cloud provider (Anthropic) is available as an **opt-in**: it does nothing until you set `"enabled": true`.
+- Distro-aware suggestions: your distro and the distro it's based on (from `/etc/os-release`) are passed to the model, so Linux Mint gets `apt` and Fedora gets `dnf`.
+- AI suggestions are saved only after you approve them and they run successfully. If you reject one, or it fails, nothing is stored.
+
+**Safety and scripting**
+- Commands that look destructive require you to type `YES`, and the warning says why in plain English ("It deletes a folder and everything inside it, permanently"). The check parses the command, so `rm -fr`, `sudo rm -r`, `cd x && rm -rf y`, `curl ... | sh`, `find -delete`, `git reset --hard` and friends are all caught. See [Security](#security).
+- One-shot mode for scripts and aliases: `clishe explain "tar -xzvf"`, `clishe "show me disk usage"` (a knowledge-base lookup that prints the command without running it), `clishe --list`.
 
 ## Configuration
 
