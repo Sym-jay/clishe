@@ -547,6 +547,17 @@ unset -f python3
 assert_eq "a tldr-pages example is credited and asked about" "yes" \
     "$([[ "$sg_out" == *"Clishe (via tldr-pages): Did you mean \"Count words in file\"? That runs: wc -w <file>"* ]] && echo yes || echo no)"
 
+python3() {
+    case "$*" in
+        *"--action suggest"*) echo "STATUS=none" ;;
+        *"--action note-unanswered"*) printf '%s\n' "$*" >> "$TEST_HOME/noted.txt"; echo noted ;;
+    esac
+}
+offer_close_match "convert a video to mp4" >/dev/null 2>&1
+unset -f python3
+assert_eq "a phrase nothing offline knows is passed on to be noted (if turned on)" "yes" \
+    "$(grep -q -- "--phrase convert a video to mp4" "$TEST_HOME/noted.txt" 2>/dev/null && echo yes || echo no)"
+
 echo ""
 echo "=== clishe doctor ==="
 

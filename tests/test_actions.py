@@ -81,6 +81,9 @@ def brain(tmp_path, monkeypatch):
     home = tmp_path / "home"
     home.mkdir()
     monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))  # what Path.home() reads on Windows
+    monkeypatch.delenv("XDG_DATA_HOME", raising=False)
+    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
     monkeypatch.chdir(tmp_path)
     # Several actions only offer a command whose program is actually
     # installed (Clishe won't suggest `df` to someone without df), so the
@@ -296,6 +299,16 @@ def test_setting_reads_a_config_value(brain, capsys):
     assert capsys.readouterr().out.strip() == "false"
 
 
+def test_note_unanswered_is_off_unless_turned_on(brain, capsys, monkeypatch):
+    module = _brain_module()
+    module._action_note_unanswered(brain, make_args(phrase="convert a video to mp4"))
+    assert capsys.readouterr().out.strip() == "off"
+    monkeypatch.setattr(module, "load_config", lambda: {"log_unanswered": True})
+    module._action_note_unanswered(brain, make_args(phrase="convert a video to mp4"))
+    assert capsys.readouterr().out.strip() == "noted"
+    assert brain.unanswered() == [("convert a video to mp4", 1)]
+
+
 # ---------------------------------------------------------------- undo
 
 def test_undo_before_notes_a_change_and_plan_reverses_it(brain, capsys, tmp_path):
@@ -417,7 +430,7 @@ COVERED = {
     "breakdown", "tour", "fix", "inspect", "undo-before", "undo-record",
     "undo-plan", "undo-done", "lessons", "lesson", "lesson-check", "app",
     "doctor", "sheet", "setting", "predict", "resolve", "explain",
-    "diagnose", "check",
+    "diagnose", "check", "note-unanswered",
 }
 
 

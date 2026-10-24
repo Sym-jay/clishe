@@ -66,6 +66,11 @@ def _ensure_data_dir():
 KB_FILE = DATA_DIR / "kb.json"
 UNDO_FILE = DATA_DIR / "undo.json"
 DATA_FILE = DATA_DIR / "history.json"
+# Phrases nothing offline could answer, kept only when "log_unanswered" is
+# on. Stays on this computer: `clishe doctor` shows them so you can share
+# them (or not) yourself.
+UNANSWERED_FILE = DATA_DIR / "unanswered.json"
+UNANSWERED_LIMIT = 200
 
 # Bundled, read-only seed knowledge base shipped with the repo (never
 # written to). Lets a fresh install feel responsive on common phrases
@@ -386,6 +391,34 @@ class ClisheBrain:
 
     def learned(self):
         return sorted(self.kb.items())
+
+    # ---------- phrases nothing offline could answer (opt-in) ----------
+
+    def note_unanswered(self, phrase):
+        """Count a phrase that no offline step could answer, when the user
+        turned "log_unanswered" on. Returns True if it was noted."""
+        if load_config().get("log_unanswered") is not True:
+            return False
+        key = normalize_phrase(phrase)[:200]
+        if not key:
+            return False
+        counts = self.unanswered_counts()
+        counts[key] = counts.get(key, 0) + 1
+        if len(counts) > UNANSWERED_LIMIT:
+            # Forget the least-asked (oldest first among equals).
+            del counts[min(counts, key=counts.get)]
+        self._save_json(UNANSWERED_FILE, counts)
+        return True
+
+    def unanswered_counts(self):
+        counts = self._load_json(UNANSWERED_FILE, {})
+        if not isinstance(counts, dict):
+            return {}
+        return {k: v for k, v in counts.items() if isinstance(k, str) and isinstance(v, int)}
+
+    def unanswered(self):
+        """(phrase, times asked), most asked first."""
+        return sorted(self.unanswered_counts().items(), key=lambda kv: (-kv[1], kv[0]))
 
     # ---------- history / prediction ----------
 
@@ -1185,6 +1218,10 @@ def _action_sheet(brain, args):
         print(f"ASKED={_one_line(phrase)}\t{_one_line(command)}")
 
 
+def _action_note_unanswered(brain, args):
+    print("noted" if brain.note_unanswered(args.phrase) else "off")
+
+
 def _action_setting(brain, args):
     value = load_config().get(args.phrase, "")
     print(str(value).lower() if isinstance(value, bool) else value)
@@ -1264,6 +1301,7 @@ ACTIONS = {
     'doctor': _action_doctor,
     'sheet': _action_sheet,
     'setting': _action_setting,
+    'note-unanswered': _action_note_unanswered,
     'predict': _action_predict,
     'resolve': _action_resolve,
     'explain': _action_explain,

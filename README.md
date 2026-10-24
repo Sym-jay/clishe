@@ -393,6 +393,7 @@ Clishe follows the [XDG Base Directory](https://specifications.freedesktop.org/b
 | Your knowledge base (phrases you taught or approved) | `~/.local/share/clishe/kb.json` (or `$XDG_DATA_HOME/clishe/`) |
 | Command history (for suggestions, capped) | `~/.local/share/clishe/history.json` |
 | What you typed at the prompt (arrow-key recall) | `~/.local/share/clishe/input_history` |
+| Phrases Clishe couldn't answer (only with `"log_unanswered": true`) | `~/.local/share/clishe/unanswered.json` |
 | Seed knowledge base (bundled, read-only) | `seed_kb.json` in the install directory |
 
 Your data files are created with owner-only permissions. Files from older versions (`~/.clishe_kb.json` and friends) are moved to the new locations automatically on first run. Set `NO_COLOR=1` to turn off colors.
@@ -429,6 +430,8 @@ Providers are tried in `provider_priority` order. A provider that isn't running,
 `learn_mode` decides when Clishe asks you to type a command yourself: `"gentle"` (the default: after you've asked for it three times), `"always"` (from the second time) or `"off"`. Add it to the config to change it.
 
 `trash` decides what happens when you delete files with `rm` and a Trash tool (`gio` or `trash-put`) is installed: `"ask"` (the default), `"always"` (use the Trash without asking) or `"never"`.
+
+`log_unanswered` (off by default): set it to `true` and Clishe keeps a private list of the phrases nothing offline could answer, with how often you asked. It never leaves your computer. `clishe doctor` shows the most-asked ones, so you can share any you like in an [issue](https://github.com/Sym-jay/clishe/issues) and help Clishe learn them. Delete `unanswered.json` to clear it.
 
 ## AI providers (optional)
 

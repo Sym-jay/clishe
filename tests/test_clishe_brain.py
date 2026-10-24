@@ -2,6 +2,8 @@
 Run with: pytest tests/
 """
 import json
+import os
+import stat
 import sys
 from pathlib import Path
 
@@ -15,6 +17,9 @@ def brain(tmp_path, monkeypatch):
     """A ClisheBrain instance backed by a throwaway temp HOME, so tests never
     touch the real ~/.clishe_kb.json etc."""
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))  # what Path.home() reads on Windows
+    monkeypatch.delenv("XDG_DATA_HOME", raising=False)
+    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
     # No man pages unless a test brings its own, so results don't depend on
     # what's installed on the machine running the tests.
     import manual
@@ -646,3 +651,47 @@ def test_every_registered_action_has_a_handler():
     for name, handler in clishe_brain.ACTIONS.items():
         assert callable(handler), name
         assert handler.__name__ == f"_action_{name.replace('-', '_')}"
+
+
+# ---------- unanswered phrases (opt-in) ----------
+
+def _log_unanswered(monkeypatch, on):
+    import clishe_brain
+    monkeypatch.setattr(clishe_brain, "load_config", lambda: {"log_unanswered": True} if on else {})
+    return clishe_brain
+
+
+def test_unanswered_phrases_are_not_kept_unless_turned_on(brain, monkeypatch):
+    clishe_brain = _log_unanswered(monkeypatch, on=False)
+    assert brain.note_unanswered("convert a video to mp4") is False
+    assert not clishe_brain.UNANSWERED_FILE.exists()
+    assert brain.unanswered() == []
+
+
+def test_unanswered_phrases_are_counted_most_asked_first(brain, monkeypatch):
+    clishe_brain = _log_unanswered(monkeypatch, on=True)
+    for phrase in ("make me a sandwich", "convert a video to mp4", "Please, make me a sandwich?"):
+        assert brain.note_unanswered(phrase) is True
+    assert brain.unanswered() == [("make me a sandwich", 2), ("convert a video to mp4", 1)]
+    if os.name == "posix":
+        assert stat.S_IMODE(os.stat(clishe_brain.UNANSWERED_FILE).st_mode) == 0o600
+
+
+def test_unanswered_list_has_a_size_limit(brain, monkeypatch):
+    clishe_brain = _log_unanswered(monkeypatch, on=True)
+    monkeypatch.setattr(clishe_brain, "UNANSWERED_LIMIT", 3)
+    brain.note_unanswered("asked twice")
+    brain.note_unanswered("asked twice")
+    for phrase in ("first", "second", "third"):
+        brain.note_unanswered(phrase)
+    # The least-asked, oldest one goes first; the one asked twice stays.
+    assert [p for p, _ in brain.unanswered()] == ["asked twice", "second", "third"]
+
+
+def test_corrupt_unanswered_file_is_ignored(brain, monkeypatch):
+    clishe_brain = _log_unanswered(monkeypatch, on=True)
+    clishe_brain.UNANSWERED_FILE.parent.mkdir(parents=True, exist_ok=True)
+    clishe_brain.UNANSWERED_FILE.write_text('["not", "a", "dict"]')
+    assert brain.unanswered() == []
+    assert brain.note_unanswered("new phrase") is True
+    assert brain.unanswered() == [("new phrase", 1)]

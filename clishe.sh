@@ -703,7 +703,11 @@ offer_close_match() {
     local phrase="$1" output answer
     output=$(brain --action suggest --phrase "$phrase")
     parse_brain_output "$output" SG
-    [ "$SG_STATUS" = "ok" ] || return 1
+    if [ "$SG_STATUS" != "ok" ]; then
+        # Nothing offline knows it. Noted only with "log_unanswered": true.
+        brain --action note-unanswered --phrase "$phrase" >/dev/null
+        return 1
+    fi
 
     printf '%bClishe%s: %bDid you mean "%s"? That runs: %b%s%b\n' \
         "$BLUE" "${SG_PROVIDER:+ (via $SG_PROVIDER)}" "$NC" "$SG_PHRASE" "$YELLOW" "$SG_COMMAND" "$NC"
