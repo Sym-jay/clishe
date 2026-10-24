@@ -128,3 +128,21 @@ def test_run_returns_every_check(no_ai):
                  "tldr-pages", "man", "Trash", "Local"):
         assert part in titles
     assert all(c.status in ("ok", "note", "fail") for c in checks)
+
+
+def test_unanswered_phrases_off_by_default():
+    check = doctor.unanswered({}, [])
+    assert check.status == "ok" and '"log_unanswered": true' in check.detail
+
+
+def test_unanswered_phrases_are_listed_with_how_to_share():
+    phrases = [("make me a sandwich", 3)] + [(f"phrase {i}", 1) for i in range(6)]
+    check = doctor.unanswered({"log_unanswered": True}, phrases)
+    assert check.status == "note"
+    assert check.title.startswith("7 phrases")
+    assert check.detail.startswith("make me a sandwich (3x); phrase 0;") and check.detail.endswith("; ...")
+    assert "issues" in check.fix and "unanswered.json" in check.fix
+
+
+def test_no_unanswered_phrases_yet():
+    assert doctor.unanswered({"log_unanswered": True}, []).status == "ok"

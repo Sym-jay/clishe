@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Added
+- **Help Clishe learn what you ask** (opt-in): with `"log_unanswered": true`
+  in the config, Clishe keeps a private list of phrases nothing offline
+  could answer. It stays on your computer; `clishe doctor` shows the
+  most-asked ones so you can share them in an issue if you want.
+
+### Fixed
+- The brain tests now keep to their throwaway home on Windows too
+  (`USERPROFILE`), instead of writing to the real data folder.
+
 ## 0.10.0 (2026-10-23)
 
 ### Added

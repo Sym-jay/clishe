@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import List, NamedTuple
 
 KNOWN_SETTINGS = {"provider_priority", "allow_remote_ai", "trash", "ollama", "local",
-                  "anthropic", "learn_mode", "plain"}
+                  "anthropic", "learn_mode", "plain", "log_unanswered"}
 RC_FILES = {"bash": "~/.bashrc", "zsh": "~/.zshrc"}
 
 
@@ -108,6 +108,23 @@ def data_folder(path: Path) -> Check:
     return Check("fail", "Can't write to the data folder", str(path),
                  "Clishe can't save what you teach it, and can't create the folder "
                  "either. Check the permissions of " + str(ancestor) + ".")
+
+
+def unanswered(config: dict, phrases) -> Check:
+    """Phrases nothing offline could answer, if the user keeps that list.
+    `phrases` is [(phrase, times asked)], most asked first."""
+    from clishe_brain import UNANSWERED_FILE
+    if config.get("log_unanswered") is not True:
+        return Check("ok", "Unanswered phrases aren't kept",
+                     'To help improve Clishe, set "log_unanswered": true in your config. '
+                     "The list stays on this computer.")
+    if not phrases:
+        return Check("ok", "No unanswered phrases yet", str(UNANSWERED_FILE))
+    top = "; ".join(f"{p} ({n}x)" if n > 1 else p for p, n in phrases[:5])
+    return Check("note", f"{len(phrases)} phrase{'s' if len(phrases) != 1 else ''} Clishe couldn't answer offline",
+                 top + ("; ..." if len(phrases) > 5 else ""),
+                 f"Share the ones you're happy to in an issue (github.com/Sym-jay/clishe/issues) "
+                 f"so they can be added. All of them are in {UNANSWERED_FILE}; delete it to clear the list.")
 
 
 def manual_pages() -> Check:
@@ -204,4 +221,6 @@ def run(bash_version: str = "", clishe_path: str = "", shell: str = "",
     checks += config_file(CONFIG_FILE)
     checks += [data_folder(DATA_DIR), tldr_data(), manual_pages(), trash()]
     checks += ai({**load_config(), **config})
+    from clishe_brain import ClisheBrain
+    checks.append(unanswered({**load_config(), **config}, ClisheBrain().unanswered()))
     return checks
