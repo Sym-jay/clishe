@@ -8,6 +8,11 @@
   could answer. It stays on your computer; `clishe doctor` shows the
   most-asked ones so you can share them in an issue if you want.
 
+### Changed
+- "Did you mean...?" no longer drops "all": "remove all my files" isn't
+  offered `rm <file>`, and "kill all processes" isn't offered
+  `kill <process id>`. "view a file" now offers `cat`, not `ls`.
+
 ### Fixed
 - The brain tests now keep to their throwaway home on Windows too
   (`USERPROFILE`), instead of writing to the real data folder.
