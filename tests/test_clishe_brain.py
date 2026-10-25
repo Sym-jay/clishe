@@ -190,6 +190,8 @@ def test_suggest_returns_none_for_unrelated_phrase(brain):
     ("go to the last folder", "go back to the previous folder"),
     ("follow a log file", "watch a log file"),
     ("show env vars", "show environment variables"),
+    ("view a file", "read a file"),                            # cat, not ls
+    ("remove a folder and everything in it", "delete a folder and everything in it"),
 ])
 def test_suggest_matches_on_meaning(brain, said, expected):
     match = brain.suggest(said)
@@ -202,6 +204,9 @@ def test_suggest_matches_on_meaning(brain, said, expected):
     "change my password",    # not "what did i change"
     "open youtube",          # not "open a file"
     "shut down the computer now",          # not "why is my computer slow"
+    "remove all my files",                 # not "delete a file": "all" would be dropped
+    "delete it all",
+    "kill all processes",                  # not "kill a process"
     "what is linux",                       # not a question about this computer
     "make a zip file of a folder",         # exactly half: not "make a new folder"
     "delete all files in my home folder",  # exactly half: not "delete a file"

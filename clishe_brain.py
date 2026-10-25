@@ -142,7 +142,7 @@ def normalize_phrase(phrase: str) -> str:
 # Words that don't say *what* the user wants done.
 _STOPWORDS = set("""
 a an the my me i you your is are am do does did be what whats how much many
-which can could would will should please show display see view list print
+which can could would will should please show display see list print
 check tell give get let s of to in on for at from with this that these those
 it its all any have has there here want need know
 right now today currently between about saved been
@@ -171,6 +171,7 @@ _SYNONYMS = {
     "difference": "compare", "different": "compare", "diff": "compare", "2": "two",
     "clean": "clear", "terminal": "screen",
     "runnable": "executable",
+    "view": "read",
     "information": "info", "details": "info", "detail": "info",
     "processor": "cpu",
     "username": "user",
@@ -189,6 +190,16 @@ _SYNONYMS = {
     "previous": "last",
     "slowing": "slow",
 }
+
+
+# Words that make a request about everything, and commands that must not be
+# offered as a near guess for one ("remove all my files" -> rm <file>).
+_EVERYTHING_WORDS = {"all", "everything", "every"}
+_DELETES_OR_STOPS = re.compile(r"\s*(sudo\s+)?(rm|shred|kill|pkill|killall)\b")
+
+
+def _says_everything(phrase: str) -> bool:
+    return bool(_EVERYTHING_WORDS & set(re.findall(r"[a-z]+", phrase.lower())))
 
 
 def _stem(word: str) -> str:
@@ -318,6 +329,11 @@ class ClisheBrain:
         known.update(self.kb)  # the user's own phrases win
         if key in known:
             return None
+        if _says_everything(key):
+            # "delete all my files" is not "delete a file": a guess that
+            # drops "all" would offer to delete or stop the wrong thing.
+            known = {p: c for p, c in known.items()
+                     if _says_everything(p) or not _DELETES_OR_STOPS.match(c)}
         by_meaning, perfect = self._suggest_by_meaning(key, known)
         # A partial match gives way to a tldr-pages example that covers
         # everything they said ("count words in a file" is wc -w, not
@@ -340,7 +356,11 @@ class ClisheBrain:
         wc -w <file>). Returns (description, command) or None. Strict on
         purpose, and the caller must still ask before running it."""
         import tldr
-        return tldr.match(phrase)
+        found = tldr.match(phrase)
+        if found and _says_everything(phrase) and not _says_everything(found[0]) \
+                and _DELETES_OR_STOPS.match(found[1]):
+            return None  # same reason as in suggest()
+        return found
 
     def _suggest_by_meaning(self, key, known):
         """Match different wording with the same meaning ('remove a
