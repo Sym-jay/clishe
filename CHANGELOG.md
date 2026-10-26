@@ -9,6 +9,10 @@
   most-asked ones so you can share them in an issue if you want.
 
 ### Fixed
+- npm's `EACCES` hint now only shows for npm's own error lines, so a Node
+  program that can't open port 80 no longer gets npm advice. Git's
+  `(fetch first)` push rejection gets the same "git pull, then push" hint
+  as `non-fast-forward`.
 - The brain tests now keep to their throwaway home on Windows too
   (`USERPROFILE`), instead of writing to the real data folder.
 
