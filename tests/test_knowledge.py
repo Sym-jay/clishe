@@ -186,12 +186,18 @@ def test_command_not_found_names_the_program():
     ("bash: /usr/bin/rm: Argument list too long", "too many files"),
     ("Segmentation fault (core dumped)", "crashed"),
     ("! [rejected] main -> main (non-fast-forward)", "git pull"),
+    ("! [rejected] main -> main (fetch first)", "git pull"),
     ("fatal: refusing to merge unrelated histories", "--allow-unrelated-histories"),
     # npm's text also contains "permission denied", so the npm hint must win
-    ("npm ERR! Error: EACCES: permission denied, mkdir '/usr/lib/node_modules'", "npm config set prefix"),
+    ("npm ERR! code EACCES\nnpm ERR! Error: EACCES: permission denied, mkdir '/usr/lib/node_modules'", "npm config set prefix"),
+    ("npm error code EACCES\nnpm error Error: EACCES: permission denied, mkdir '/usr/lib/node_modules'", "npm config set prefix"),
 ])
 def test_common_beginner_errors_are_explained(error, expected):
     assert expected in diagnose_error(error)
+
+
+def test_a_node_port_error_is_not_blamed_on_npm():
+    assert "npm" not in diagnose_error("Error: listen EACCES: permission denied 0.0.0.0:80")
 
 
 # ---------- output guides ----------

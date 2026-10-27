@@ -44,7 +44,11 @@
     "hint": "Your computer isn't connected to a network right now. Check your Wi-Fi or cable."
   },
   {
-    "match": "eacces: permission denied",
+    "match": "npm err! code eacces",
+    "hint": "npm couldn't write to a folder it needs, usually a system-wide folder that belongs to admin. Don't use sudo for npm. Instead, run 'mkdir -p ~/.npm-global' then 'npm config set prefix ~/.npm-global', and add 'export PATH=~/.npm-global/bin:$PATH' to your shell profile (~/.bashrc)."
+  },
+  {
+    "match": "npm error code eacces",
     "hint": "npm couldn't write to a folder it needs, usually a system-wide folder that belongs to admin. Don't use sudo for npm. Instead, run 'mkdir -p ~/.npm-global' then 'npm config set prefix ~/.npm-global', and add 'export PATH=~/.npm-global/bin:$PATH' to your shell profile (~/.bashrc)."
   },
   {
@@ -121,6 +125,10 @@
   },
   {
     "match": "non-fast-forward",
+    "hint": "Git won't push because the remote has commits you don't have yet. Run 'git pull' to bring them in, fix any conflicts, then 'git push' again."
+  },
+  {
+    "match": "(fetch first)",
     "hint": "Git won't push because the remote has commits you don't have yet. Run 'git pull' to bring them in, fix any conflicts, then 'git push' again."
   },
   {
