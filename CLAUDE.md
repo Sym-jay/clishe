@@ -57,6 +57,7 @@ and some Python tests fail for reasons that have nothing to do with your change.
 | `manual.py` | Reads the local `man` page (or `--help`) |
 | `tldr.py`, `tldr.json.gz` | tldr-pages summaries, examples and strict phrase matching (CC BY 4.0, see NOTICE.md) |
 | `breakdown.py` | Draws a command with each part labelled (or a list in plain mode) |
+| `orbs.py` | Animated braille orbs while Clishe waits (`orb_start`/`orb_stop` in clishe.sh); geometry ported from thinking-orbs (MIT, see NOTICE.md) |
 | `check.py` | `clishe check`: what a command or script would do, without running it |
 | `fix.py` | `fix that`: offline fixes for common mistakes |
 | `undo.py` | `undo that`: notes taken before a change and how to reverse it |

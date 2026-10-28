@@ -85,7 +85,7 @@ Most command-line tools assume you already know the command you want. Clishe ass
 - **Learn as you go**: `practice` lessons, "your turn" to type it yourself, your own `sheet` and `progress`.
 - **`explain`** any command using your own man pages; **`tour`** explains your computer.
 - **"How do I install Spotify?"** with the right way for your distro.
-- **AI is optional and local** (Ollama, llama.cpp, LM Studio...); nothing leaves your machine unless you turn on a cloud provider.
+- **AI is optional and local** (Ollama, llama.cpp, LM Studio...); nothing leaves your machine unless you turn on a cloud provider. While it thinks, a small animated orb shows it's working (`clishe orbs` shows all nine).
 
 See [all features](#all-features) for the details.
 
@@ -340,6 +340,7 @@ clishe tour                       # a quick tour of your computer
 clishe doctor                     # check your setup (exit 1 if something's broken)
 clishe sheet                      # your cheat sheet (clishe sheet > cheatsheet.txt)
 clishe check '<command>'          # is it safe to run? (or a script: clishe check setup.sh)
+clishe orbs                       # the nine thinking orbs Clishe shows while it waits
 clishe --init bash                # the Ctrl+G shortcut, for your ~/.bashrc
 clishe --init zsh                 # the same, for your ~/.zshrc
 clishe --version
@@ -432,6 +433,8 @@ Providers are tried in `provider_priority` order. A provider that isn't running,
 `trash` decides what happens when you delete files with `rm` and a Trash tool (`gio` or `trash-put`) is installed: `"ask"` (the default), `"always"` (use the Trash without asking) or `"never"`.
 
 `log_unanswered` (off by default): set it to `true` and Clishe keeps a private list of the phrases nothing offline could answer, with how often you asked. It never leaves your computer. `clishe doctor` shows the most-asked ones, so you can share any you like in an [issue](https://github.com/Sym-jay/clishe/issues) and help Clishe learn them. Delete `unanswered.json` to clear it.
+
+`orbs` (on by default): while Clishe waits for an answer (the AI, `fix that`, `explain`), it draws a small animated orb with braille dots, so a pause doesn't look like a hang. It only shows in a normal terminal, never in plain mode, and quick answers don't flash one. Set it to `false` to turn it off. The orbs are ported from [thinking-orbs](https://www.npmjs.com/package/thinking-orbs) by Jakub Antalik (MIT, see NOTICE.md).
 
 ## AI providers (optional)
 
@@ -548,6 +551,7 @@ knowledge.py            offline explain / diagnose engine
 manual.py               reads the man pages installed on your system
 breakdown.py            draws a command with each part labelled
 tldr.py, tldr.json.gz   summaries and examples from tldr-pages (see NOTICE.md)
+orbs.py                 the thinking orbs shown while Clishe waits (see NOTICE.md)
 scripts/build_tldr.py   rebuilds tldr.json.gz from a tldr-pages release
 tour.py                 clishe tour: your computer in plain English
 doctor.py               clishe doctor: setup checks and how to fix them

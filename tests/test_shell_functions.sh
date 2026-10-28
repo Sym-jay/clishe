@@ -559,6 +559,19 @@ assert_eq "a phrase nothing offline knows is passed on to be noted (if turned on
     "$(grep -q -- "--phrase convert a video to mp4" "$TEST_HOME/noted.txt" 2>/dev/null && echo yes || echo no)"
 
 echo ""
+echo "=== thinking orbs ==="
+
+orb_start composing > "$TEST_HOME/orb.out" 2>&1
+assert_eq "no orb when the output isn't a terminal" "" "$ORB_PID"
+orb_stop
+assert_eq "and nothing is drawn" "" "$(cat "$TEST_HOME/orb.out")"
+PLAIN=1 orb_start composing > /dev/null 2>&1
+assert_eq "no orb in plain mode" "" "$ORB_PID"
+orbs_out=$("$CLISHE_SH" orbs 2>&1)
+assert_eq "clishe orbs says why when it can't animate" "yes" \
+    "$([[ "$orbs_out" == *"only show in a normal terminal"* ]] && echo yes || echo no)"
+
+echo ""
 echo "=== clishe doctor ==="
 
 DOCTOR_HOME="$(mktemp -d)"

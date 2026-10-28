@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- **Thinking orbs**: while Clishe waits for the AI, `fix that` or
+  `explain`, a small animated orb drawn with braille dots shows it's
+  working, and erases itself when the answer comes. Quick answers don't
+  flash one, and plain mode never shows them. `clishe orbs` shows all
+  nine; `"orbs": false` turns them off. Ported from thinking-orbs by Jakub
+  Antalik (MIT, see NOTICE.md).
 - **Help Clishe learn what you ask** (opt-in): with `"log_unanswered": true`
   in the config, Clishe keeps a private list of phrases nothing offline
   could answer. It stays on your computer; `clishe doctor` shows the
