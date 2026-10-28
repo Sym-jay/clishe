@@ -116,6 +116,43 @@ say_cmd() { printf '%bClishe: %b%s%b%s%b\n' "$BLUE" "$NC" "$1" "$YELLOW" "$2" "$
 
 warn() { printf '%b%s%b\n' "$YELLOW" "$1" "$NC"; }
 
+# A small animated orb (orbs.py) while Clishe waits, so a pause looks like
+# work and not a hang. Only in a real terminal, never in plain mode, and
+# not with "orbs": false in the config. It draws nothing in its first
+# 0.3 s, so a quick answer never flashes one, and it erases itself.
+ORB_PID=""
+ORBS_SETTING=""
+orbs_allowed() {
+    [ -z "$PLAIN" ] && [ -t 1 ] && [ "${TERM:-}" != "dumb" ] || return 1
+    if [ -z "$ORBS_SETTING" ]; then
+        ORBS_SETTING=$(brain --action setting --phrase orbs)
+        [ -n "$ORBS_SETTING" ] || ORBS_SETTING=true
+    fi
+    [ "$ORBS_SETTING" != "false" ]
+}
+orb_start() {
+    orb_stop
+    orbs_allowed || return 0
+    python3 "$SCRIPT_DIR/orbs.py" run --state "$1" 2>/dev/null &
+    ORB_PID=$!
+}
+orb_stop() {
+    [ -n "$ORB_PID" ] || return 0
+    kill "$ORB_PID" 2>/dev/null
+    wait "$ORB_PID" 2>/dev/null
+    ORB_PID=""
+}
+
+# `clishe orbs`: all nine, one after another (Ctrl-C to stop).
+orbs_demo() {
+    if [ -n "$PLAIN" ] || [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ]; then
+        say "The orbs are small animations, so they only show in a normal terminal, not in plain mode."
+        return 0
+    fi
+    say "These show while I wait for an answer (Ctrl-C to stop):"
+    python3 "$SCRIPT_DIR/orbs.py" demo
+}
+
 # CLISHE_DEBUG=1 lets Python's error messages through (for finding bugs).
 brain() {
     if [[ -n "${CLISHE_DEBUG:-}" ]]; then
@@ -144,6 +181,7 @@ Usage:
   clishe doctor             check your setup, and how to fix anything wrong
   clishe sheet              your own cheat sheet (save: clishe sheet > cheatsheet.txt)
   clishe check '<command>'  is it safe to run? (or: clishe check script.sh)
+  clishe orbs               see the nine thinking orbs Clishe shows while it waits
   clishe --init bash|zsh    print the Ctrl+G shortcut (and Tab completion) for your normal shell
                             (add  eval "$(clishe --init bash)"  to ~/.bashrc,
                              or   eval "$(clishe --init zsh)"   to ~/.zshrc)
@@ -472,7 +510,9 @@ detect_explain_target() {
 run_explain() {
     local target="$1"
     local output
+    orb_start searching
     output=$(brain --action explain --command "$target")
+    orb_stop
     parse_brain_output "$output" EX
 
     if [ "$EX_STATUS" = "ok" ]; then
@@ -652,7 +692,9 @@ fix_last() {
         return
     fi
     say "Let me look at what went wrong..."
+    orb_start solving
     output=$(brain --action fix --command "$LAST_RUN_COMMAND" --error "$LAST_STDERR")
+    orb_stop
     parse_brain_output "$output" FX
     if [ "$FX_STATUS" != "ok" ]; then
         say "I'm not sure what went wrong. Try 'man ${LAST_RUN_COMMAND%% *}', or read the error message above carefully: it usually names the problem."
@@ -764,7 +806,9 @@ resolve_with_ai() {
     say "I don't know that. Let me think..."
 
     err_file=$(mktemp)
+    orb_start composing
     resolve_output=$(python3 "$PYTHON_SCRIPT" --action resolve --phrase "$phrase" 2>"$err_file")
+    orb_stop
     provider_errors=$(grep '^\[' "$err_file" | head -3)
     rm -f "$err_file"
     parse_brain_output "$resolve_output" RS
@@ -1453,6 +1497,8 @@ if [ $# -gt 0 ]; then
             shift
             check_session "$*"
             exit $? ;;
+        orbs)
+            [ $# -eq 1 ] && { orbs_demo; exit 0; } ;;
         explain)
             if [ $# -gt 1 ]; then
                 shift

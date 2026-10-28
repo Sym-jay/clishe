@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import List, NamedTuple
 
 KNOWN_SETTINGS = {"provider_priority", "allow_remote_ai", "trash", "ollama", "local",
-                  "anthropic", "learn_mode", "plain", "log_unanswered"}
+                  "anthropic", "learn_mode", "plain", "log_unanswered", "orbs"}
 RC_FILES = {"bash": "~/.bashrc", "zsh": "~/.zshrc"}
 
 
