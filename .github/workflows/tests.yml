@@ -8,10 +8,22 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    name: test (${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
     strategy:
+      # One failing job must not cancel the others: their real results are
+      # what tells a runner problem from a code problem.
+      fail-fast: false
       matrix:
-        python-version: ["3.9", "3.11", "3.12"]
+        include:
+          # Ubuntu 26.04 (ubuntu-latest since October 2026) has no Python
+          # 3.9, and Clishe supports 3.9+, so that one stays on 24.04.
+          - python-version: "3.9"
+            os: ubuntu-24.04
+          - python-version: "3.11"
+            os: ubuntu-latest
+          - python-version: "3.12"
+            os: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
