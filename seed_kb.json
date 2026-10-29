@@ -116,5 +116,19 @@
   "stop a running program": "kill <process id>",
   "change folder": "cd <folder>",
   "list all branches": "git branch",
-  "show all git branches": "git branch"
+  "show all git branches": "git branch",
+  "check the python version": "python3 --version",
+   "check the pip version": "python3 -m pip --version",
+  "make a python virtual environment": "python3 -m venv .venv",
+  "start the virtual environment": ". .venv/bin/activate",
+  "install a python package": "python3 -m pip install <package>",
+  "run a python script": "python3 <file>",
+  "run a python script with arguments": "python3 <file> <arguments>",
+  "install project dependencies": "python3 -m pip install -r requirements.txt",
+  "run python tests": "python3 -m pytest",
+  "run a specific python test file": "python3 -m pytest <file>",
+  "start a python web server": "python3 -m http.server",
+  "show installed python packages": "python3 -m pip list",
+  "check where python is installed": "which python3",
+  "exit the virtual environment": "deactivate"
 }
