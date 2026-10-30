@@ -118,7 +118,7 @@
   "list all branches": "git branch",
   "show all git branches": "git branch",
   "check the python version": "python3 --version",
-   "check the pip version": "python3 -m pip --version",
+  "check the pip version": "python3 -m pip --version",
   "make a python virtual environment": "python3 -m venv .venv",
   "start the virtual environment": ". .venv/bin/activate",
   "install a python package": "python3 -m pip install <package>",
