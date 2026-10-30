@@ -1,0 +1,32 @@
+name: Demo GIF
+
+# Records demo.gif from demo.tape with VHS on Linux, so it can be made from
+# any computer: change demo.tape (or run this by hand from the Actions tab),
+# then download the "demo-gif" artifact and commit it as demo.gif.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - demo.tape
+      - .github/workflows/demo.yml
+
+jobs:
+  record:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      # DejaVu has the braille characters the thinking orbs are drawn with.
+      - name: Install fonts
+        run: sudo apt-get update && sudo apt-get install -y fonts-dejavu-core
+
+      - name: Record demo.tape
+        uses: charmbracelet/vhs-action@v2
+        with:
+          path: demo.tape
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: demo-gif
+          path: demo.gif

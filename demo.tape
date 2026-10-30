@@ -61,3 +61,10 @@ Type "no" Enter
 Sleep 1.5s
 Type "exit" Enter
 Sleep 1s
+
+# 6. The thinking orbs Clishe shows while it waits for an answer.
+Type "clear" Enter
+Type "./clishe.sh orbs" Enter
+Sleep 7.5s
+Ctrl+C
+Sleep 800ms
