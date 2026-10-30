@@ -35,7 +35,9 @@ Type "copy a file"
 Sleep 600ms
 Ctrl+G
 Sleep 2s
-Ctrl+C
+# Clear the line (Ctrl+C here would print ^C over the first blank).
+Ctrl+E
+Ctrl+U
 Sleep 500ms
 
 # 3. Ctrl+G on a real command explains each flag.
@@ -61,3 +63,10 @@ Type "no" Enter
 Sleep 1.5s
 Type "exit" Enter
 Sleep 1s
+
+# 6. The thinking orbs Clishe shows while it waits for an answer.
+Type "clear" Enter
+Type "./clishe.sh orbs" Enter
+Sleep 7.5s
+Ctrl+C
+Sleep 800ms
