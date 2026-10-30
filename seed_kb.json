@@ -122,7 +122,6 @@
   "make a python virtual environment": "python3 -m venv .venv",
   "start the virtual environment": ". .venv/bin/activate",
   "install a python package": "python3 -m pip install <package>",
-  "run a python script": "python3 <file>",
   "run a python script with arguments": "python3 <file> <arguments>",
   "install project dependencies": "python3 -m pip install -r requirements.txt",
   "run python tests": "python3 -m pytest",
