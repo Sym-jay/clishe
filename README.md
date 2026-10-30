@@ -47,7 +47,7 @@ Clishe (via ollama): I think you mean:
 Run this? [Y/n/e=edit]: y
 ```
 
-<!-- TODO: record demo.gif with `vhs demo.tape` and show it here: ![Clishe demo](demo.gif) -->
+![Clishe demo: plain English to a command with Ctrl+G, flags explained, "what does this mean", the safety check and the thinking orbs](https://raw.githubusercontent.com/Sym-jay/clishe/main/demo.gif)
 
 Or skip the session entirely: type plain English at your **normal prompt** and press **Ctrl+G**. The words turn into the command, right there on your line, ready to read, edit and run.
 
