@@ -43,6 +43,20 @@ def test_seed_phrases_are_normalized(phrase):
     assert normalize_phrase(phrase) == phrase
 
 
+@pytest.mark.parametrize("name", ["seed_kb.json", "command_dictionary.json",
+                                  "error_patterns.json", "output_guides.json"])
+def test_data_files_keep_their_layout(name):
+    """Two-space indent and a final newline, so a contributor's edit shows up
+    as only the lines they changed. The lessons and the eval are laid out by
+    hand, so only these flat files are checked."""
+    text = (ROOT / name).read_text(encoding="utf-8")
+    expected = json.dumps(json.loads(text), indent=2, ensure_ascii=False) + "\n"
+    assert text == expected, (
+        f"{name} is not laid out like the rest of the file; fix it with:\n"
+        f"  python -c \"import json,sys; p=sys.argv[1]; d=json.load(open(p, encoding='utf-8')); "
+        f"open(p, 'w', encoding='utf-8').write(json.dumps(d, indent=2, ensure_ascii=False) + '\\n')\" {name}")
+
+
 def test_error_patterns_are_well_formed():
     patterns = json.loads((ROOT / "error_patterns.json").read_text())
     for entry in patterns:
