@@ -99,7 +99,9 @@ combined flags like `-xzvf` can be explained letter by letter; subcommands
 value from the user, write it as a placeholder of lowercase words in angle
 brackets, e.g. `"copy a file": "cp <file> <destination>"`. Never add a bare
 command that needs arguments (`"cat"`), since it would hang or fail when run.
-`tests/test_data_files.py` checks this.
+Keep the two-space indent and the newline at the end of the file.
+`tests/test_data_files.py` checks all of this, and its error message shows a
+one-line command that fixes the layout.
 
 ## Updating the tldr-pages data
 
