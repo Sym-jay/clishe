@@ -142,6 +142,8 @@ Type what you want. Type `help` for tips, and `exit` (or Ctrl-D) to leave.
 
 ### Sessions
 
+![A Clishe session: "compress a folder" shows tar -czvf with each part labelled, asks for the archive name and folder, then runs it](https://raw.githubusercontent.com/Sym-jay/clishe/main/docs/images/breakdown.png)
+
 **A phrase Clishe already knows**
 ```text
 You: show me disk usage
@@ -354,6 +356,8 @@ clishe --version
 - Helps you outgrow it: after you've asked for the same thing three times, Clishe shows you the command. The next time, it's **your turn**: Clishe asks you to type it yourself, and checks it (`ls -al` counts for `ls -la`). Once you've got it right twice, it stops asking.
 - `practice`: hands-on lessons in a throwaway folder, with hints, and it remembers where you stopped. Built in: **basics** (14 exercises: pwd, ls, mkdir, cd, touch, echo, cat, cp, mv, find, grep, rm), **git** (13: init, config, status, add, commit, log, diff), **processes** (8: ps, pipes with grep, sort and head, background jobs, kill, uptime), **permissions** (9: ls -l, chmod +x, chmod 600, ls -ld) and **archives** (9: tar and zip: pack, list, unpack). Lessons are simple JSON files, so teachers and workshops can write their own: drop one in `~/.local/share/clishe/lessons/` and run `clishe practice <name>` (`clishe practice --list` shows them all).
 - `tour`: a walk through your own computer in plain English: which Linux you run (and what it's based on), processor and memory, free disk space, desktop and shell, what folders like `/etc` and `/usr/bin` are for, how software gets installed, and whether you can use `sudo`. Each stop has a command to try, so you can find it all again yourself. Offline.
+
+  ![clishe tour: the first two stops, your Linux and your computer, each with commands to try](https://raw.githubusercontent.com/Sym-jay/clishe/main/docs/images/tour.png)
 - `sheet`: your own cheat sheet, the commands you type yourself in the form you use them, each with what it does, plus the things you still ask for and the command to type instead. Save it for printing with `clishe sheet > cheatsheet.txt`.
 - `progress`: the everyday commands you've typed yourself, the ones you still ask for, and good ones to learn next.
 - Natural language to shell commands, resolved in this order: your knowledge base, the bundled seed KB, a native command you typed directly, a close match to a phrase it already knows ("did you mean...?"), then an AI provider (if configured), then "teach me".
@@ -366,8 +370,12 @@ clishe --version
 - Plain-English hints when a command fails (permission denied, no such file, pip's "externally-managed-environment", apt without sudo, no internet, and more), fully offline. If a program isn't installed, it tells you the install command for your distro (`apt`, `dnf`, `pacman`, `zypper` or `apk`).
 - **"How do I install Spotify?"** (also "install vs code", "get vlc"): for about 25 popular apps, Clishe knows the right way on your system. It prefers your distro's own package when there is one (it updates with everything else), otherwise Flathub, with the one-time Flatpak setup for your distro if you don't have it yet, and Homebrew on a Mac. Well-known command-line tools (`install htop`) get your package manager's command, or "it's already installed". It shows the commands and asks before running anything.
 - **`fix that`** after a command fails: Clishe explains what went wrong and offers a fixed command to run (with the usual safety check). Common mistakes are fixed offline: a misspelled command (`gti` → `git`), a misspelled file or folder (`cd Documnets` → `cd Documents`), a missing `sudo`, a script that isn't executable, `cp` on a folder without `-r`, an out-of-date apt package list, a rejected `git push`, git not knowing your name yet, pip refusing to install into the system Python, a port that's already in use, `cd` into a file. Anything else goes to your local AI. It never guesses a different file name for `rm` or `mv`; it only mentions it.
+
+  ![fix that after cd Documnets: Clishe spots the typo and offers cd Documents](https://raw.githubusercontent.com/Sym-jay/clishe/main/docs/images/fix-that.png)
 - **`undo that`** reverses the last change, after showing you the command that does it: `mv` moves it back, `mkdir` removes the folder while it's empty, `touch` removes the empty file, `cp` sends the copy to the Trash, `chmod` restores the old permissions, `cd` goes back, and files moved to the Trash are put back where they were (on a Mac, Clishe tells you how to use Finder's Put Back, since macOS hides the Trash from the terminal). It checks nothing has changed since and refuses rather than guess. Package installs get the matching remove command. A plain `rm` can't be undone, and Clishe says so.
 - **"Is this safe to run?"** Paste a command you found online, or point at a script: `clishe check 'curl … | sudo bash'` or `clishe check install.sh` (in a session: `is this safe: <command>` or `check <command>`). Nothing is run. You get each part explained, what it would change (files created or deleted, software installed, admin rights, which websites it talks to), any risky patterns, and for downloaded scripts a safer way: download, read, then check. It exits with 1 when there are warnings, so it works in scripts too.
+
+  ![clishe check on curl piped into sudo bash: what it does, the warning, and a safer way](https://raw.githubusercontent.com/Sym-jay/clishe/main/docs/images/check.png)
 - "What does this mean?" after `ls -l`, `df -h`, `free -h`, `ps aux`, `git status` and others walks you through the columns of the output you just saw. Offline, and your output never leaves your machine.
 - Next-command suggestions based on your own history. They appear once you have a few dozen logged commands.
 - A comfortable prompt: arrow keys and line editing work, your inputs are remembered across sessions, and Ctrl-C stops a running command without closing Clishe.
