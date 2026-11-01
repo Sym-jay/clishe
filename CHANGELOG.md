@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Added
+- **More offline fixes for `fix that`**: a rejected `git push` offers
+  `git pull --rebase` first; git's "Please tell me who you are" offers
+  `git config` with your name and email to fill in; pip's
+  "externally-managed-environment" offers a virtual environment;
+  "Address already in use" lists what's using the ports; and `cd` into a
+  file goes to the folder it's in. None of them need the AI.
+- Python development phrases ("make a python virtual environment", "run
+  python tests", ...), thanks to @pardhusriparupudi.
+
 ## 0.11.0 (2026-10-30)
 
 ### Added

@@ -8,6 +8,11 @@ fixed command. The common beginner mistakes are fixed here, offline:
     ./backup.sh           -> chmod +x backup.sh && ./backup.sh
     cp photos backup/     -> cp -r photos backup/
     apt: Unable to locate -> sudo apt update && sudo apt install ...
+    git push (rejected)   -> git pull --rebase && git push
+    git: who are you?     -> git config --global user.name <your name> ...
+    pip: externally-managed -> python3 -m venv .venv && ... pip install ...
+    Address already in use -> ss -tlnp            (what's using the port)
+    cd notes/todo.txt     -> cd notes              (cd into a file)
 
 Anything else goes to the local AI (clishe_brain.ClisheBrain.fix).
 """
@@ -15,6 +20,7 @@ import difflib
 import os
 import re
 import shlex
+import sys
 from typing import List, Optional
 
 from knowledge import POPULAR_PROGRAMS, diagnose_error
@@ -166,7 +172,77 @@ def _apt_update(command: str, error: str) -> Optional[dict]:
     return None
 
 
-RULES = [_typo_in_command, _not_executable, _apt_update, _needs_sudo, _folder_needs_r]
+def _git_push_rejected(command: str, error: str) -> Optional[dict]:
+    words = _words(command)
+    lowered = error.lower()
+    if words[:2] == ["git", "push"] and ("(fetch first)" in lowered
+                                         or "non-fast-forward" in lowered):
+        return {"explanation": "The remote has commits you don't have yet, so git won't "
+                               "push over them. git pull --rebase brings them in and puts "
+                               "your commits on top; then push again.",
+                "command": f"git pull --rebase && {command}"}
+    return None
+
+
+def _git_identity(command: str, error: str) -> Optional[dict]:
+    if _words(command)[:1] == ["git"] and "please tell me who you are" in error.lower():
+        return {"explanation": "Git puts a name and email on every commit, and doesn't "
+                               "know yours yet. Set them once for this computer, then "
+                               "run your command again.",
+                "command": "git config --global user.name <your name> && "
+                           "git config --global user.email <your email>"}
+    return None
+
+
+def _pip_externally_managed(command: str, error: str) -> Optional[dict]:
+    words = _words(command)
+    if "externally-managed-environment" not in error or "install" not in words:
+        return None
+    packages = words[words.index("install") + 1:]
+    if not packages or not any(os.path.basename(w).startswith("pip") for w in words):
+        return None
+    return {"explanation": "Your system's Python is managed by your distro, so pip won't "
+                           "install into it. A virtual environment (.venv) is a private "
+                           "Python for this folder where pip works. For a command-line "
+                           "app, pipx install is simpler.",
+            "command": "python3 -m venv .venv && . .venv/bin/activate && pip install "
+                       + " ".join(_quote(w) for w in packages)}
+
+
+def _port_in_use(command: str, error: str) -> Optional[dict]:
+    if "address already in use" not in error.lower():
+        return None
+    listing = "lsof -nP -iTCP -sTCP:LISTEN" if sys.platform == "darwin" else "ss -tlnp"
+    return {"explanation": "Another program is already using that network port. This "
+                           "lists the ports in use and what is listening on them; stop "
+                           "that program, or pick a different port.",
+            "command": listing}
+
+
+def _cd_into_file(command: str, error: str, cwd: str) -> Optional[dict]:
+    words = _words(command)
+    if words[:1] != ["cd"] or len(words) < 2 or "not a directory" not in error.lower():
+        return None
+    # Walk up "docs/notes.txt/more" to the part that is a file.
+    target = os.path.expanduser(words[1])
+    path = target
+    while path and not os.path.isfile(os.path.join(cwd, path)):
+        path = os.path.dirname(path)
+    if not path:
+        return None
+    folder = os.path.dirname(path)
+    name = os.path.basename(path)
+    if not folder:
+        return {"explanation": f"'{name}' is a file, not a folder, and you're already in "
+                               "the folder it's in. ls shows it.",
+                "command": ""}
+    return {"explanation": f"'{name}' is a file, not a folder. cd can only go into "
+                           f"folders, so this goes to '{folder}', where the file is.",
+            "command": f"cd {_quote(folder)}"}
+
+
+RULES = [_typo_in_command, _not_executable, _apt_update, _needs_sudo, _folder_needs_r,
+         _git_push_rejected, _git_identity, _pip_externally_managed, _port_in_use]
 
 
 def offline_fix(command: str, error: str, cwd: Optional[str] = None,
@@ -181,9 +257,10 @@ def offline_fix(command: str, error: str, cwd: Optional[str] = None,
                   else rule(command, error))
         if result:
             return result
-    result = _typo_in_path(command, error, cwd or os.getcwd())
-    if result:
-        return result
+    for rule in (_cd_into_file, _typo_in_path):
+        result = rule(command, error, cwd or os.getcwd())
+        if result:
+            return result
     hint = diagnose_error(error)
     if hint:
         return {"explanation": hint, "command": ""}
