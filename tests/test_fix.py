@@ -42,9 +42,61 @@ def _fix(folder, command, error):
     ("cat photos", "cat: photos: Is a directory", "ls photos"),
     ("sudo apt install vscode", "E: Unable to locate package vscode",
      "sudo apt update && sudo apt install vscode"),
+    ("git push origin main", " ! [rejected]        main -> main (fetch first)\n"
+                             "error: failed to push some refs",
+     "git pull --rebase && git push origin main"),
+    ("git push", " ! [rejected]        main -> main (non-fast-forward)",
+     "git pull --rebase && git push"),
+    ("git commit -m 'first'", "Author identity unknown\n\n*** Please tell me who you are.",
+     "git config --global user.name <your name> && git config --global user.email <your email>"),
+    ("pip install requests", "error: externally-managed-environment",
+     "python3 -m venv .venv && . .venv/bin/activate && pip install requests"),
+    ("python3 -m pip install flask gunicorn", "error: externally-managed-environment",
+     "python3 -m venv .venv && . .venv/bin/activate && pip install flask gunicorn"),
+    ("cd Documents/plan.txt", "bash: cd: Documents/plan.txt: Not a directory", "cd Documents"),
+    ("cd Documents/plan.txt/old", "bash: cd: Documents/plan.txt/old: Not a directory",
+     "cd Documents"),
 ])
 def test_offline_fixes(folder, command, error, fixed):
+    (folder / "Documents" / "plan.txt").write_text("")
     assert _fix(folder, command, error)["command"] == fixed
+
+
+def test_port_in_use_lists_the_ports(folder, monkeypatch):
+    import fix
+    error = "OSError: [Errno 98] Address already in use"
+    monkeypatch.setattr(fix.sys, "platform", "linux")
+    assert _fix(folder, "python3 -m http.server 8000", error)["command"] == "ss -tlnp"
+    monkeypatch.setattr(fix.sys, "platform", "darwin")
+    assert _fix(folder, "python3 -m http.server 8000", error)["command"] == \
+        "lsof -nP -iTCP -sTCP:LISTEN"
+
+
+def test_cd_into_a_file_here_gets_advice(folder):
+    result = _fix(folder, "cd notes.txt", "bash: cd: notes.txt: Not a directory")
+    assert result["command"] == "" and "already in" in result["explanation"]
+
+
+def test_new_rules_stay_out_of_the_way(folder):
+    # Other git and pip failures aren't these rules' business.
+    assert _fix(folder, "git pull", "fatal: not a git repository")["command"] == ""
+    assert _fix(folder, "pip list", "error: externally-managed-environment")["command"] == ""
+    assert _fix(folder, "ls notes.txt/x", "ls: cannot access 'notes.txt/x': Not a directory"
+                )["command"] == ""
+
+
+def test_offline_fixes_never_delete(folder):
+    """Rule outputs go through the same safety check as everything else, but
+    an offline rule should never even suggest deleting anything."""
+    from safety import check_command
+    cases = [("git push", "(fetch first)"), ("git commit", "Please tell me who you are"),
+             ("pip install x", "externally-managed-environment"),
+             ("node app.js", "Error: listen EADDRINUSE: address already in use :::3000"),
+             ("cd Documents/plan.txt", "Not a directory")]
+    (folder / "Documents" / "plan.txt").write_text("")
+    for command, error in cases:
+        fixed = _fix(folder, command, error)["command"]
+        assert fixed and not check_command(fixed), (command, fixed)
 
 
 def test_never_guesses_a_different_file_to_delete(folder):
@@ -102,10 +154,10 @@ def test_offline_fix_wins_without_asking_the_ai(brain, monkeypatch):
 
 def test_ai_is_asked_when_no_rule_fits(brain, monkeypatch):
     import clishe_brain
-    fake = _FakeProvider({"explanation": "The port is in use.", "command": "ss -tlnp"})
+    fake = _FakeProvider({"explanation": "The disk is full.", "command": "df -h"})
     monkeypatch.setattr(clishe_brain, "build_provider_chain", lambda config: [fake])
-    result = brain.fix("python3 -m http.server 80", "OSError: [Errno 98] Address already in use")
-    assert result == {"status": "ok", "explanation": "The port is in use.", "command": "ss -tlnp",
+    result = brain.fix("weird", "something odd happened")
+    assert result == {"status": "ok", "explanation": "The disk is full.", "command": "df -h",
                       "provider": "local", "unverified": []}
 
 
