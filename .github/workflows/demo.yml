@@ -1,14 +1,16 @@
 name: Demo GIF
 
-# Records demo.gif from demo.tape with VHS on Linux, so it can be made from
-# any computer: change demo.tape (or run this by hand from the Actions tab),
-# then download the "demo-gif" artifact and commit it as demo.gif.
+# Records demo.gif from demo.tape, and the README screenshots in
+# docs/images/ from screenshots.tape, with VHS on Linux, so they can be
+# made from any computer: change a tape (or run this by hand from the
+# Actions tab), then download the artifacts and commit them.
 
 on:
   workflow_dispatch:
   push:
     paths:
       - demo.tape
+      - screenshots.tape
       - .github/workflows/demo.yml
 
 jobs:
@@ -26,7 +28,17 @@ jobs:
         with:
           path: demo.tape
 
+      - name: Take screenshots.tape
+        uses: charmbracelet/vhs-action@v2
+        with:
+          path: screenshots.tape
+
       - uses: actions/upload-artifact@v4
         with:
           name: demo-gif
           path: demo.gif
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: docs/images/*.png
