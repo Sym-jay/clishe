@@ -967,8 +967,9 @@ run_command() {
     LAST_EXIT=$?
     # Errors from builtins like cd come out as "/path/to/clishe.sh: line 966:
     # cd: ...", since they ran inside this script. Drop that prefix so it
-    # reads like a normal terminal.
-    LAST_STDERR=$(awk -v p="$0: line " 'index($0, p) == 1 {
+    # reads like a normal terminal. (bash names the file this function is
+    # in, which is $0 only when clishe.sh is run rather than sourced.)
+    LAST_STDERR=$(awk -v p="${BASH_SOURCE[0]}: line " 'index($0, p) == 1 {
         rest = substr($0, length(p) + 1)
         if (match(rest, /^[0-9]+: /)) $0 = substr(rest, RLENGTH + 1)
     } { print }' "$stderr_file")
