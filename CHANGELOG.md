@@ -12,6 +12,11 @@
 - Python development phrases ("make a python virtual environment", "run
   python tests", ...), thanks to @pardhusriparupudi.
 
+### Fixed
+- Errors from commands like `cd` no longer start with Clishe's own file
+  path and line number (`/…/clishe.sh: line 966: cd: …`); they read like
+  a normal terminal's.
+
 ## 0.11.0 (2026-10-30)
 
 ### Added

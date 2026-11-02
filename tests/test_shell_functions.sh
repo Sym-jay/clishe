@@ -402,6 +402,11 @@ fix_out=$(echo "n" | fix_last 2>&1)
 unset -f python3
 assert_eq "fix that explains and offers the fix" "yes" \
     "$([[ "$fix_out" == *"called Documents"*"Try: cd Documents"* ]] && echo yes || echo no)"
+python3() { :; }
+run_command "cd ./no-such-folder" >/dev/null 2>&1
+unset -f python3
+assert_eq "a builtin's error loses the script's 'line N:' prefix" \
+    "cd: ./no-such-folder: No such file or directory" "$LAST_STDERR"
 fix_match=$(shopt -s nocasematch; [[ "What went wrong?" =~ $RE_FIX ]] && echo yes || echo no)
 assert_eq "'what went wrong?' counts as fix that" "yes" "$fix_match"
 
