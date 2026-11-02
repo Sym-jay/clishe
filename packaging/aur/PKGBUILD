@@ -1,6 +1,6 @@
 # Maintainer: Sym-jay <https://github.com/Sym-jay>
 pkgname=clishe
-pkgver=0.11.0
+pkgver=0.12.0
 pkgrel=1
 pkgdesc="Plain English to shell commands for Linux beginners: offline, learn as you go, optional local AI"
 arch=('any')
@@ -11,7 +11,7 @@ optdepends=('ollama: local AI for phrases Clishe does not know yet'
             'man-db: explain any installed command from its manual'
             'glib2: move deleted files to the Trash instead of erasing them')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('3f68e47e250c6e0c43f605538e62a50390594d73c4c0fd795a7049ea4484cc40')
+sha256sums=('8834f4f509d273b89495fdfb32ad981e442d71cc5763a78f4f3459948b8a2d9b')
 
 package() {
   cd "$pkgname-$pkgver"
