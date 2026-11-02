@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.12.0 (2026-11-02)
 
 ### Added
 - **More offline fixes for `fix that`**: a rejected `git push` offers
@@ -11,6 +11,8 @@
   file goes to the folder it's in. None of them need the AI.
 - Python development phrases ("make a python virtual environment", "run
   python tests", ...), thanks to @pardhusriparupudi.
+- README screenshots of a labelled breakdown, `clishe check`, `fix that`
+  and `clishe tour`, taken in CI with VHS.
 
 ### Fixed
 - Errors from commands like `cd` no longer start with Clishe's own file
