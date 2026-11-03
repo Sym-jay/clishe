@@ -8,14 +8,18 @@ clishe="$1" sig="$2"
 started=$(date +%s)
 work="$(mktemp -d)" home="$(mktemp -d)"
 mkfifo "$work/in"
-HOME="$home" TMPDIR="$work/" NO_COLOR=1 "$clishe" practice basics < "$work/in" > /dev/null 2>&1 &
+HOME="$home" TMPDIR="$work/" NO_COLOR=1 "$clishe" practice basics < "$work/in" > "$work/out" 2>&1 &
 pid=$!
 exec 7>"$work/in"
+# Wait for the first exercise, not just the folder: between making the
+# folder and reaching the prompt, practice ignores Ctrl-C on purpose (it
+# stops a running command, not practice), so a signal sent there is
+# swallowed and the run waits for input forever. That made this test fail
+# now and then on a busy CI machine (#100).
 for _ in $(seq 1 100); do
-    compgen -G "$work/clishe-practice.*" > /dev/null && break
+    compgen -G "$work/clishe-practice.*" > /dev/null && grep -q "1/" "$work/out" && break
     sleep 0.1
 done
-kill -"$sig" -- "-$pid" 2>/dev/null
 signalled=$(date +%s)
 # Wait for the practice to actually tidy up, instead of guessing how long
 # that takes. What this checks is that the folder goes away, so wait for
@@ -25,7 +29,11 @@ signalled=$(date +%s)
 # Python 3.9 job while passing on 3.11, 3.12 and macOS, and the same
 # failure had already happened before these changes (#60).
 # SIGKILL stays the last resort, so a genuinely stuck run can't hang.
-for _ in $(seq 1 200); do
+# The printf before the prompt still leaves a tiny gap, so send the signal
+# again every 2s while the run is still going, as a person pressing Ctrl-C
+# again would.
+for n in $(seq 0 199); do
+    [ $((n % 20)) -eq 0 ] && kill -"$sig" -- "-$pid" 2>/dev/null
     kill -0 "$pid" 2>/dev/null || break
     compgen -G "$work/clishe-practice.*" > /dev/null || break
     sleep 0.1
