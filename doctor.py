@@ -17,7 +17,7 @@ from typing import List, NamedTuple
 
 KNOWN_SETTINGS = {"provider_priority", "allow_remote_ai", "trash", "ollama", "local",
                   "anthropic", "learn_mode", "plain", "log_unanswered", "orbs"}
-RC_FILES = {"bash": "~/.bashrc", "zsh": "~/.zshrc"}
+RC_FILES = {"bash": "~/.bashrc", "zsh": "~/.zshrc", "fish": "~/.config/fish/config.fish"}
 
 
 class Check(NamedTuple):
@@ -53,8 +53,10 @@ def shortcut(shell_path: str, home: str) -> Check:
     shell = os.path.basename(shell_path or "")
     if shell not in RC_FILES:
         return Check("note", f"Ctrl+G shortcut: not available for {shell or 'your shell'} yet",
-                     "It works in bash and zsh.")
+                     "It works in bash, zsh and fish.")
     rc = RC_FILES[shell]
+    line = ("clishe --init fish | source" if shell == "fish"
+            else f'eval "$(clishe --init {shell})"')
     try:
         text = Path(rc.replace("~", home, 1)).read_text(errors="replace")
     except OSError:
@@ -63,7 +65,7 @@ def shortcut(shell_path: str, home: str) -> Check:
         return Check("ok", f"Ctrl+G shortcut is set up in {rc}")
     return Check("note", "Ctrl+G shortcut isn't set up",
                  "Type plain English at your normal prompt and press Ctrl+G to turn it into a command.",
-                 f'Add this line to {rc}, then open a new terminal: eval "$(clishe --init {shell})"')
+                 f"Add this line to {rc}, then open a new terminal: {line}")
 
 
 def config_file(path: Path) -> List[Check]:

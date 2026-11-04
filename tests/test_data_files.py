@@ -121,7 +121,7 @@ def test_the_aur_package_installs_what_pyproject_ships():
     """The PKGBUILD keeps its own copy of the file list; it must not fall
     behind the pip package."""
     pkbuild = (ROOT / "packaging" / "aur" / "PKGBUILD").read_text()
-    # clishe-bind.* covers both shell bindings.
+    # clishe-bind.* covers all the shell bindings.
     for needed in ("clishe.sh", "clishe-bind.*", "clishe.1",
                    "./*.json", "./*.json.gz", "lessons/*.json", "providers/*.py"):
         assert needed in pkbuild, f"the PKGBUILD does not install {needed}"

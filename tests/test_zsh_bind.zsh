@@ -64,7 +64,7 @@ assert_eq "first word: what Clishe can do" "yes" \
 lessons=" ${(j: :)${(f)"$(__clishe_words 3 practice)"}} "
 assert_eq "lessons after practice" "yes" \
     "$([[ $lessons == *" basics "* && $lessons == *" git "* && $lessons == *" --list "* ]] && print yes || print $lessons)"
-assert_eq "shells after --init" "bash zsh" "${(j: :)${(f)"$(__clishe_words 3 --init)"}}"
+assert_eq "shells after --init" "bash zsh fish" "${(j: :)${(f)"$(__clishe_words 3 --init)"}}"
 assert_eq "nothing of its own after check (file names instead)" "" "$(__clishe_words 3 check)"
 
 print ""

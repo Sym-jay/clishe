@@ -287,11 +287,12 @@ cd: note: No such file or directory
 
 ### Your normal shell (Ctrl+G)
 
-Add this line to your `~/.bashrc` (bash) or `~/.zshrc` (zsh), then open a new terminal:
+Add this line to your `~/.bashrc` (bash), `~/.zshrc` (zsh) or `~/.config/fish/config.fish` (fish), then open a new terminal:
 
 ```bash
 eval "$(clishe --init bash)"   # in ~/.bashrc
 eval "$(clishe --init zsh)"    # in ~/.zshrc
+clishe --init fish | source    # in ~/.config/fish/config.fish
 ```
 
 Now, at any prompt:
@@ -304,9 +305,9 @@ Now, at any prompt:
 | `tar -xzvf backup.tgz` | Each flag is explained. Your line stays as it was. |
 | something new | Asks your AI provider, if you set one up. |
 
-Nothing runs until you press Enter. Prefer another key? Set `CLISHE_KEY` before the `eval` line: `CLISHE_KEY='\eg'` in bash or `CLISHE_KEY='^[g'` in zsh for Alt+G.
+Nothing runs until you press Enter. Prefer another key? Set `CLISHE_KEY` before the `eval` line: `CLISHE_KEY='\eg'` in bash, `CLISHE_KEY='^[g'` in zsh or `set -g CLISHE_KEY \eg` in fish for Alt+G.
 
-The same line also turns on **Tab completion**: `clishe <Tab>` lists what Clishe can do, `clishe practice <Tab>` the lessons, `clishe explain <Tab>` your commands, and `clishe check <Tab>` your files. In zsh, put the `eval` line after `compinit` (frameworks like Oh My Zsh already run it for you).
+In bash and zsh, the same line also turns on **Tab completion**: `clishe <Tab>` lists what Clishe can do, `clishe practice <Tab>` the lessons, `clishe explain <Tab>` your commands, and `clishe check <Tab>` your files. In zsh, put the `eval` line after `compinit` (frameworks like Oh My Zsh already run it for you).
 
 ### Session commands
 
@@ -345,6 +346,7 @@ clishe check '<command>'          # is it safe to run? (or a script: clishe chec
 clishe orbs                       # the nine thinking orbs Clishe shows while it waits
 clishe --init bash                # the Ctrl+G shortcut, for your ~/.bashrc
 clishe --init zsh                 # the same, for your ~/.zshrc
+clishe --init fish                # the same, for ~/.config/fish/config.fish (pipe it to source)
 clishe --version
 ```
 
@@ -553,6 +555,7 @@ Delete `~/.local/share/clishe/kb.json` to forget everything you've taught it.
 clishe.sh               interactive shell front end
 clishe-bind.bash        Ctrl+G shortcut for your normal bash prompt
 clishe-bind.zsh         the same shortcut for zsh
+clishe-bind.fish        the same shortcut for fish
 clishe_brain.py         backend: KB, history, prediction, AI resolution
 config.py               config loading, distro detection
 knowledge.py            offline explain / diagnose engine

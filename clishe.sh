@@ -182,9 +182,10 @@ Usage:
   clishe sheet              your own cheat sheet (save: clishe sheet > cheatsheet.txt)
   clishe check '<command>'  is it safe to run? (or: clishe check script.sh)
   clishe orbs               see the nine thinking orbs Clishe shows while it waits
-  clishe --init bash|zsh    print the Ctrl+G shortcut (and Tab completion) for your normal shell
+  clishe --init bash|zsh|fish  print the Ctrl+G shortcut (and Tab completion) for your normal shell
                             (add  eval "$(clishe --init bash)"  to ~/.bashrc,
-                             or   eval "$(clishe --init zsh)"   to ~/.zshrc)
+                             or   eval "$(clishe --init zsh)"   to ~/.zshrc,
+                             or   clishe --init fish | source   to config.fish)
   clishe --plain ...        words instead of symbols and drawings (screen readers);
                             or set "plain": true in ~/.config/clishe/config.json
   clishe --version          show the version
@@ -1480,8 +1481,16 @@ if [ $# -gt 0 ]; then
                     printf '__CLISHE_BRAIN=%q\nsource %q\n' \
                         "$PYTHON_SCRIPT" "$SCRIPT_DIR/clishe-bind.$init_shell"
                     exit 0 ;;
+                fish)
+                    # fish strings: single quotes, with \ and ' escaped.
+                    fish_quote() {
+                        printf "'%s'" "$(printf '%s' "$1" | sed "s/[\\\\']/\\\\&/g")"
+                    }
+                    printf 'set -g __CLISHE_BRAIN %s\nsource %s\n' \
+                        "$(fish_quote "$PYTHON_SCRIPT")" "$(fish_quote "$SCRIPT_DIR/clishe-bind.fish")"
+                    exit 0 ;;
                 *)
-                    echo "The Ctrl+G shortcut works in bash and zsh: eval \"\$(clishe --init bash)\" or --init zsh" >&2
+                    echo "The Ctrl+G shortcut works in bash, zsh and fish: eval \"\$(clishe --init bash)\", --init zsh, or 'clishe --init fish | source'" >&2
                     exit 1 ;;
             esac
             ;;

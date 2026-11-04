@@ -48,9 +48,10 @@ fi
 
 echo ""
 echo "Tip: to use Clishe at your normal prompt, add this line to ~/.bashrc"
-echo "(or the zsh version to ~/.zshrc):"
+echo "(or the zsh version to ~/.zshrc, or the fish one to ~/.config/fish/config.fish):"
 echo ""
 echo "    eval \"\$(clishe --init bash)\""
 echo "    eval \"\$(clishe --init zsh)\""
+echo "    clishe --init fish | source"
 echo ""
 echo "Then type plain English and press Ctrl+G to turn it into a command."

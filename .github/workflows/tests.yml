@@ -50,12 +50,13 @@ jobs:
           coverage run -m pytest tests/ -q
           coverage report
 
-      - name: Install zsh
-        run: sudo apt-get install -y zsh
+      - name: Install zsh and fish
+        run: sudo apt-get install -y zsh fish
 
       - name: Check shell scripts
         run: |
           zsh -n clishe-bind.zsh
+          fish -n clishe-bind.fish tests/test_fish_bind.fish
           bash -n clishe.sh install.sh clishe-bind.bash
           shellcheck -S warning clishe.sh clishe-bind.bash install.sh \
             tests/test_shell_functions.sh tests/stop_practice.sh
@@ -70,6 +71,9 @@ jobs:
       - name: Run zsh shortcut tests
         run: zsh tests/test_zsh_bind.zsh
 
+      - name: Run fish shortcut tests
+        run: fish tests/test_fish_bind.fish
+
       - name: Install as a package and run it
         run: |
           pip install .
@@ -80,6 +84,7 @@ jobs:
           # The Ctrl+G binding is what a packaging change breaks most often.
           clishe --init bash | grep -q clishe-bind.bash
           clishe --init zsh | grep -q clishe-bind.zsh
+          clishe --init fish | grep -q clishe-bind.fish
           # The data files and the man page have to ship too.
           python -c "import clishe, pathlib; p = pathlib.Path(list(clishe.__path__)[0]); \
             [(_ for _ in ()).throw(AssertionError(f)) for f in ['clishe.1', 'clishe.sh', \
@@ -110,7 +115,8 @@ jobs:
         run: |
           zsh -n clishe-bind.zsh
           bash -n clishe.sh install.sh clishe-bind.bash
-          brew install shellcheck
+          brew install shellcheck fish
+          fish -n clishe-bind.fish tests/test_fish_bind.fish
           shellcheck -S warning clishe.sh clishe-bind.bash install.sh \
             tests/test_shell_functions.sh tests/stop_practice.sh
 
@@ -119,3 +125,6 @@ jobs:
 
       - name: Run zsh shortcut tests
         run: zsh tests/test_zsh_bind.zsh
+
+      - name: Run fish shortcut tests
+        run: fish tests/test_fish_bind.fish

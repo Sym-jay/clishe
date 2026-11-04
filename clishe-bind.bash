@@ -103,7 +103,7 @@ __clishe_complete() {
     elif [ "$COMP_CWORD" -eq 2 ]; then
         case "${COMP_WORDS[1]}" in
             practice) words="$(__clishe_lessons) --list" ;;
-            --init) words="bash zsh" ;;
+            --init) words="bash zsh fish" ;;
             explain)
                 while IFS= read -r word; do COMPREPLY+=("$word"); done < <(compgen -c -- "$cur")
                 return ;;

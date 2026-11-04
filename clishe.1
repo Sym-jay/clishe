@@ -81,13 +81,15 @@ Show the version.
 .B \-\-list
 Show the phrases you have taught Clishe.
 .TP
-.BI "\-\-init " "bash|zsh"
-Print the Ctrl+G shortcut (and Tab completion) for your normal shell. Add the
-printed line to your startup file:
+.BI "\-\-init " "bash|zsh|fish"
+Print the Ctrl+G shortcut (and, in bash and zsh, Tab completion) for your
+normal shell. Add the printed line to your startup file:
 .B eval "$(clishe --init bash)"
-for bash, or
+for bash,
 .B eval "$(clishe --init zsh)"
-for zsh.
+for zsh, or
+.B clishe --init fish | source
+in ~/.config/fish/config.fish for fish.
 .TP
 .B \-\-plain
 Words instead of symbols and drawings, for screen readers. The same thing can

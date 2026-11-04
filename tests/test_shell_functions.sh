@@ -224,7 +224,7 @@ echo "=== Ctrl+G shell shortcut ==="
 init=$("$CLISHE_SH" --init bash)
 assert_eq "--init bash points at the bind file" "yes" \
     "$([[ "$init" == *clishe-bind.bash* ]] && echo yes || echo "$init")"
-"$CLISHE_SH" --init fish >/dev/null 2>&1
+"$CLISHE_SH" --init tcsh >/dev/null 2>&1
 assert_eq "--init with an unsupported shell fails" "1" "$?"
 
 # widget "<line>" -> "line|cursor" after pressing the key
@@ -250,7 +250,7 @@ assert_eq "tab: finishes a word" "practice progress" "$(tab clishe pr)"
 assert_eq "tab: lessons after practice" "git" "$(tab clishe practice g)"
 assert_eq "tab: lessons come from the lessons folder" "yes" \
     "$([[ " $(tab clishe practice "") " == *" basics "*" --list "* ]] && echo yes || tab clishe practice "")"
-assert_eq "tab: shells after --init" "bash zsh" "$(tab clishe --init "")"
+assert_eq "tab: shells after --init" "bash zsh fish" "$(tab clishe --init "")"
 assert_eq "tab: commands after explain" "yes" \
     "$([[ " $(tab clishe explain ech) " == *" echo "* ]] && echo yes || echo no)"
 assert_eq "tab: file names after check (nothing of its own)" "" "$(tab clishe check "")"
