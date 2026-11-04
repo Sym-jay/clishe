@@ -107,7 +107,7 @@ __clishe_words() {
     elif (( $1 == 3 )); then
         case $2 in
             practice) __clishe_lessons; print -- --list ;;
-            --init) print -l bash zsh ;;
+            --init) print -l bash zsh fish ;;
         esac
     fi
 }

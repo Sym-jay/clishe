@@ -22,17 +22,23 @@ def test_on_path():
     assert note.status == "note" and "PATH" in note.fix
 
 
-@pytest.mark.parametrize("shell,rc", [("/bin/bash", ".bashrc"), ("/usr/bin/zsh", ".zshrc")])
+@pytest.mark.parametrize("shell,rc", [("/bin/bash", ".bashrc"), ("/usr/bin/zsh", ".zshrc"),
+                                      ("/usr/bin/fish", ".config/fish/config.fish")])
 def test_shortcut(tmp_path, shell, rc):
     missing = doctor.shortcut(shell, str(tmp_path))
     assert missing.status == "note" and f"~/{rc}" in missing.fix
     assert f"--init {os.path.basename(shell)}" in missing.fix
-    (tmp_path / rc).write_text('eval "$(clishe --init bash)"\n')
+    (tmp_path / rc).parent.mkdir(parents=True, exist_ok=True)
+    (tmp_path / rc).write_text(f"clishe --init {os.path.basename(shell)}\n")
     assert doctor.shortcut(shell, str(tmp_path)).status == "ok"
 
 
+def test_shortcut_fish_uses_fish_syntax(tmp_path):
+    assert "clishe --init fish | source" in doctor.shortcut("/usr/bin/fish", str(tmp_path)).fix
+
+
 def test_shortcut_other_shells():
-    assert "not available for fish" in doctor.shortcut("/usr/bin/fish", "/tmp").title
+    assert "not available for tcsh" in doctor.shortcut("/bin/tcsh", "/tmp").title
 
 
 def test_config_file(tmp_path):

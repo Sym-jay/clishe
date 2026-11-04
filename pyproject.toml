@@ -48,7 +48,7 @@ package-dir = {"clishe" = ".", "clishe.providers" = "providers"}
 packages = ["clishe", "clishe.providers"]
 
 [tool.setuptools.package-data]
-clishe = ["clishe.sh", "clishe-bind.bash", "clishe-bind.zsh", "clishe.1", "*.json", "*.json.gz", "lessons/*.json"]
+clishe = ["clishe.sh", "clishe-bind.bash", "clishe-bind.zsh", "clishe-bind.fish", "clishe.1", "*.json", "*.json.gz", "lessons/*.json"]
 
 # Ruff: the checks that catch real breakage (undefined names, unused imports,
 # bad syntax). Deliberately not the whole rule set - the codebase keeps its own

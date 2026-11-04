@@ -51,7 +51,7 @@ and some Python tests fail for reasons that have nothing to do with your change.
 | `clishe.sh` | The interactive front end (bash, large: search it before adding a helper): session loop, routing, prompts, display |
 | `clishe_brain.py` | Python backend called by `clishe.sh` as `--action <name>`; prints `KEY=value` lines |
 | `launch.py` | The `clishe` console script when installed with pipx; runs `clishe.sh` with bash |
-| `clishe-bind.bash`, `clishe-bind.zsh` | The Ctrl+G shortcut for the user's normal shell |
+| `clishe-bind.bash`, `clishe-bind.zsh`, `clishe-bind.fish` | The Ctrl+G shortcut for the user's normal shell |
 | `safety.py` | Parser-based check for destructive commands |
 | `knowledge.py` | Offline dictionary, error hints, output guides, install hints |
 | `manual.py` | Reads the local `man` page (or `--help`) |
@@ -147,6 +147,7 @@ ruff check .                                # lint (unused imports, undefined na
 coverage run -m pytest tests/ -q && coverage report   # fails below 75% (fail_under)
 /bin/bash tests/test_shell_functions.sh    # bash, incl. end-to-end sessions
 zsh tests/test_zsh_bind.zsh                # the zsh Ctrl+G widget
+fish tests/test_fish_bind.fish             # the fish Ctrl+G binding
 ```
 
 - CI (`.github/workflows/tests.yml`) runs everything on **Linux (Python
