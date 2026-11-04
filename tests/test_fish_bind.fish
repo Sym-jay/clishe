@@ -92,6 +92,33 @@ assert_eq "its output loads the widget" yes \
     (functions -q __clishe_widget; and echo yes; or echo no)
 
 echo ""
+echo "=== fish tab completion ==="
+
+# tab "<line>" -> what Tab would offer, space-separated (descriptions dropped)
+function tab
+    string join ' ' -- (complete -C $argv[1] | string replace -r '\t.*' '')
+end
+
+set first " "(tab "clishe ")" "
+assert_eq "first word: what Clishe can do" yes \
+    (string match -q "* practice *" -- $first; and string match -q "* doctor *" -- $first; and echo yes; or echo $first)
+assert_eq "options start with --" yes \
+    (string match -q "*--help*" -- (tab "clishe --"); and echo yes; or echo no)
+set lessons " "(tab "clishe practice ")" "
+assert_eq "lessons after practice" yes \
+    (string match -q "* basics *" -- $lessons; and string match -q "* git *" -- $lessons; and string match -q "* --list *" -- $lessons; and echo yes; or echo $lessons)
+assert_eq "shells after --init" "bash fish zsh" (string join ' ' -- (string split ' ' -- (tab "clishe --init ") | sort))
+set scratch (mktemp -d)
+touch $scratch/install.sh
+pushd $scratch  # fish runs ( ) in this shell, so a cd there would stick
+set files (tab "clishe check ")
+popd
+assert_eq "file names after check" "install.sh" "$files"
+rm -rf $scratch
+assert_eq "commands after explain" yes \
+    (string match -q "*ls*" -- (tab "clishe explain ls"); and echo yes; or echo no)
+
+echo ""
 echo "=== Results: $pass_count passed, $fail_count failed ==="
 rm -rf $TEST_HOME
 test $fail_count -eq 0

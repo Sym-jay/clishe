@@ -120,6 +120,34 @@ function __clishe_widget
     test "$__CL_PRINTED" = 1; and commandline -f repaint 2>/dev/null
 end
 
+# Tab completion: "clishe <Tab>" lists what Clishe can do, "clishe practice
+# <Tab>" the lessons, "clishe explain <Tab>" your commands, "clishe check
+# <Tab>" your files. Lesson names come from the file names, so pressing Tab
+# never starts Python.
+function __clishe_lessons
+    set -l data $XDG_DATA_HOME
+    test -n "$data"; or set data $HOME/.local/share
+    for file in (dirname $__CLISHE_BRAIN)/lessons/*.json $data/clishe/lessons/*.json
+        string replace -r '.*/(.*)\.json$' '$1' -- $file
+    end
+end
+
+# __clishe_after <word>: true when the line so far is "clishe <word> ".
+function __clishe_after --argument-names word
+    set -l words (commandline -opc)
+    test (count $words) -eq 2; and test "$words[2]" = "$word"
+end
+
+complete -c clishe -f
+complete -c clishe -n 'test (count (commandline -opc)) -eq 1' \
+    -a 'explain check practice progress sheet tour doctor setup'
+complete -c clishe -n 'test (count (commandline -opc)) -eq 1' \
+    -l list -l init -l plain -l version -l help
+complete -c clishe -n '__clishe_after practice' -a '(__clishe_lessons) --list'
+complete -c clishe -n '__clishe_after --init' -a 'bash zsh fish'
+complete -c clishe -n '__clishe_after explain' -a '(__fish_complete_command)'
+complete -c clishe -n '__clishe_after check' -F
+
 if status is-interactive
     set -l key \cg
     set -q CLISHE_KEY; and set key $CLISHE_KEY
