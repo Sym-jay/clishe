@@ -5,8 +5,9 @@
 ### Added
 - **Ctrl+G in fish**: add `clishe --init fish | source` to
   `~/.config/fish/config.fish`, then type plain English at your fish
-  prompt and press Ctrl+G, as in bash and zsh. `clishe doctor` checks for
-  it too.
+  prompt and press Ctrl+G, as in bash and zsh. The same line turns on Tab
+  completion for `clishe` (commands, lessons, files). `clishe doctor`
+  checks for it too.
 
 ## 0.12.0 (2026-11-02)
 
