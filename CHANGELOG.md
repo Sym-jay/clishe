@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.13.0 (2026-11-05)
 
 ### Added
 - **Ctrl+G in fish**: add `clishe --init fish | source` to
