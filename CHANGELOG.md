@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Added
+- **`clishe check` spots more**: a container given your folders
+  (`docker run -v /:/host`, `--privileged`), scheduled jobs (`crontab`),
+  changes to `~/.bashrc` and other files every new terminal reads, a new
+  SSH key that could replace yours (`ssh-keygen` without `-f`), files
+  opened to every user (`chmod 777`, `o+w`), and programs put in
+  `/usr/local/bin` or `~/.local/bin`. Downloads saved with `curl -o` or
+  `wget` now count as files it creates, and `crontab -l` (which only
+  lists) no longer counts as a change.
+
 ## 0.13.0 (2026-11-05)
 
 ### Added
