@@ -70,8 +70,8 @@ and some Python tests fail for reasons that have nothing to do with your change.
 | `clishe.1` | The man page (`man clishe`) |
 | `packaging/aur/` | Arch package (not yet submitted to the AUR) |
 
-When you add, rename or remove a file here, update the README's project
-layout too: the two lists are kept by hand.
+When you add, rename or remove a file here, update the project layout in
+`docs/how-it-works.md` too: the two lists are kept by hand.
 
 The installed package keeps this flat layout: `pyproject.toml` maps the repo
 root to the `clishe` package, and lists non-Python files in `package-data`
@@ -95,7 +95,7 @@ PKGBUILD**, or it won't ship. A new Python subfolder also needs an entry in
 4. Hook it in, and don't skip the text (the step most often missed):
    - [ ] the one-shot `case "$1"` block and/or the session `case "$user_input"` block
    - [ ] `usage` and `session_help`
-   - [ ] README (features, session commands table, one-shot list)
+   - [ ] README (feature list, session commands table, one-shot list) and `docs/usage.md`
    - [ ] tests for the Python logic and the bash rendering
 
 `tests/test_data_files.py` checks that `usage` and `session_help` still match
@@ -205,8 +205,10 @@ fish tests/test_fish_bind.fish             # the fish Ctrl+G binding
 
 - One focused PR per change, with tests. Merge only when CI is green on
   Linux and macOS. Update `CHANGELOG.md` under `## Unreleased`, the README
-  (features, session commands table, one-shot list, project layout) and
-  CONTRIBUTING when contributors are affected.
+  (feature list, session commands table, one-shot list), the matching page
+  in `docs/` (usage, configuration, AI providers, how it works) and
+  CONTRIBUTING when contributors are affected. The README is the landing
+  page: keep it short and put the details in `docs/`.
 - Commit messages: a short summary line, then what and why.
 - **Releases:** follow `RELEASING.md` step by step. The version is in three
   places (`pyproject.toml`, `CLISHE_VERSION` in `clishe.sh`, and `clishe.1`)
