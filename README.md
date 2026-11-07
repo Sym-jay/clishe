@@ -150,7 +150,9 @@ clishe orbs                       # the nine thinking orbs Clishe shows while it
 clishe --init bash                # the Ctrl+G shortcut, for your ~/.bashrc
 clishe --init zsh                 # the same, for your ~/.zshrc
 clishe --init fish                # the same, for ~/.config/fish/config.fish (pipe it to source)
+clishe --plain ...                # words instead of symbols and drawings (screen readers)
 clishe --version
+clishe --help
 ```
 
 ## Learn more
