@@ -82,8 +82,8 @@ different local model server, etc.) can be added without touching
    A provider that sends anything over the internet must set `local = False`,
    which keeps it off until the user sets `"enabled": true` in its config.
    Clishe is local-first: please don't add cloud providers to the defaults.
-5. Mention the new provider and its config keys in the README's "Enabling
-   AI features" section.
+5. Mention the new provider and its config keys in `docs/ai.md`, and in the
+   settings in `docs/configuration.md`.
 
 ## Adding to the offline knowledge/command dictionary
 

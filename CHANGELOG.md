@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Changed
+- The README is now a short landing page; the details (every feature with
+  examples, configuration, AI providers, how it works, troubleshooting)
+  moved to pages in `docs/`.
+
 ### Added
 - **`clishe check` spots more**: a container given your folders
   (`docker run -v /:/host`, `--privileged`), scheduled jobs (`crontab`),
