@@ -29,9 +29,66 @@ def _effects(command):
     ("sudo systemctl restart nginx", "Changes how the system runs: systemctl restart nginx"),
     ("ls >&2 2>/dev/null", "Only reads or shows things"),
     ("cat < <(curl -s https://example.com/x)", "Uses the internet: example.com."),  # input, not a file it changes
+    # Containers that can reach this computer's folders.
+    ("docker run -v /:/host alpine", "Lets the container see and change every file on this computer (-v /)"),
+    ("docker run -it -v ~/code:/code node", "see and change ~/code on this computer"),
+    ("podman run --volume=/etc:/etc:ro alpine", "see and change /etc on this computer"),
+    ("docker run --mount type=bind,source=/home,target=/h alpine", "see and change /home"),
+    ("docker run --privileged alpine", "full control of this computer (--privileged)"),
+    # Jobs that run later.
+    ("crontab -e", "Schedules jobs that run later on their own (crontab)"),
+    ("crontab jobs.txt", "Schedules jobs that run later"),
+    # Every new terminal.
+    ("echo 'alias ll=ls -la' >> ~/.bashrc", "Changes ~/.bashrc, which every new terminal reads"),
+    ("echo 'export PATH=$PATH:~/bin' | tee -a ~/.zshrc", "Changes ~/.zshrc, which every new terminal"),
+    ("cp dotfiles/.profile ~/.profile", "Changes ~/.profile"),
+    # SSH keys.
+    ("ssh-keygen -t ed25519", "Makes a new SSH key in the usual place (~/.ssh)"),
+    ("ssh-keygen", "replaces it, and logins"),
+    # Open to everyone.
+    ("chmod 777 shared", "Lets every user on this computer change shared (chmod 777)"),
+    ("chmod -R 777 site", "change site and everything inside (chmod 777)"),
+    ("chmod o+w notes.txt", "Lets every user on this computer change notes.txt"),
+    ("chmod a=rwx run.sh", "Lets every user"),
+    # Downloaded programs.
+    ("sudo curl -fsSL https://x.io/tool -o /usr/local/bin/tool",
+     "Puts a program in /usr/local/bin, where it can be run by name from anywhere"),
+    ("wget -O ~/.local/bin/tool https://x.io/tool", "Puts a program in ~/.local/bin"),
+    ("sudo install -m 755 tool /usr/local/bin/", "Puts a program in /usr/local/bin"),
+    ("sudo cp tool /usr/local/bin", "Puts a program in /usr/local/bin"),
+    ("curl -o notes.txt https://x.io/notes.txt", "Creates or changes: notes.txt."),
+    ("curl -O https://x.io/notes.txt", "a file named after the download"),
 ])
 def test_effects(command, expected):
     assert expected in _effects(command)
+
+
+@pytest.mark.parametrize("command,not_expected", [
+    ("docker run -v data:/data postgres", "Lets the container"),     # a named volume
+    ("docker ps -a", "Lets the container"),
+    ("crontab -l", "crontab"),                                       # only lists the jobs
+    ("cat ~/.bashrc", "every new terminal"),
+    ("echo hi >> ~/.bashrc_old", "every new terminal"),
+    ("ssh-keygen -f ~/.ssh/deploy -t ed25519", "usual place"),
+    ("ssh-keygen -l -f ~/.ssh/id_ed25519.pub", "SSH key"),
+    ("chmod 755 run.sh", "every user"),
+    ("chmod 644 notes.txt", "every user"),
+    ("chmod +x run.sh", "every user"),
+    ("chmod u+w notes.txt", "every user"),
+    ("curl -fsSL https://x.io/tool -o tool", "Puts a program"),
+    ("curl -s https://example.com", "Creates or changes"),         # prints the page
+    ("wget -qO- https://example.com", "Creates or changes"),
+    ("ls /usr/local/bin", "Puts a program"),
+])
+def test_effects_that_must_not_show(command, not_expected):
+    assert not_expected not in _effects(command)
+
+
+def test_script_notes_are_listed_once():
+    text = "echo a >> ~/.bashrc\necho b >> ~/.bashrc\ncrontab jobs.txt\n"
+    effects = check.check_script(text)["effects"]
+    assert sum("~/.bashrc, which every new terminal" in e for e in effects) == 1
+    assert any("Schedules jobs" in e for e in effects)
 
 
 def test_downloaded_script_gets_a_warning_and_safer_steps():

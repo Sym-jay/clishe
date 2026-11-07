@@ -34,8 +34,116 @@ _REMOVE = {"rm", "rmdir", "shred", "unlink"}
 _WRITE = {"cp", "mv", "mkdir", "touch", "ln", "tee", "install", "rsync", "dd",
           "chmod", "chown", "chgrp", "unzip", "truncate", "sed"}
 _EXTRACT = {"tar": "x", "unzip": ""}
-_SERVICES = {"systemctl", "service", "crontab", "useradd", "usermod", "userdel",
+_SERVICES = {"systemctl", "service", "useradd", "usermod", "userdel",
              "passwd", "mount", "umount", "ufw", "iptables", "reboot", "shutdown"}
+# Files every new terminal reads when it starts.
+_STARTUP_FILES = {".bashrc", ".bash_profile", ".bash_login", ".profile", ".zshrc",
+                  ".zprofile", ".zshenv", "config.fish"}
+# Folders whose programs can be run by name from anywhere.
+_BIN_DIRS = ("/usr/local/bin", "/usr/local/sbin", "/usr/bin", "/usr/sbin", "/bin", "/sbin",
+             "~/.local/bin", "~/bin")
+# ssh-keygen options that only read or look up keys, never make one.
+_SSH_KEYGEN_READS = {"-l", "-y", "-F", "-R", "-H", "-L", "-B", "-e", "-i", "-Q"}
+
+
+def _flag_value(args: List[str], short: str, long: str = "") -> Optional[str]:
+    """The value of -o FILE, -oFILE, -sSLo FILE (short flags run together) or
+    --output=FILE / --output FILE."""
+    letter = short[1]
+    for i, a in enumerate(args):
+        if long and a == long:
+            return args[i + 1] if i + 1 < len(args) else None
+        if long and a.startswith(long + "="):
+            return a[len(long) + 1:]
+        if a.startswith("-") and not a.startswith("--") and letter in a[1:]:
+            rest = a[a.index(letter, 1) + 1:]
+            return rest or (args[i + 1] if i + 1 < len(args) else None)
+    return None
+
+
+def _download_target(name: str, args: List[str]) -> Optional[str]:
+    """The file curl or wget saves to, or None when it prints the download."""
+    if name == "curl":
+        out = _flag_value(args, "-o", "--output")
+        if out:
+            return out
+        if "-O" in args or "--remote-name" in args:
+            return "a file named after the download"
+    elif name == "wget":
+        out = _flag_value(args, "-O", "--output-document")
+        if out:
+            return None if out == "-" else out
+        return "a file named after the download"
+    return None
+
+
+def _bind_mounts(args: List[str]) -> List[str]:
+    """Folders of this computer that docker/podman run gives the container."""
+    sources = []
+    for i, a in enumerate(args):
+        if a in ("-v", "--volume", "--mount") and i + 1 < len(args):
+            value = args[i + 1]
+        elif a.startswith("--volume=") or a.startswith("--mount="):
+            value = a.split("=", 1)[1]
+        elif a.startswith("-v") and len(a) > 2 and not a.startswith("--"):
+            value = a[2:]
+        else:
+            continue
+        if a.startswith("--mount"):     # type=bind,source=/,target=/host
+            source = next((p.split("=", 1)[1] for p in value.split(",")
+                           if p.startswith(("source=", "src="))), "")
+        else:                           # /:/host
+            source = value.split(":", 1)[0]
+        # A named volume ("data:/data") is Docker's own storage, not a folder here.
+        if source.startswith(("/", "~", ".", "$")):
+            sources.append(source)
+    return sources
+
+
+def _opens_to_everyone(mode: str) -> bool:
+    """chmod modes that let every user change the file: 777, 666, o+w, a+w."""
+    if mode.isdigit():
+        return len(mode) >= 3 and mode[-1] in "2367"
+    return any(re.match(r"[ugoa]*[ao][ugoa]*[+=][rwxXst]*w", part) for part in mode.split(","))
+
+
+def _notes(name: str, args: List[str], targets: List[str]) -> List[str]:
+    """Special things worth a line of their own, beyond 'creates or changes'."""
+    notes = []
+    if name in ("docker", "podman") and args[:1] == ["run"]:
+        for source in _bind_mounts(args):
+            where = "every file" if source == "/" else source
+            notes.append(f"Lets the container see and change {where} on this computer "
+                         f"(-v {source}).")
+        if "--privileged" in args:
+            notes.append("Gives the container full control of this computer (--privileged).")
+    elif name == "crontab" and not ({"-l", "-r"} & set(args)):
+        notes.append("Schedules jobs that run later on their own (crontab). "
+                     "Check them with: crontab -l")
+    elif name == "ssh-keygen" and not ({"-f"} | _SSH_KEYGEN_READS) & set(args) \
+            and not any(a.startswith("-f") for a in args):
+        notes.append("Makes a new SSH key in the usual place (~/.ssh). If you already have "
+                     "one there, answering yes to its question replaces it, and logins "
+                     "that use the old key stop working.")
+    elif name == "chmod" and len(targets) > 1 and _opens_to_everyone(targets[0]):
+        inside = " and everything inside" if any(a in ("-R", "--recursive") for a in args) else ""
+        notes.append(f"Lets every user on this computer change {', '.join(targets[1:])}"
+                     f"{inside} (chmod {targets[0]}).")
+    return notes
+
+
+def _changed_notes(changed: List[str]) -> List[str]:
+    notes = []
+    for entry in changed:
+        path = entry.split(" (")[0]
+        if os.path.basename(path) in _STARTUP_FILES:
+            notes.append(f"Changes {path}, which every new terminal reads when it starts.")
+        # "cp x /usr/local/bin", ".../bin/" or ".../bin/x" all land in the folder.
+        path = path.rstrip("/")
+        folder = path if path in _BIN_DIRS else os.path.dirname(path)
+        if folder in _BIN_DIRS:
+            notes.append(f"Puts a program in {folder}, where it can be run by name from anywhere.")
+    return notes
 
 
 def _hosts(text: str) -> List[str]:
@@ -54,7 +162,7 @@ def _targets(args: List[str]) -> List[str]:
 def _facts(command: str) -> dict:
     """What a command line touches, as data (see describe() for the words)."""
     facts = {"sudo": False, "network": False, "hosts": _hosts(command), "installs": [],
-             "removed": [], "changed": [], "services": []}
+             "removed": [], "changed": [], "services": [], "notes": []}
     for words, redirects, piped in _segments(_tokenize(command)):
         if words and words[0] in ("sudo", "doas"):
             facts["sudo"] = True
@@ -68,8 +176,12 @@ def _facts(command: str) -> dict:
             continue
         name, args = os.path.basename(words[0]), words[1:]
         targets = _targets(args)
+        facts["notes"].extend(_notes(name, args, targets))
         if name in _NETWORK or (name == "git" and args[:1] in (["clone"], ["pull"], ["push"])):
             facts["network"] = True
+        saved = _download_target(name, args)
+        if saved:
+            facts["changed"].append(saved)
         if name in _PACKAGE_INSTALL and any(a in _PACKAGE_INSTALL[name] for a in args[:2]):
             pkgs = [a for a in args[1:] if not a.startswith("-")]
             facts["installs"].append(f"{name}: {' '.join(pkgs) or 'updates'}")
@@ -83,14 +195,15 @@ def _facts(command: str) -> dict:
             facts["changed"].extend(targets)
         elif name == "tar" and "x" in "".join(a.lstrip("-") for a in args[:1]):
             facts["changed"].append("files unpacked from the archive")
-        elif name in _SERVICES:
+        elif name in _SERVICES or (name == "crontab" and "-l" not in args):
             facts["services"].append(" ".join([name] + args[:2]))
+    facts["notes"].extend(_changed_notes(facts["changed"]))
     return facts
 
 
 def _merge(all_facts: List[dict]) -> dict:
     merged = {"sudo": False, "network": False, "hosts": [], "installs": [],
-              "removed": [], "changed": [], "services": []}
+              "removed": [], "changed": [], "services": [], "notes": []}
     for facts in all_facts:
         for key, value in facts.items():
             if isinstance(value, bool):
@@ -118,6 +231,7 @@ def describe(facts: dict) -> List[str]:
         effects.append("Creates or changes: " + ", ".join(dict.fromkeys(facts["changed"])) + ".")
     if facts["services"]:
         effects.append("Changes how the system runs: " + ", ".join(facts["services"]) + ".")
+    effects.extend(dict.fromkeys(facts["notes"]))
     return effects or ["Only reads or shows things. It doesn't change any files."]
 
 
