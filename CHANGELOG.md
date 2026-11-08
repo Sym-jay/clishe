@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.14.0 (2026-11-08)
 
 ### Changed
 - The README is now a short landing page; the details (every feature with
