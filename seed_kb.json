@@ -129,5 +129,14 @@
   "start a python web server": "python3 -m http.server",
   "show installed python packages": "python3 -m pip list",
   "check where python is installed": "which python3",
-  "exit the virtual environment": "deactivate"
+  "exit the virtual environment": "deactivate",
+  "show memory": "free -h",
+  "show all processes": "ps aux",
+  "show my distro": "cat /etc/os-release",
+  "show the uptime": "uptime",
+  "is there internet": "ping -c 4 google.com",
+  "untar": "tar -xzvf <archive>",
+  "download a repo": "git clone <url>",
+  "commit all changes": "git add -A && git commit -m <message>",
+  "git history": "git log --oneline -n 10"
 }

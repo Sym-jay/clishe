@@ -210,6 +210,15 @@ def test_suggest_matches_on_meaning(brain, said, expected):
     "what is linux",                       # not a question about this computer
     "make a zip file of a folder",         # exactly half: not "make a new folder"
     "delete all files in my home folder",  # exactly half: not "delete a file"
+    # The newer synonyms (quit/terminate -> kill, clone -> download,
+    # repo -> git, enter -> go, distribution -> distro) must not reach these:
+    "quit smoking",
+    "terminate my contract",
+    "clone my voice",
+    "enter my password",
+    "what is a repo",
+    "which distro is best",
+    "commit a crime",
 ])
 def test_suggest_by_meaning_needs_more_than_half_of_what_was_said(brain, said):
     assert brain.suggest(said) is None
