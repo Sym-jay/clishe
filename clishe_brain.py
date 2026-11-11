@@ -605,7 +605,7 @@ class ClisheBrain:
         words = text.split()
         if shutil.which(words[0]) and (
                 len(words) == 1 or any(w.startswith(("-", "/", "./", "~")) for w in words[1:])):
-            result = self.explain(text)
+            result = explain_command(text)
             if result["status"] == "ok":
                 return {"mode": "explain", "explanation": result["explanation"]}
 
@@ -614,7 +614,7 @@ class ClisheBrain:
             return self._line_result(match[1], f'Closest thing I know: "{match[0]}"')
 
         if use_ai:
-            result = self.resolve(text)
+            result = resolve_phrase(text)
             if result["status"] == "ok":
                 return self._line_result(result["command"], result["explanation"],
                                          provider=result["provider"])
@@ -626,35 +626,6 @@ class ClisheBrain:
     def _line_result(self, command, note, provider=""):
         return {"mode": "command", "command": command, "note": note,
                 "provider": provider, "reasons": check_command(command)}
-
-    def missing_program(self, text):
-        """If the user typed a well-known program that isn't installed
-        ("htop", "python script.py", "sudo nmap -sn ..."), return a hint on
-        how to install it. Plain English ("go back") returns ''."""
-        words = (text or "").split()
-        if words[:1] == ["sudo"]:
-            words = words[1:]
-        if not words or words[0] not in POPULAR_PROGRAMS or shutil.which(words[0]):
-            return ""
-        if len(words) > 1 and not any(w.startswith(("-", "/", "./", "~")) or "." in w
-                                      for w in words[1:]):
-            return ""
-        return missing_program_hint(words[0])
-
-    def explain_output(self, command):
-        """Guide to the output of the last command. Falls back to what the
-        command itself does. Never sends the output anywhere."""
-        if not (command or "").strip():
-            return {"status": "none"}
-        guide = output_guide(command)
-        if guide:
-            return {"status": "ok", "explanation": guide[1]}
-        info = lookup_command(command)
-        if info:
-            return {"status": "ok", "explanation":
-                    "I don't have a guide to this output yet, but here's what the command does:\n"
-                    + format_explanation(info, command)}
-        return {"status": "none"}
 
     def should_hint_guide(self, command):
         """True the first time ever that a command with an output guide
@@ -669,186 +640,225 @@ class ClisheBrain:
         self.save_data()
         return True
 
-    # ---------- trash instead of rm ----------
 
-    def trash_command(self, command):
-        """If `command` is a plain `rm` and a trash tool is installed, return
-        the same files sent to the trash instead (so they can be restored).
-        Returns {'command', 'restore', 'mode'} or None."""
-        mode = str(load_config().get("trash", "ask")).lower()
-        if mode == "never":
-            return None
-        tool = _trash_tool()
-        if not tool:
-            return None
-        # Only simple, single commands: no pipes, chains, redirects or
-        # command substitution that could change what gets deleted.
-        if re.search(r"[;&|<>`]|\$\(", command):
-            return None
-        try:
-            # posix=False keeps quotes and globs exactly as typed.
-            words = shlex.split(command, posix=False)
-        except ValueError:
-            return None
-        if not words or words[0] != "rm":
-            return None
-        files, end_of_flags = [], False
-        for w in words[1:]:
-            if not end_of_flags and w == "--":
-                end_of_flags = True
-            elif not end_of_flags and w.startswith("-"):
-                continue
-            else:
-                files.append(w)
-        if not files:
-            return None
-        if any(f.startswith("-") for f in files):
-            files = ["--"] + files  # so "-name" stays a file, not an option
-        return {"command": " ".join(tool[0] + files), "restore": tool[1], "mode": mode}
+# ---------- stateless helpers ----------
+# These don't touch the user's knowledge base, history or progress, so
+# they're plain functions: actions call them directly, and ClisheBrain
+# keeps only the user's learned state.
 
-    # ---------- AI provider actions ----------
+def missing_program(text):
+    """If the user typed a well-known program that isn't installed
+    ("htop", "python script.py", "sudo nmap -sn ..."), return a hint on
+    how to install it. Plain English ("go back") returns ''."""
+    words = (text or "").split()
+    if words[:1] == ["sudo"]:
+        words = words[1:]
+    if not words or words[0] not in POPULAR_PROGRAMS or shutil.which(words[0]):
+        return ""
+    if len(words) > 1 and not any(w.startswith(("-", "/", "./", "~")) or "." in w
+                                  for w in words[1:]):
+        return ""
+    return missing_program_hint(words[0])
 
-    def resolve(self, phrase):
-        """Ask configured providers (in priority order) to translate an
-        unknown phrase into a shell command. Returns a dict:
-          {"status": "ok", "command": ..., "explanation": ..., "provider": ...}
-          {"status": "declined", "provider": ...}   - model understood but wouldn't answer
-          {"status": "unavailable"}                  - no provider could be reached
 
-        NOTE: this does NOT write to the KB. Caching a suggestion before the
-        user approves it would let a rejected or edited command silently
-        become auto-executable next time. clishe.sh calls `--action learn`
-        only after approval (and after the safety confirmation).
-        """
-        chain = build_provider_chain(load_config())
-        from providers import ProviderError
-        if not chain:
-            return {"status": "unavailable"}
-
-        for provider in chain:
-            try:
-                result = provider.resolve_with_explanation(phrase)
-            except ProviderError as e:
-                print(f"[{provider.name}] {e}", file=sys.stderr)
-                continue  # try the next provider in the chain
-
-            if result:
-                manual, unverified = self.manual_notes(result.command)
-                return {"status": "ok", "command": result.command,
-                        "explanation": result.explanation, "provider": provider.name,
-                        "manual": manual, "unverified": unverified}
-            # This provider understood the request but declined (unclear or
-            # unsafe). That's a real answer - don't shop it around.
-            return {"status": "declined", "provider": provider.name}
-
-        return {"status": "unavailable"}
-
-    def explain(self, command):
-        """Explain a shell command. Checks the offline built-in dictionary
-        first (free, instant, no network) - only falls through to AI
-        providers if the base command isn't in the dictionary."""
-        import tldr
-        from knowledge import _base_name
-        name = os.path.basename(_base_name(command))
-        examples = _examples_text(tldr.examples(name))
-
-        entry = lookup_command(command)
-        if entry:
-            return {"status": "ok",
-                    "explanation": format_explanation(entry, command) + examples,
-                    "provider": "offline dictionary" + (" and tldr-pages" if examples else "")}
-
-        # Any other command: tldr-pages' summary and examples, with the flags
-        # explained from its manual on this computer. Still offline.
-        summary = tldr.summary(name)
-        if summary:
-            from manual import check_flags
-            notes = check_flags(command)
-            flags = notes[0]["flags"] if notes else []
-            parts = [summary]
-            if flags:
-                parts.append(f"In '{command.strip()}':\n" + "\n".join(
-                    f"  {flag}  {text or '(not found in the manual)'}" for flag, text in flags))
-            text = "\n".join(parts) + examples
-            if notes:
-                text += f"\nFull details: {notes[0]['source']}"
-            return {"status": "ok", "explanation": text,
-                    "provider": "tldr-pages" + (" and your system's manual" if notes else "")}
-
-        # Any installed command: its own manual, still offline.
-        from_manual = explain_from_manual(command)
-        if from_manual:
-            return {"status": "ok", "explanation": from_manual,
-                    "provider": "your system's manual"}
-
-        chain = build_provider_chain(load_config())
-        from providers import ProviderError
-        for provider in chain:
-            try:
-                explanation = provider.explain_command(command)
-            except ProviderError as e:
-                print(f"[{provider.name}] {e}", file=sys.stderr)
-                continue
-
-            if explanation:
-                return {"status": "ok", "explanation": explanation, "provider": provider.name}
-
-        return {"status": "unavailable"}
-
-    def fix(self, command, error):
-        """Why a command failed and how to fix it. Offline rules first (typos,
-        missing sudo, scripts that aren't executable...), then the AI.
-        Returns {"status": "ok", "explanation", "command", "provider",
-        "unverified"} or {"status": "none"}."""
-        from fix import offline_fix
-        result = offline_fix(command, error)
-        if result and result["command"]:
-            return dict(result, status="ok", provider="offline", unverified=[])
-
-        from providers import ProviderError
-        for provider in build_provider_chain(load_config()):
-            try:
-                suggestion = provider.fix_command(command, error)
-            except ProviderError as e:
-                print(f"[{provider.name}] {e}", file=sys.stderr)
-                continue
-            if suggestion:
-                _, unverified = self.manual_notes(suggestion["command"]) \
-                    if suggestion["command"] else ([], [])
-                return dict(suggestion, status="ok", provider=provider.name,
-                            unverified=unverified)
-            break
-        if result:  # advice, but no single command to run
-            return dict(result, status="ok", provider="offline", unverified=[])
+def explain_output(command):
+    """Guide to the output of the last command. Falls back to what the
+    command itself does. Never sends the output anywhere."""
+    if not (command or "").strip():
         return {"status": "none"}
+    guide = output_guide(command)
+    if guide:
+        return {"status": "ok", "explanation": guide[1]}
+    info = lookup_command(command)
+    if info:
+        return {"status": "ok", "explanation":
+                "I don't have a guide to this output yet, but here's what the command does:\n"
+                + format_explanation(info, command)}
+    return {"status": "none"}
 
-    def manual_notes(self, command):
-        """Check an AI suggestion against the manuals on this computer.
-        Returns (lines, unverified): what the manual says about each flag
-        used, and the flags the manual doesn't mention (small models
-        sometimes invent them)."""
-        lines, unverified = [], []
-        for note in check_flags(command):
-            for flag, help_text in note["flags"]:
-                if help_text:
-                    lines.append(f"{note['name']} {flag}: {help_text}")
-                else:
-                    unverified.append(f"{note['name']} {flag}")
-        return lines, unverified
 
-    def diagnose(self, error_text):
-        """Translate a command's stderr output into a plain-English hint,
-        using offline pattern matching only - no AI call, since this needs
-        to be instant and available even with no providers configured."""
-        hint = diagnose_error(error_text)
-        if hint:
-            return {"status": "ok", "hint": hint}
-        return {"status": "unmatched"}
+def trash_command(command):
+    """If `command` is a plain `rm` and a trash tool is installed, return
+    the same files sent to the trash instead (so they can be restored).
+    Returns {'command', 'restore', 'mode'} or None."""
+    mode = str(load_config().get("trash", "ask")).lower()
+    if mode == "never":
+        return None
+    tool = _trash_tool()
+    if not tool:
+        return None
+    # Only simple, single commands: no pipes, chains, redirects or
+    # command substitution that could change what gets deleted.
+    if re.search(r"[;&|<>`]|\$\(", command):
+        return None
+    try:
+        # posix=False keeps quotes and globs exactly as typed.
+        words = shlex.split(command, posix=False)
+    except ValueError:
+        return None
+    if not words or words[0] != "rm":
+        return None
+    files, end_of_flags = [], False
+    for w in words[1:]:
+        if not end_of_flags and w == "--":
+            end_of_flags = True
+        elif not end_of_flags and w.startswith("-"):
+            continue
+        else:
+            files.append(w)
+    if not files:
+        return None
+    if any(f.startswith("-") for f in files):
+        files = ["--"] + files  # so "-name" stays a file, not an option
+    return {"command": " ".join(tool[0] + files), "restore": tool[1], "mode": mode}
 
-    def check(self, command):
-        """Safety check: reasons a command looks destructive (may be empty)."""
-        reasons = check_command(command)
-        return {"status": "danger" if reasons else "safe", "reasons": reasons}
+
+def resolve_phrase(phrase):
+    """Ask configured providers (in priority order) to translate an
+    unknown phrase into a shell command. Returns a dict:
+      {"status": "ok", "command": ..., "explanation": ..., "provider": ...}
+      {"status": "declined", "provider": ...}   - model understood but wouldn't answer
+      {"status": "unavailable"}                  - no provider could be reached
+
+    NOTE: this does NOT write to the KB. Caching a suggestion before the
+    user approves it would let a rejected or edited command silently
+    become auto-executable next time. clishe.sh calls `--action learn`
+    only after approval (and after the safety confirmation).
+    """
+    chain = build_provider_chain(load_config())
+    from providers import ProviderError
+    if not chain:
+        return {"status": "unavailable"}
+
+    for provider in chain:
+        try:
+            result = provider.resolve_with_explanation(phrase)
+        except ProviderError as e:
+            print(f"[{provider.name}] {e}", file=sys.stderr)
+            continue  # try the next provider in the chain
+
+        if result:
+            manual, unverified = manual_notes(result.command)
+            return {"status": "ok", "command": result.command,
+                    "explanation": result.explanation, "provider": provider.name,
+                    "manual": manual, "unverified": unverified}
+        # This provider understood the request but declined (unclear or
+        # unsafe). That's a real answer - don't shop it around.
+        return {"status": "declined", "provider": provider.name}
+
+    return {"status": "unavailable"}
+
+
+def explain_command(command):
+    """Explain a shell command. Checks the offline built-in dictionary
+    first (free, instant, no network) - only falls through to AI
+    providers if the base command isn't in the dictionary."""
+    import tldr
+    from knowledge import _base_name
+    name = os.path.basename(_base_name(command))
+    examples = _examples_text(tldr.examples(name))
+
+    entry = lookup_command(command)
+    if entry:
+        return {"status": "ok",
+                "explanation": format_explanation(entry, command) + examples,
+                "provider": "offline dictionary" + (" and tldr-pages" if examples else "")}
+
+    # Any other command: tldr-pages' summary and examples, with the flags
+    # explained from its manual on this computer. Still offline.
+    summary = tldr.summary(name)
+    if summary:
+        from manual import check_flags
+        notes = check_flags(command)
+        flags = notes[0]["flags"] if notes else []
+        parts = [summary]
+        if flags:
+            parts.append(f"In '{command.strip()}':\n" + "\n".join(
+                f"  {flag}  {text or '(not found in the manual)'}" for flag, text in flags))
+        text = "\n".join(parts) + examples
+        if notes:
+            text += f"\nFull details: {notes[0]['source']}"
+        return {"status": "ok", "explanation": text,
+                "provider": "tldr-pages" + (" and your system's manual" if notes else "")}
+
+    # Any installed command: its own manual, still offline.
+    from_manual = explain_from_manual(command)
+    if from_manual:
+        return {"status": "ok", "explanation": from_manual,
+                "provider": "your system's manual"}
+
+    chain = build_provider_chain(load_config())
+    from providers import ProviderError
+    for provider in chain:
+        try:
+            explanation = provider.explain_command(command)
+        except ProviderError as e:
+            print(f"[{provider.name}] {e}", file=sys.stderr)
+            continue
+
+        if explanation:
+            return {"status": "ok", "explanation": explanation, "provider": provider.name}
+
+    return {"status": "unavailable"}
+
+
+def fix_command(command, error):
+    """Why a command failed and how to fix it. Offline rules first (typos,
+    missing sudo, scripts that aren't executable...), then the AI.
+    Returns {"status": "ok", "explanation", "command", "provider",
+    "unverified"} or {"status": "none"}."""
+    from fix import offline_fix
+    result = offline_fix(command, error)
+    if result and result["command"]:
+        return dict(result, status="ok", provider="offline", unverified=[])
+
+    from providers import ProviderError
+    for provider in build_provider_chain(load_config()):
+        try:
+            suggestion = provider.fix_command(command, error)
+        except ProviderError as e:
+            print(f"[{provider.name}] {e}", file=sys.stderr)
+            continue
+        if suggestion:
+            _, unverified = manual_notes(suggestion["command"]) \
+                if suggestion["command"] else ([], [])
+            return dict(suggestion, status="ok", provider=provider.name,
+                        unverified=unverified)
+        break
+    if result:  # advice, but no single command to run
+        return dict(result, status="ok", provider="offline", unverified=[])
+    return {"status": "none"}
+
+
+def manual_notes(command):
+    """Check an AI suggestion against the manuals on this computer.
+    Returns (lines, unverified): what the manual says about each flag
+    used, and the flags the manual doesn't mention (small models
+    sometimes invent them)."""
+    lines, unverified = [], []
+    for note in check_flags(command):
+        for flag, help_text in note["flags"]:
+            if help_text:
+                lines.append(f"{note['name']} {flag}: {help_text}")
+            else:
+                unverified.append(f"{note['name']} {flag}")
+    return lines, unverified
+
+
+def diagnose(error_text):
+    """Translate a command's stderr output into a plain-English hint,
+    using offline pattern matching only - no AI call, since this needs
+    to be instant and available even with no providers configured."""
+    hint = diagnose_error(error_text)
+    if hint:
+        return {"status": "ok", "hint": hint}
+    return {"status": "unmatched"}
+
+
+def check_safety(command):
+    """Safety check: reasons a command looks destructive (may be empty)."""
+    reasons = check_command(command)
+    return {"status": "danger" if reasons else "safe", "reasons": reasons}
 
 
 # ---------- output helpers for clishe.sh ----------
@@ -993,7 +1003,7 @@ def _action_log(brain, args):
 
 
 def _action_output(brain, args):
-    result = brain.explain_output(args.command)
+    result = explain_output(args.command)
     print(f"STATUS={result['status']}")
     if result['status'] == 'ok':
         print(f"EXPLANATION={_encoded(result['explanation'])}")
@@ -1013,14 +1023,14 @@ def _action_line(brain, args):
 
 
 def _action_missing(brain, args):
-    hint = brain.missing_program(args.command)
+    hint = missing_program(args.command)
     print("STATUS=ok" if hint else "STATUS=none")
     if hint:
         print(f"HINT={_one_line(hint)}")
 
 
 def _action_trash(brain, args):
-    result = brain.trash_command(args.command)
+    result = trash_command(args.command)
     if result:
         print("STATUS=ok")
         print(f"COMMAND={_one_line(result['command'])}")
@@ -1099,7 +1109,7 @@ def _action_tour(brain, args):
 
 
 def _action_fix(brain, args):
-    result = brain.fix(args.command, args.error)
+    result = fix_command(args.command, args.error)
     print(f"STATUS={result['status']}")
     if result['status'] == 'ok':
         print(f"EXPLANATION={_encoded(result['explanation'])}")
@@ -1262,7 +1272,7 @@ def _action_predict(brain, args):
 def _action_resolve(brain, args):
     # Line-based KEY=value output so clishe.sh can parse it with plain
     # bash, no JSON tool required.
-    result = brain.resolve(args.phrase)
+    result = resolve_phrase(args.phrase)
     print(f"STATUS={result['status']}")
     if result['status'] == 'ok':
         print(f"COMMAND={_one_line(result['command'])}")
@@ -1277,7 +1287,7 @@ def _action_resolve(brain, args):
 
 
 def _action_explain(brain, args):
-    result = brain.explain(args.command)
+    result = explain_command(args.command)
     print(f"STATUS={result['status']}")
     if result['status'] == 'ok':
         print(f"EXPLANATION={_encoded(result['explanation'])}")
@@ -1285,14 +1295,14 @@ def _action_explain(brain, args):
 
 
 def _action_diagnose(brain, args):
-    result = brain.diagnose(args.error)
+    result = diagnose(args.error)
     print(f"STATUS={result['status']}")
     if result['status'] == 'ok':
         print(f"HINT={_one_line(result['hint'])}")
 
 
 def _action_check(brain, args):
-    result = brain.check(args.command)
+    result = check_safety(args.command)
     print(f"STATUS={result['status']}")
     if result['reasons']:
         print(f"REASON={_encoded(chr(10).join(result['reasons']))}")

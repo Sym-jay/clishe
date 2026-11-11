@@ -11,6 +11,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import clishe_brain  # noqa: E402
+
 
 @pytest.fixture
 def brain(tmp_path, monkeypatch):
@@ -106,27 +108,27 @@ def test_log_flushes_current_into_sequences_at_threshold(brain):
 # ---------- explain() offline-dictionary integration ----------
 
 def test_explain_uses_offline_dictionary_for_known_command(brain):
-    result = brain.explain("chmod 755 script.sh")
+    result = clishe_brain.explain_command("chmod 755 script.sh")
     assert result["status"] == "ok"
     assert result["provider"].startswith("offline dictionary")
     assert "permission" in result["explanation"].lower()
 
 
 def test_explain_falls_through_to_unavailable_for_unknown_command_with_no_providers(brain):
-    result = brain.explain("some-made-up-tool --flag")
+    result = clishe_brain.explain_command("some-made-up-tool --flag")
     assert result["status"] == "unavailable"
 
 
 # ---------- diagnose() ----------
 
 def test_diagnose_matches_known_error(brain):
-    result = brain.diagnose("Permission denied")
+    result = clishe_brain.diagnose("Permission denied")
     assert result["status"] == "ok"
     assert "hint" in result
 
 
 def test_diagnose_unmatched_error(brain):
-    result = brain.diagnose("a totally novel error nobody has documented")
+    result = clishe_brain.diagnose("a totally novel error nobody has documented")
     assert result["status"] == "unmatched"
 
 
@@ -309,7 +311,7 @@ def test_resolve_returns_command_and_explanation(brain, monkeypatch):
             return Resolution("df -h", "Shows free disk space.")
 
     monkeypatch.setattr(clishe_brain, "build_provider_chain", lambda config: [Fake()])
-    result = brain.resolve("disk space")
+    result = clishe_brain.resolve_phrase("disk space")
     assert result == {"status": "ok", "command": "df -h",
                       "explanation": "Shows free disk space.", "provider": "fake",
                       "manual": [], "unverified": []}
@@ -333,12 +335,12 @@ def test_resolve_falls_through_failing_provider(brain, monkeypatch):
             return Resolution("uptime")
 
     monkeypatch.setattr(clishe_brain, "build_provider_chain", lambda c: [Broken(), Works()])
-    assert brain.resolve("how long up")["provider"] == "works"
+    assert clishe_brain.resolve_phrase("how long up")["provider"] == "works"
 
 
 def test_check_action(brain):
-    assert brain.check("ls")["status"] == "safe"
-    result = brain.check("rm -rf build")
+    assert clishe_brain.check_safety("ls")["status"] == "safe"
+    result = clishe_brain.check_safety("rm -rf build")
     assert result["status"] == "danger" and result["reasons"]
 
 
@@ -394,7 +396,7 @@ def trash_brain(brain, monkeypatch):
     ("rm -- -weird-name", "gio trash -- -weird-name"),
 ])
 def test_trash_rewrites_plain_rm(trash_brain, command, expected):
-    assert trash_brain.trash_command(command)["command"] == expected
+    assert clishe_brain.trash_command(command)["command"] == expected
 
 
 @pytest.mark.parametrize("command", [
@@ -407,20 +409,20 @@ def test_trash_rewrites_plain_rm(trash_brain, command, expected):
     "cp a b",
 ])
 def test_trash_leaves_other_commands_alone(trash_brain, command):
-    assert trash_brain.trash_command(command) is None
+    assert clishe_brain.trash_command(command) is None
 
 
 def test_trash_respects_never(trash_brain, monkeypatch):
     import clishe_brain
     monkeypatch.setattr(clishe_brain, "load_config", lambda: {"trash": "never"})
-    assert trash_brain.trash_command("rm x") is None
+    assert clishe_brain.trash_command("rm x") is None
 
 
 def test_trash_needs_a_trash_tool(brain, monkeypatch):
     import clishe_brain
     monkeypatch.setattr(clishe_brain, "_trash_tool", lambda: None)
     monkeypatch.setattr(clishe_brain, "load_config", lambda: {})
-    assert brain.trash_command("rm x") is None
+    assert clishe_brain.trash_command("rm x") is None
 
 
 # ---------- the Ctrl+G shell shortcut ----------
@@ -450,25 +452,25 @@ def test_line_unknown_or_empty(brain):
 def test_missing_popular_program_gets_install_hint(brain, monkeypatch):
     import clishe_brain
     monkeypatch.setattr(clishe_brain.shutil, "which", lambda name: None)
-    assert "isn't installed" in brain.missing_program("htop")
-    assert "isn't installed" in brain.missing_program("sudo nmap -sn 10.0.0.0/24")
-    assert "python3" in brain.missing_program("python hello.py")
+    assert "isn't installed" in clishe_brain.missing_program("htop")
+    assert "isn't installed" in clishe_brain.missing_program("sudo nmap -sn 10.0.0.0/24")
+    assert "python3" in clishe_brain.missing_program("python hello.py")
 
 
 def test_missing_program_ignores_english_and_installed(brain, monkeypatch):
     import clishe_brain
     monkeypatch.setattr(clishe_brain.shutil, "which", lambda name: None)
-    assert brain.missing_program("go back") == ""
-    assert brain.missing_program("frobnicate") == ""   # not a known program
+    assert clishe_brain.missing_program("go back") == ""
+    assert clishe_brain.missing_program("frobnicate") == ""   # not a known program
     monkeypatch.setattr(clishe_brain.shutil, "which", lambda name: "/usr/bin/" + name)
-    assert brain.missing_program("htop") == ""
+    assert clishe_brain.missing_program("htop") == ""
 
 
 def test_explain_output_guide_and_fallback(brain):
-    assert "available" in brain.explain_output("free -h")["explanation"]
-    fallback = brain.explain_output("cat notes.txt")
+    assert "available" in clishe_brain.explain_output("free -h")["explanation"]
+    fallback = clishe_brain.explain_output("cat notes.txt")
     assert fallback["status"] == "ok" and "don't have a guide" in fallback["explanation"]
-    assert brain.explain_output("")["status"] == "none"
+    assert clishe_brain.explain_output("")["status"] == "none"
 
 
 def test_guide_hint_shown_once(brain):
@@ -507,7 +509,7 @@ def test_explain_any_installed_command_from_its_manual(brain, monkeypatch):
     import manual
     monkeypatch.setattr(manual, "read_manual",
                         lambda name: (FIND_MAN, "man find") if name == "fd-find" else ("", ""))
-    result = brain.explain("fd-find -size +1M")
+    result = clishe_brain.explain_command("fd-find -size +1M")
     assert result["status"] == "ok"
     assert result["provider"] == "your system's manual"
     assert "search for files" in result["explanation"]
@@ -528,7 +530,7 @@ def test_ai_suggestion_is_checked_against_the_manual(brain, monkeypatch):
     monkeypatch.setattr(clishe_brain, "build_provider_chain", lambda config: [Fake()])
     monkeypatch.setattr(manual, "read_manual",
                         lambda name: (FIND_MAN, "man find") if name == "find" else ("", ""))
-    result = brain.resolve("big files")
+    result = clishe_brain.resolve_phrase("big files")
     assert result["manual"] == ["find -size: File uses less than, more than or exactly "
                                 "n units of space, rounding up."]
     assert result["unverified"] == ["find -bigger"]
@@ -611,7 +613,7 @@ def test_progress_counts_commands_you_typed(brain):
 def test_explain_a_command_from_tldr(brain, monkeypatch):
     import tldr
     monkeypatch.setattr(tldr, "_platforms", lambda: ("linux", "common"))
-    result = brain.explain("rsync -a src dest")
+    result = clishe_brain.explain_command("rsync -a src dest")
     assert result["status"] == "ok"
     assert result["provider"].startswith("tldr-pages")
     assert result["explanation"].startswith("Transfer files either to or from a remote host")
@@ -619,7 +621,7 @@ def test_explain_a_command_from_tldr(brain, monkeypatch):
 
 
 def test_dictionary_explanations_gain_tldr_examples(brain):
-    result = brain.explain("tar -xzvf a.tgz")
+    result = clishe_brain.explain_command("tar -xzvf a.tgz")
     assert result["provider"] == "offline dictionary and tldr-pages"
     assert "Examples (from tldr-pages):" in result["explanation"]
 
