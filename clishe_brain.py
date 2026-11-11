@@ -189,6 +189,14 @@ _SYNONYMS = {
     "stop": "kill",
     "previous": "last",
     "slowing": "slow",
+    "terminate": "kill", "quit": "kill",
+    "distribution": "distro",
+    "history": "log",
+    "tarball": "tar", "untar": "tar",
+    "online": "network",
+    "enter": "go",
+    "clone": "download",
+    "repo": "git", "repository": "git",
 }
 
 

@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from match_eval import evaluate, load_cases  # noqa: E402
 
-MIN_RIGHT = 245
+MIN_RIGHT = 285
 MAX_WRONG = 19
 
 

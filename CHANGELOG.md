@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Added
+- **Understands more ways of saying things**, offline: "check memory",
+  "force quit a program", "untar a file", "which distro do i have",
+  "download a git repo", "commit my work", "show git history", "do i have
+  internet" and more now find the right command. 39 new phrasings were
+  added to the match test; it now gets 285 of 388 right (was 245 of 349)
+  with fewer wrong answers.
+
 ## 0.14.0 (2026-11-08)
 
 ### Changed
