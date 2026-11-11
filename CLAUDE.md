@@ -90,7 +90,10 @@ PKGBUILD**, or it won't ship. A new Python subfolder also needs an entry in
 2. A new action in `clishe_brain.py`: a `_action_<name>(brain, args)`
    function that prints `KEY=value` (use `_one_line()` / `_encoded()` for
    values), plus an entry for it in `ACTIONS`. The `--action` choices come
-   from that dict, so there is no second list to update.
+   from that dict, so there is no second list to update. The action calls
+   the module directly; `ClisheBrain` only holds the user's learned state
+   (phrases, history, progress), so a method belongs there only if it
+   reads or writes that.
 3. A bash function in `clishe.sh` that renders it.
 4. Hook it in, and don't skip the text (the step most often missed):
    - [ ] the one-shot `case "$1"` block and/or the session `case "$user_input"` block

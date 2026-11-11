@@ -147,7 +147,7 @@ def test_offline_fix_wins_without_asking_the_ai(brain, monkeypatch):
     import clishe_brain
     fake = _FakeProvider({"explanation": "x", "command": "y"})
     monkeypatch.setattr(clishe_brain, "build_provider_chain", lambda config: [fake])
-    result = brain.fix("./run.sh", "bash: ./run.sh: Permission denied")
+    result = clishe_brain.fix_command("./run.sh", "bash: ./run.sh: Permission denied")
     assert result["provider"] == "offline"
     assert fake.calls == 0
 
@@ -156,7 +156,7 @@ def test_ai_is_asked_when_no_rule_fits(brain, monkeypatch):
     import clishe_brain
     fake = _FakeProvider({"explanation": "The disk is full.", "command": "df -h"})
     monkeypatch.setattr(clishe_brain, "build_provider_chain", lambda config: [fake])
-    result = brain.fix("weird", "something odd happened")
+    result = clishe_brain.fix_command("weird", "something odd happened")
     assert result == {"status": "ok", "explanation": "The disk is full.", "command": "df -h",
                       "provider": "local", "unverified": []}
 
@@ -164,7 +164,7 @@ def test_ai_is_asked_when_no_rule_fits(brain, monkeypatch):
 def test_no_rule_and_no_ai(brain, monkeypatch):
     import clishe_brain
     monkeypatch.setattr(clishe_brain, "build_provider_chain", lambda config: [])
-    assert brain.fix("weird", "something odd happened") == {"status": "none"}
+    assert clishe_brain.fix_command("weird", "something odd happened") == {"status": "none"}
 
 
 def test_provider_fix_command_uses_the_shared_prompt():
