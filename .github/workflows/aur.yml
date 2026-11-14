@@ -1,0 +1,56 @@
+name: Arch package
+
+# Builds packaging/aur on Arch Linux exactly as an AUR helper would (the
+# release tarball, checked against its sha256), installs it with pacman and
+# runs it. It runs whenever the package files change, which includes the
+# follow-up PR after every release, so a broken PKGBUILD is caught before
+# it's pushed to the AUR.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - packaging/aur/**
+      - .github/workflows/aur.yml
+  pull_request:
+    paths:
+      - packaging/aur/**
+      - .github/workflows/aur.yml
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install the build tools
+        run: pacman -Syu --noconfirm --needed base-devel
+
+      # makepkg refuses to run as root, like on a real machine.
+      - name: Build the package as a normal user
+        run: |
+          useradd -m builder
+          cp -r packaging/aur /home/builder/aur
+          chown -R builder /home/builder/aur
+          su builder -c "cd ~/aur && makepkg --noconfirm"
+
+      # The AUR shows .SRCINFO, so it has to say what the PKGBUILD says.
+      - name: Check .SRCINFO matches the PKGBUILD
+        run: |
+          su builder -c "cd ~/aur && makepkg --printsrcinfo" > /tmp/srcinfo
+          diff -u packaging/aur/.SRCINFO /tmp/srcinfo
+
+      - name: Install it with pacman and run it
+        run: |
+          pacman -U --noconfirm /home/builder/aur/clishe-*.pkg.tar.zst
+          export HOME="$(mktemp -d)"
+          cd "$HOME"
+          clishe --version
+          test "$(clishe 'show me disk usage')" = "df -h"
+          clishe explain tar -xzvf | grep -q "extract"
+          clishe --init bash | grep -q /usr/share/clishe/clishe-bind.bash
+          clishe --init fish | grep -q /usr/share/clishe/clishe-bind.fish
+          test -f /usr/share/man/man1/clishe.1.gz || test -f /usr/share/man/man1/clishe.1
+          test -f /usr/share/licenses/clishe/LICENSE
