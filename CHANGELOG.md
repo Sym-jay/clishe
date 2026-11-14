@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Added
+- CI builds the Arch package on Arch Linux (from the release tarball,
+  checksum checked), installs it with pacman and runs it, so the AUR
+  package is tested before it's published. RELEASING.md has the AUR steps.
+
 ## 0.15.0 (2026-11-14)
 
 ### Added
