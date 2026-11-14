@@ -48,7 +48,9 @@ jobs:
           export HOME="$(mktemp -d)"
           cd "$HOME"
           clishe --version
-          test "$(clishe 'show me disk usage')" = "df -h"
+          out="$(clishe 'show me disk usage' 2>&1)"; echo "phrase -> [$out]"
+          CLISHE_DEBUG=1 clishe 'show me disk usage' || true
+          test "$out" = "df -h"
           clishe explain tar -xzvf | grep -q "extract"
           clishe --init bash | grep -q /usr/share/clishe/clishe-bind.bash
           clishe --init fish | grep -q /usr/share/clishe/clishe-bind.fish
