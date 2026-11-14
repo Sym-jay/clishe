@@ -43,7 +43,9 @@ jobs:
           diff -u packaging/aur/.SRCINFO /tmp/srcinfo
 
       - name: Install it with pacman and run it
+        shell: bash
         run: |
+          set -xeuo pipefail
           pacman -U --noconfirm /home/builder/aur/clishe-*.pkg.tar.zst
           export HOME="$(mktemp -d)"
           cd "$HOME"
