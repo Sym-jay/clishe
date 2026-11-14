@@ -46,15 +46,17 @@ jobs:
         shell: bash
         run: |
           set -xeuo pipefail
-          pacman -U --noconfirm /home/builder/aur/clishe-*.pkg.tar.zst
+          pkg=$(ls /home/builder/aur/clishe-*.pkg.tar.zst)
+          pacman -U --noconfirm "$pkg"
           export HOME="$(mktemp -d)"
           cd "$HOME"
           clishe --version
-          out="$(clishe 'show me disk usage' 2>&1)"; echo "phrase -> [$out]"
-          CLISHE_DEBUG=1 clishe 'show me disk usage' || true
-          test "$out" = "df -h"
+          test "$(clishe 'show me disk usage')" = "df -h"
           clishe explain tar -xzvf | grep -q "extract"
           clishe --init bash | grep -q /usr/share/clishe/clishe-bind.bash
           clishe --init fish | grep -q /usr/share/clishe/clishe-bind.fish
-          test -f /usr/share/man/man1/clishe.1.gz || test -f /usr/share/man/man1/clishe.1
-          test -f /usr/share/licenses/clishe/LICENSE
+          # The archlinux image skips man pages and docs when installing
+          # (NoExtract), so check the package's file list instead.
+          files=$(pacman -Qlp "$pkg")
+          grep -q "/usr/share/man/man1/clishe.1" <<< "$files"
+          grep -q "/usr/share/licenses/clishe/LICENSE" <<< "$files"
