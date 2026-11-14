@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.15.0 (2026-11-14)
 
 ### Added
 - **Understands more ways of saying things**, offline: "check memory",
