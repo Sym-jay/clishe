@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Added
+- **Understands more ways of saying things**, offline: "stash my edits",
+  "set my changes aside", "what day is it", "show my external ip", "list
+  usb stuff", "create a file", "give it a new name" and more. 31 new
+  phrasings were added to the match test; it now gets 319 of 419 right.
 - CI builds the Arch package on Arch Linux (from the release tarball,
   checksum checked), installs it with pacman and runs it, so the AUR
   package is tested before it's published. RELEASING.md has the AUR steps.

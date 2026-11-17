@@ -146,6 +146,7 @@ which can could would will should please show display see list print
 check tell give get let s of to in on for at from with this that these those
 it its all any have has there here want need know
 right now today currently between about saved been
+thing stuff device
 """.split())
 
 _SYNONYMS = {
@@ -197,6 +198,12 @@ _SYNONYMS = {
     "enter": "go",
     "clone": "download",
     "repo": "git", "repository": "git",
+    "external": "public",
+    "day": "time",
+    "start": "first",
+    "watching": "watch",
+    "aside": "stash", "shelve": "stash",
+    "edits": "change", "edit": "change",
 }
 
 
