@@ -186,7 +186,7 @@ def test_suggest_returns_none_for_unrelated_phrase(brain):
     ("what programs are running", "show running processes"),
     ("display my files", "list files"),
     ("find a file", "search for a file"),
-    ("make a file executable", "make a script executable"),  # two of three words
+    ("make a file executable", "make it executable"),  # two of three words
     ("stop a running process", "stop a running program"),     # stop, not show
     ("find a word in a file", "find text in a file"),         # grep, not find
     ("go to the last folder", "go back to the previous folder"),
