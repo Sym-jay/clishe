@@ -221,6 +221,16 @@ def test_suggest_matches_on_meaning(brain, said, expected):
     "what is a repo",
     "which distro is best",
     "commit a crime",
+    # ...and these: start -> first, aside/shelve -> stash, external -> public,
+    # day -> time, watching -> watch, and "thing"/"stuff" dropped as filler.
+    "start a fight",
+    "start over",
+    "put my phone aside",
+    "shelve the book",
+    "external hard drive is not showing",
+    "what day was it yesterday",
+    "watching tv",
+    "show me some cool stuff",
 ])
 def test_suggest_by_meaning_needs_more_than_half_of_what_was_said(brain, said):
     assert brain.suggest(said) is None

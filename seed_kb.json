@@ -138,5 +138,9 @@
   "untar": "tar -xzvf <archive>",
   "download a repo": "git clone <url>",
   "commit all changes": "git add -A && git commit -m <message>",
-  "git history": "git log --oneline -n 10"
+  "git history": "git log --oneline -n 10",
+  "create a file": "touch <file name>",
+  "make it executable": "chmod +x <file>",
+  "give it a new name": "mv <old name> <new name>",
+  "stash changes for later": "git stash push -m <message>"
 }
