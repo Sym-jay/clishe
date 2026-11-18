@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.16.0 (2026-11-18)
 
 ### Added
 - **Understands more ways of saying things**, offline: "stash my edits",
