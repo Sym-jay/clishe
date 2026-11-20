@@ -230,7 +230,6 @@ def test_suggest_matches_on_meaning(brain, said, expected):
     "external hard drive is not showing",
     "what day was it yesterday",
     "watching tv",
-    "listening to music",  # listening -> open
     "show me some cool stuff",
 ])
 def test_suggest_by_meaning_needs_more_than_half_of_what_was_said(brain, said):

@@ -142,5 +142,6 @@
   "create a file": "touch <file name>",
   "make it executable": "chmod +x <file>",
   "give it a new name": "mv <old name> <new name>",
-  "stash changes for later": "git stash push -m <message>"
+  "stash changes for later": "git stash push -m <message>",
+  "list listening ports": "ss -tuln"
 }
