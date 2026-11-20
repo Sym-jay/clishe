@@ -1,5 +1,6 @@
 """Tests for knowledge.py - the offline command dictionary and error-pattern
 matcher. No network, no providers, no AI - these should be fast and free."""
+import pytest
 import sys
 from pathlib import Path
 
@@ -112,6 +113,26 @@ def test_unknown_flags_are_reported():
     known, unknown = explain_flags("ls -laZ", entry)
     assert [f for f, _ in known] == ["-l", "-a"]
     assert unknown == ["-Z"]
+
+
+@pytest.mark.parametrize("command,flags", [
+    ("awk -F, '{print $1}' data.csv", ["-F"]),
+    ("cut -d: -f1 /etc/passwd", ["-d", "-f"]),
+])
+def test_a_value_attached_to_a_flag_is_not_read_as_more_flags(command, flags):
+    known, unknown = explain_flags(command, lookup_command(command))
+    assert [f for f, _ in known] == flags
+    assert unknown == []
+
+
+@pytest.mark.parametrize("command", [
+    "ip -br addr", "ss -tlnp", "ping -c 4 example.com", "dig +short example.com",
+    "traceroute -n example.com", "nc -zv example.com 443", "nmap -sn 192.168.1.0/24",
+    "sed -i s/a/b/ notes.txt", "sort -rh", "uniq -c", "tr -d x", "xargs -r rm", "tee -a log.txt",
+])
+def test_networking_and_text_tools_explain_every_flag_used(command):
+    known, unknown = explain_flags(command, lookup_command(command))
+    assert known and unknown == [], (known, unknown)
 
 
 def test_subcommands_are_explained():

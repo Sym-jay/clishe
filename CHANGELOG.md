@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Added
+- `explain` and the labelled breakdown know 15 more commands offline:
+  networking (`ip`, `ss`, `ping`, `dig`, `traceroute`, `nc`, `nmap`) and
+  text tools (`sed`, `awk`, `sort`, `uniq`, `cut`, `tr`, `xargs`, `tee`),
+  with plain-English warnings for `sed -i`, `tee`, `xargs`, `nc -l` and
+  `nmap`.
+- "What does this mean?" guides for `top`, `systemctl status` and
+  `journalctl`.
+
+### Fixed
+- A value attached to a flag (`awk -F,`, `cut -d:`) is no longer read as
+  more flags in explanations.
+
 ## 0.16.0 (2026-11-18)
 
 ### Added

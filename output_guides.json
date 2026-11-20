@@ -57,5 +57,18 @@
     "command": "git",
     "sub": "log",
     "guide": "Your project's history, newest first. Each commit shows:\n  commit <long id>  its ID (the first 7 characters are enough to refer to it)\n  Author            who made it\n  Date              when\n  the message       what was changed and why\nPress q to leave, the arrow keys or space to scroll. 'git log --oneline' gives a short version."
+  },
+  {
+    "command": "top",
+    "guide": "A live view of what your computer is doing (press q to leave):\n  load average   how busy it is over 1, 5 and 15 minutes; more than your number of CPU cores means things are waiting\n  Tasks          programs running, sleeping (waiting, which is normal) and zombie (finished but not cleaned up)\n  %Cpu(s) us/sy  time spent on your programs / on the system; id is idle\n  MiB Mem        memory: look at 'avail Mem' for what's still free to use\nThen one line per program, busiest first:\n  PID            its ID (for kill)\n  USER           who started it\n  %CPU %MEM      how much processor and memory it's using\n  TIME+          total processor time it has used\n  COMMAND        the program\nPress M to sort by memory, P by CPU, k to stop a program."
+  },
+  {
+    "command": "systemctl",
+    "sub": "status",
+    "guide": "The state of one service (a program that runs in the background):\n  Loaded   where its settings file is; 'enabled' means it starts when the computer boots, 'disabled' means it doesn't\n  Active   'active (running)' is good; 'inactive (dead)' means stopped; 'failed' means it crashed or couldn't start\n  since    when it started or stopped\n  Main PID its process ID\n  Memory   how much memory it's using\nThe last lines are its most recent log messages, often where the reason for a failure is. Press q if it opens in a pager. For more of its log: journalctl -u <service>."
+  },
+  {
+    "command": "journalctl",
+    "guide": "The system log, oldest first unless you add -r (press q to leave, space to scroll):\n  Nov 20 10:15:02   when it happened\n  my-laptop         which computer\n  sshd[1234]        which program wrote it, and its process ID\n  the message       what happened\nLines in red or bold are errors or warnings. Useful ways to narrow it down: -n 50 (last 50 lines), -u ssh (one service), -b (since this boot), -p err (errors only), -f (keep watching for new lines)."
   }
 ]
