@@ -1,69 +1,25 @@
 {
-  "ls": {
-    "summary": "Lists files and directories in the current (or given) location.",
-    "flags": {
-      "-l": "long format - shows permissions, owner, size, date",
-      "-a": "show hidden files (those starting with a dot)",
-      "-h": "human-readable sizes (e.g. 4.0K instead of 4096)",
-      "-R": "list subdirectories recursively"
-    },
-    "example": "ls -la"
-  },
-  "cd": {
-    "summary": "Changes your current directory (where you 'are' in the filesystem).",
-    "flags": {
-      "-": "go back to the previous directory",
-      "~": "shortcut for your home directory (used as an argument, e.g. cd ~)"
-    },
-    "example": "cd Documents"
-  },
-  "pwd": {
-    "summary": "Prints the full path of the directory you're currently in.",
+  "alias": {
+    "summary": "Creates a shortcut name for a longer command.",
     "flags": {},
-    "example": "pwd"
+    "example": "alias ll='ls -la'"
   },
-  "mkdir": {
-    "summary": "Creates a new, empty directory.",
+  "apt": {
+    "summary": "Package manager for Debian/Ubuntu-based systems - installs, updates, and removes software.",
     "flags": {
-      "-p": "create parent directories as needed (no error if they already exist)"
+      "update": "refresh the list of available packages",
+      "install": "install a package, e.g. apt install curl",
+      "remove": "uninstall a package"
     },
-    "example": "mkdir -p projects/new-app"
+    "example": "sudo apt install curl"
   },
-  "rmdir": {
-    "summary": "Removes an EMPTY directory. Fails if it has anything inside.",
-    "flags": {},
-    "example": "rmdir old-folder"
-  },
-  "rm": {
-    "summary": "Deletes files (or directories with -r). This does NOT go to a trash bin - it's permanent.",
+  "awk": {
+    "summary": "Works through text line by line and picks out columns: $1 is the first column, $2 the second, $NF the last.",
     "flags": {
-      "-r": "delete directories and their contents recursively",
-      "-f": "force - skip confirmation prompts, ignore nonexistent files",
-      "-i": "ask for confirmation before each deletion (safer)"
+      "-F": "what separates the columns, e.g. -F, for comma-separated files (spaces by default)",
+      "-v": "set a variable to use inside the program, e.g. -v limit=10"
     },
-    "example": "rm -i old-file.txt",
-    "danger": "rm -rf can permanently delete entire directory trees with no undo. Always double-check the path."
-  },
-  "cp": {
-    "summary": "Copies files or directories.",
-    "flags": {
-      "-r": "copy directories recursively",
-      "-i": "ask before overwriting an existing file",
-      "-v": "verbose - show what's being copied"
-    },
-    "example": "cp -r source-folder backup-folder"
-  },
-  "mv": {
-    "summary": "Moves or renames files/directories. There's no separate 'rename' command - mv does both.",
-    "flags": {
-      "-i": "ask before overwriting an existing file"
-    },
-    "example": "mv old-name.txt new-name.txt"
-  },
-  "touch": {
-    "summary": "Creates an empty file if it doesn't exist, or updates its timestamp if it does.",
-    "flags": {},
-    "example": "touch notes.txt"
+    "example": "awk '{print $1}' access.log"
   },
   "cat": {
     "summary": "Prints a file's entire contents to the screen. Good for short files.",
@@ -72,43 +28,13 @@
     },
     "example": "cat notes.txt"
   },
-  "less": {
-    "summary": "Views a file one screen at a time - better than cat for long files. Press 'q' to quit.",
-    "flags": {},
-    "example": "less big-log-file.txt"
-  },
-  "head": {
-    "summary": "Shows the first lines of a file (default: 10).",
+  "cd": {
+    "summary": "Changes your current directory (where you 'are' in the filesystem).",
     "flags": {
-      "-n": "number of lines to show, e.g. -n 20"
+      "-": "go back to the previous directory",
+      "~": "shortcut for your home directory (used as an argument, e.g. cd ~)"
     },
-    "example": "head -n 5 file.txt"
-  },
-  "tail": {
-    "summary": "Shows the last lines of a file (default: 10). Great for checking recent log entries.",
-    "flags": {
-      "-n": "number of lines to show",
-      "-f": "follow the file live as new lines are added"
-    },
-    "example": "tail -f server.log"
-  },
-  "grep": {
-    "summary": "Searches text for lines matching a pattern.",
-    "flags": {
-      "-i": "case-insensitive search",
-      "-r": "search recursively through directories",
-      "-n": "show line numbers",
-      "-v": "invert match - show lines that DON'T match"
-    },
-    "example": "grep -rn \"TODO\" ."
-  },
-  "find": {
-    "summary": "Searches for files/directories by name, type, size, or other criteria.",
-    "flags": {
-      "-name": "match by filename, e.g. -name \"*.txt\"",
-      "-type": "match by type: f for file, d for directory"
-    },
-    "example": "find . -name \"*.py\""
+    "example": "cd Documents"
   },
   "chmod": {
     "summary": "Changes a file's permissions (who can read/write/execute it).",
@@ -125,24 +51,32 @@
     },
     "example": "sudo chown user:group file.txt"
   },
-  "ps": {
-    "summary": "Shows currently running processes.",
+  "cp": {
+    "summary": "Copies files or directories.",
     "flags": {
-      "aux": "show all processes from all users, in detailed format"
+      "-r": "copy directories recursively",
+      "-i": "ask before overwriting an existing file",
+      "-v": "verbose - show what's being copied"
     },
-    "example": "ps aux"
+    "example": "cp -r source-folder backup-folder"
   },
-  "kill": {
-    "summary": "Sends a signal to a process, usually to stop it. Needs the process ID (PID) from ps.",
+  "curl": {
+    "summary": "Transfers data to/from a URL - commonly used to test APIs or download files.",
     "flags": {
-      "-9": "force-kill immediately (last resort, skips graceful shutdown)"
+      "-O": "save output to a file named like the remote file",
+      "-I": "fetch headers only",
+      "-X": "specify the HTTP method, e.g. -X POST"
     },
-    "example": "kill -9 1234"
+    "example": "curl -O https://example.com/file.zip"
   },
-  "top": {
-    "summary": "Shows a live, updating view of running processes and resource usage. Press 'q' to quit.",
-    "flags": {},
-    "example": "top"
+  "cut": {
+    "summary": "Cuts out columns or characters from each line.",
+    "flags": {
+      "-d": "what separates the columns, e.g. -d, or -d:",
+      "-f": "which columns to keep, e.g. -f 1,3",
+      "-c": "which characters to keep, e.g. -c 1-10"
+    },
+    "example": "cut -d: -f1 /etc/passwd"
   },
   "df": {
     "summary": "Shows disk space usage for mounted filesystems.",
@@ -151,6 +85,25 @@
     },
     "example": "df -h"
   },
+  "diff": {
+    "summary": "Compares two files and shows the differences between them.",
+    "flags": {
+      "-u": "unified format (easier to read, standard for patches)"
+    },
+    "example": "diff -u old.txt new.txt"
+  },
+  "dig": {
+    "summary": "Looks up a website's address in DNS, the internet's phone book.",
+    "flags": {
+      "+short": "just the answer, without the extra details",
+      "-x": "reverse lookup: which name belongs to this IP address",
+      "A": "ask for the IPv4 address",
+      "AAAA": "ask for the IPv6 address",
+      "MX": "ask which servers handle the domain's email",
+      "NS": "ask which servers are in charge of the domain"
+    },
+    "example": "dig +short example.com"
+  },
   "du": {
     "summary": "Shows how much disk space files/directories are using.",
     "flags": {
@@ -158,26 +111,6 @@
       "-s": "summarize - show a total instead of every subfile"
     },
     "example": "du -sh my-folder"
-  },
-  "man": {
-    "summary": "Opens the manual page for a command - the official, detailed documentation. Press 'q' to quit.",
-    "flags": {},
-    "example": "man ls"
-  },
-  "sudo": {
-    "summary": "Runs a command with administrator (root) privileges. Use carefully - it can change or break anything on the system.",
-    "flags": {},
-    "example": "sudo apt update",
-    "danger": "Commands run with sudo bypass normal safety checks. Never run something with sudo unless you understand what it does."
-  },
-  "apt": {
-    "summary": "Package manager for Debian/Ubuntu-based systems - installs, updates, and removes software.",
-    "flags": {
-      "update": "refresh the list of available packages",
-      "install": "install a package, e.g. apt install curl",
-      "remove": "uninstall a package"
-    },
-    "example": "sudo apt install curl"
   },
   "echo": {
     "summary": "Prints text to the screen. Often used to check variable values or write into files.",
@@ -191,59 +124,13 @@
     "flags": {},
     "example": "export PATH=\"$HOME/.local/bin:$PATH\""
   },
-  "history": {
-    "summary": "Shows a list of commands you've previously run in the shell.",
-    "flags": {},
-    "example": "history"
-  },
-  "wc": {
-    "summary": "Counts lines, words, or characters in a file or input.",
+  "find": {
+    "summary": "Searches for files/directories by name, type, size, or other criteria.",
     "flags": {
-      "-l": "count lines",
-      "-w": "count words"
+      "-name": "match by filename, e.g. -name \"*.txt\"",
+      "-type": "match by type: f for file, d for directory"
     },
-    "example": "wc -l file.txt"
-  },
-  "tar": {
-    "summary": "Archives (bundles) files together, optionally with compression.",
-    "flags": {
-      "-c": "create an archive",
-      "-x": "extract an archive",
-      "-z": "use gzip compression",
-      "-v": "verbose output",
-      "-f": "specify the archive filename (usually last flag before the filename)"
-    },
-    "example": "tar -xzvf archive.tar.gz"
-  },
-  "curl": {
-    "summary": "Transfers data to/from a URL - commonly used to test APIs or download files.",
-    "flags": {
-      "-O": "save output to a file named like the remote file",
-      "-I": "fetch headers only",
-      "-X": "specify the HTTP method, e.g. -X POST"
-    },
-    "example": "curl -O https://example.com/file.zip"
-  },
-  "wget": {
-    "summary": "Downloads files from the web.",
-    "flags": {
-      "-O": "save with a specific filename"
-    },
-    "example": "wget https://example.com/file.zip"
-  },
-  "ssh": {
-    "summary": "Connects securely to a remote machine's shell over the network.",
-    "flags": {
-      "-p": "specify a non-default port"
-    },
-    "example": "ssh user@remote-host"
-  },
-  "scp": {
-    "summary": "Copies files between machines over SSH.",
-    "flags": {
-      "-r": "copy directories recursively"
-    },
-    "example": "scp file.txt user@remote-host:/path/"
+    "example": "find . -name \"*.py\""
   },
   "git": {
     "summary": "Version control tool for tracking changes to code over time.",
@@ -256,36 +143,51 @@
     },
     "example": "git status"
   },
-  "python3": {
-    "summary": "Runs the Python 3 interpreter, either interactively or on a script file.",
+  "grep": {
+    "summary": "Searches text for lines matching a pattern.",
     "flags": {
-      "-m": "run a library module as a script"
+      "-i": "case-insensitive search",
+      "-r": "search recursively through directories",
+      "-n": "show line numbers",
+      "-v": "invert match - show lines that DON'T match"
     },
-    "example": "python3 script.py"
+    "example": "grep -rn \"TODO\" ."
   },
-  "pip3": {
-    "summary": "Installs and manages Python packages.",
+  "head": {
+    "summary": "Shows the first lines of a file (default: 10).",
     "flags": {
-      "install": "install a package"
+      "-n": "number of lines to show, e.g. -n 20"
     },
-    "example": "pip3 install requests"
+    "example": "head -n 5 file.txt"
   },
-  "alias": {
-    "summary": "Creates a shortcut name for a longer command.",
+  "history": {
+    "summary": "Shows a list of commands you've previously run in the shell.",
     "flags": {},
-    "example": "alias ll='ls -la'"
+    "example": "history"
   },
-  "which": {
-    "summary": "Shows the full path of the program that would run for a given command name.",
-    "flags": {},
-    "example": "which python3"
-  },
-  "diff": {
-    "summary": "Compares two files and shows the differences between them.",
+  "ip": {
+    "summary": "Shows and changes your network connections: addresses, routes and network cards.",
     "flags": {
-      "-u": "unified format (easier to read, standard for patches)"
+      "addr": "list each network connection and its addresses (short form: ip a)",
+      "a": "same as addr: list each network connection and its addresses",
+      "link": "list network cards and whether each one is up",
+      "route": "show where network traffic goes (your router is the 'default' line)",
+      "-br": "brief: one line per connection",
+      "-c": "use colours"
     },
-    "example": "diff -u old.txt new.txt"
+    "example": "ip -br addr"
+  },
+  "kill": {
+    "summary": "Sends a signal to a process, usually to stop it. Needs the process ID (PID) from ps.",
+    "flags": {
+      "-9": "force-kill immediately (last resort, skips graceful shutdown)"
+    },
+    "example": "kill -9 1234"
+  },
+  "less": {
+    "summary": "Views a file one screen at a time - better than cat for long files. Press 'q' to quit.",
+    "flags": {},
+    "example": "less big-log-file.txt"
   },
   "ln": {
     "summary": "Creates a link to a file. Symbolic links act like shortcuts.",
@@ -294,10 +196,221 @@
     },
     "example": "ln -s /path/to/original shortcut-name"
   },
-  "whoami": {
-    "summary": "Prints the username you're currently logged in as.",
+  "ls": {
+    "summary": "Lists files and directories in the current (or given) location.",
+    "flags": {
+      "-l": "long format - shows permissions, owner, size, date",
+      "-a": "show hidden files (those starting with a dot)",
+      "-h": "human-readable sizes (e.g. 4.0K instead of 4096)",
+      "-R": "list subdirectories recursively"
+    },
+    "example": "ls -la"
+  },
+  "man": {
+    "summary": "Opens the manual page for a command - the official, detailed documentation. Press 'q' to quit.",
     "flags": {},
-    "example": "whoami"
+    "example": "man ls"
+  },
+  "mkdir": {
+    "summary": "Creates a new, empty directory.",
+    "flags": {
+      "-p": "create parent directories as needed (no error if they already exist)"
+    },
+    "example": "mkdir -p projects/new-app"
+  },
+  "mv": {
+    "summary": "Moves or renames files/directories. There's no separate 'rename' command - mv does both.",
+    "flags": {
+      "-i": "ask before overwriting an existing file"
+    },
+    "example": "mv old-name.txt new-name.txt"
+  },
+  "nc": {
+    "summary": "netcat: opens a raw network connection, to test whether a port is open or to send data by hand.",
+    "flags": {
+      "-z": "only check whether the port is open, don't send anything",
+      "-v": "say what happened (connected, refused, timed out)",
+      "-l": "listen: wait for someone to connect to this computer",
+      "-p": "the port to use",
+      "-u": "use UDP instead of TCP",
+      "-w": "seconds to wait before giving up"
+    },
+    "example": "nc -zv example.com 443",
+    "danger": "nc -l opens a port on your computer that anyone on the network can connect to. Stop it with Ctrl-C when you're done."
+  },
+  "nmap": {
+    "summary": "Scans computers on a network to see which are on and which ports (services) they have open.",
+    "flags": {
+      "-sn": "just find which computers are on, don't scan their ports",
+      "-p": "which ports to scan, e.g. -p 22,80 or -p 1-1000",
+      "-sV": "try to work out which program and version runs on each open port",
+      "-O": "try to guess the operating system (needs sudo)",
+      "-F": "fast: only the 100 most common ports",
+      "-v": "show more detail as it goes"
+    },
+    "example": "nmap -sn 192.168.1.0/24",
+    "danger": "Only scan your own network or computers you have permission to scan. Scanning other people's can break their rules or the law."
+  },
+  "ping": {
+    "summary": "Checks whether another computer is reachable, and how long a reply takes.",
+    "flags": {
+      "-c": "stop after this many tries, e.g. -c 4 (otherwise it runs until Ctrl-C)",
+      "-i": "seconds to wait between tries",
+      "-W": "seconds to wait for each reply before giving up"
+    },
+    "example": "ping -c 4 google.com"
+  },
+  "pip3": {
+    "summary": "Installs and manages Python packages.",
+    "flags": {
+      "install": "install a package"
+    },
+    "example": "pip3 install requests"
+  },
+  "ps": {
+    "summary": "Shows currently running processes.",
+    "flags": {
+      "aux": "show all processes from all users, in detailed format"
+    },
+    "example": "ps aux"
+  },
+  "pwd": {
+    "summary": "Prints the full path of the directory you're currently in.",
+    "flags": {},
+    "example": "pwd"
+  },
+  "python3": {
+    "summary": "Runs the Python 3 interpreter, either interactively or on a script file.",
+    "flags": {
+      "-m": "run a library module as a script"
+    },
+    "example": "python3 script.py"
+  },
+  "rm": {
+    "summary": "Deletes files (or directories with -r). This does NOT go to a trash bin - it's permanent.",
+    "flags": {
+      "-r": "delete directories and their contents recursively",
+      "-f": "force - skip confirmation prompts, ignore nonexistent files",
+      "-i": "ask for confirmation before each deletion (safer)"
+    },
+    "example": "rm -i old-file.txt",
+    "danger": "rm -rf can permanently delete entire directory trees with no undo. Always double-check the path."
+  },
+  "rmdir": {
+    "summary": "Removes an EMPTY directory. Fails if it has anything inside.",
+    "flags": {},
+    "example": "rmdir old-folder"
+  },
+  "scp": {
+    "summary": "Copies files between machines over SSH.",
+    "flags": {
+      "-r": "copy directories recursively"
+    },
+    "example": "scp file.txt user@remote-host:/path/"
+  },
+  "sed": {
+    "summary": "Edits text as it flows through: find and replace, delete lines, and more. Without -i it only prints the result.",
+    "flags": {
+      "-i": "edit the file itself instead of printing the result",
+      "-n": "only print lines you ask for (with p)",
+      "-E": "use extended patterns (+, ?, | and () work without backslashes)",
+      "-e": "add another edit to run"
+    },
+    "example": "sed 's/old/new/g' notes.txt",
+    "danger": "sed -i changes the file with no undo. Try it without -i first to see the result, or use -i.bak to keep a backup."
+  },
+  "sort": {
+    "summary": "Puts lines in order, alphabetically by default.",
+    "flags": {
+      "-n": "sort by number, so 10 comes after 9",
+      "-h": "sort sizes like 2K, 1M and 3G in the right order",
+      "-r": "reverse: biggest or last first",
+      "-u": "drop repeated lines",
+      "-k": "sort by a column, e.g. -k 2 for the second",
+      "-t": "what separates the columns (spaces by default)"
+    },
+    "example": "du -sh * | sort -h"
+  },
+  "ss": {
+    "summary": "Shows open network connections and which programs are waiting for them.",
+    "flags": {
+      "-t": "TCP connections (web, SSH and most others)",
+      "-u": "UDP connections (DNS, games, video calls)",
+      "-l": "only programs listening for incoming connections",
+      "-n": "show port numbers (22, 80) instead of names (ssh, http)",
+      "-p": "show which program owns each connection (needs sudo for other users' programs)",
+      "-a": "all connections, listening and connected"
+    },
+    "example": "ss -tlnp"
+  },
+  "ssh": {
+    "summary": "Connects securely to a remote machine's shell over the network.",
+    "flags": {
+      "-p": "specify a non-default port"
+    },
+    "example": "ssh user@remote-host"
+  },
+  "sudo": {
+    "summary": "Runs a command with administrator (root) privileges. Use carefully - it can change or break anything on the system.",
+    "flags": {},
+    "example": "sudo apt update",
+    "danger": "Commands run with sudo bypass normal safety checks. Never run something with sudo unless you understand what it does."
+  },
+  "tail": {
+    "summary": "Shows the last lines of a file (default: 10). Great for checking recent log entries.",
+    "flags": {
+      "-n": "number of lines to show",
+      "-f": "follow the file live as new lines are added"
+    },
+    "example": "tail -f server.log"
+  },
+  "tar": {
+    "summary": "Archives (bundles) files together, optionally with compression.",
+    "flags": {
+      "-c": "create an archive",
+      "-x": "extract an archive",
+      "-z": "use gzip compression",
+      "-v": "verbose output",
+      "-f": "specify the archive filename (usually last flag before the filename)"
+    },
+    "example": "tar -xzvf archive.tar.gz"
+  },
+  "tee": {
+    "summary": "Shows a command's output and also saves it to a file at the same time.",
+    "flags": {
+      "-a": "add to the end of the file instead of replacing it"
+    },
+    "example": "ls -la | tee listing.txt",
+    "danger": "Without -a, tee replaces everything already in the file."
+  },
+  "top": {
+    "summary": "Shows a live, updating view of running processes and resource usage. Press 'q' to quit.",
+    "flags": {},
+    "example": "top"
+  },
+  "touch": {
+    "summary": "Creates an empty file if it doesn't exist, or updates its timestamp if it does.",
+    "flags": {},
+    "example": "touch notes.txt"
+  },
+  "tr": {
+    "summary": "Swaps or deletes single characters, e.g. lowercase to uppercase. It reads from a pipe, not from a file name.",
+    "flags": {
+      "-d": "delete these characters",
+      "-s": "squeeze repeats into one, e.g. many spaces into one",
+      "-c": "use every character except the ones listed"
+    },
+    "example": "echo hello | tr a-z A-Z"
+  },
+  "traceroute": {
+    "summary": "Shows each stop (router) your traffic passes through on the way to another computer, so you can see where it slows down or gets stuck.",
+    "flags": {
+      "-n": "show IP addresses only, without looking up names (faster)",
+      "-m": "the most stops to try before giving up",
+      "-I": "use ping-style packets (often gets through where the default doesn't; needs sudo)",
+      "-T": "use TCP packets (needs sudo)"
+    },
+    "example": "traceroute -n example.com"
   },
   "uname": {
     "summary": "Prints system information like the OS kernel name and version.",
@@ -305,5 +418,51 @@
       "-a": "show all available system information"
     },
     "example": "uname -a"
+  },
+  "uniq": {
+    "summary": "Removes repeated lines that come one after another. Usually used after sort, so the repeats are next to each other.",
+    "flags": {
+      "-c": "count how many times each line appears",
+      "-d": "only show lines that are repeated",
+      "-u": "only show lines that appear once",
+      "-i": "ignore upper and lower case"
+    },
+    "example": "sort names.txt | uniq -c"
+  },
+  "wc": {
+    "summary": "Counts lines, words, or characters in a file or input.",
+    "flags": {
+      "-l": "count lines",
+      "-w": "count words"
+    },
+    "example": "wc -l file.txt"
+  },
+  "wget": {
+    "summary": "Downloads files from the web.",
+    "flags": {
+      "-O": "save with a specific filename"
+    },
+    "example": "wget https://example.com/file.zip"
+  },
+  "which": {
+    "summary": "Shows the full path of the program that would run for a given command name.",
+    "flags": {},
+    "example": "which python3"
+  },
+  "whoami": {
+    "summary": "Prints the username you're currently logged in as.",
+    "flags": {},
+    "example": "whoami"
+  },
+  "xargs": {
+    "summary": "Takes lines from a pipe and adds them to the end of another command, so 'find ... | xargs rm' runs rm on everything find printed. Use find -print0 with xargs -0 so names with spaces stay whole.",
+    "flags": {
+      "-n": "how many items to pass each time",
+      "-I": "where to put each item, e.g. -I {} then use {} in the command",
+      "-p": "ask before running each command",
+      "-r": "don't run the command at all if there's nothing to pass"
+    },
+    "example": "find . -name '*.tmp' -print0 | xargs -0 rm",
+    "danger": "xargs runs the command on everything it receives. Check the list first (run the part before | on its own), especially with rm."
   }
 }

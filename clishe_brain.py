@@ -204,6 +204,7 @@ _SYNONYMS = {
     "watching": "watch",
     "aside": "stash", "shelve": "stash",
     "edits": "change", "edit": "change",
+    "listening": "open", "listen": "open",
 }
 
 

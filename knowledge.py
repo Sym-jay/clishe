@@ -87,6 +87,8 @@ def explain_flags(command_str: str, entry: dict):
             unknown.append(tok.split("=", 1)[0])
         elif tok.startswith("-") and len(tok) > 2:
             for letter in tok[1:]:
+                if not letter.isalpha():
+                    break  # the rest is the flag's value: "-F," "-d:" "-n5"
                 if not add(f"-{letter}"):
                     unknown.append(f"-{letter}")
         elif tok.startswith("-"):
