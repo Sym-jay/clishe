@@ -241,8 +241,47 @@ def _cd_into_file(command: str, error: str, cwd: str) -> Optional[dict]:
             "command": f"cd {_quote(folder)}"}
 
 
+def _mkdir_missing_parents(command: str, error: str) -> Optional[dict]:
+    words = _words(command)
+    if not words or words[0] != "mkdir" or "-p" in words:
+        return None
+    lowered = error.lower()
+    if "no such file or directory" not in lowered:
+        return None
+    return {"explanation": "mkdir creates only one level at a time. -p makes the missing "
+                           "parent folders too, and does nothing if they already exist.",
+            "command": f"mkdir -p {' '.join(_quote(w) for w in words[1:])}"}
+
+
+def _dpkg_interrupted(command: str, error: str) -> Optional[dict]:
+    lowered = error.lower()
+    if "dpkg was interrupted" not in lowered or "--configure -a" not in lowered:
+        return None
+    return {"explanation": "A previous package install was interrupted, so dpkg refuses new "
+                           "work until it finishes the pending configuration. Run the suggested "
+                           "command, then your original one.",
+            "command": f"sudo dpkg --configure -a && {command}"}
+
+
+def _windows_line_endings(command: str, error: str) -> Optional[dict]:
+    lowered = error.lower()
+    if "bad interpreter" not in lowered and "^m" not in lowered:
+        return None
+    words = _words(command)
+    if not words or not words[0].endswith(".sh"):
+        return None
+    script = words[0]
+    rest = " ".join(_quote(w) for w in words[1:])
+    tail = f" {rest}" if rest else ""
+    return {"explanation": "The script has Windows line endings (CRLF). The shell reads the "
+                           "carriage return as part of the interpreter path. Strip them, then "
+                           "run it again.",
+            "command": f"sed -i 's/\\r$//' {_quote(script)} && {_quote(script)}{tail}"}
+
+
 RULES = [_typo_in_command, _not_executable, _apt_update, _needs_sudo, _folder_needs_r,
-         _git_push_rejected, _git_identity, _pip_externally_managed, _port_in_use]
+         _git_push_rejected, _git_identity, _pip_externally_managed, _port_in_use,
+         _mkdir_missing_parents, _dpkg_interrupted, _windows_line_endings]
 
 
 def offline_fix(command: str, error: str, cwd: Optional[str] = None,
