@@ -56,6 +56,13 @@ def _fix(folder, command, error):
     ("cd Documents/plan.txt", "bash: cd: Documents/plan.txt: Not a directory", "cd Documents"),
     ("cd Documents/plan.txt/old", "bash: cd: Documents/plan.txt/old: Not a directory",
      "cd Documents"),
+    ("mkdir projects/new/app", "mkdir: cannot create directory 'projects/new/app': "
+                               "No such file or directory", "mkdir -p projects/new/app"),
+    ("sudo apt install x", "E: dpkg was interrupted, you must manually run "
+                           "'sudo dpkg --configure -a' to correct the problem.",
+     "sudo dpkg --configure -a && sudo apt install x"),
+    ("./script.sh", "bash: ./script.sh: /bin/bash^M: bad interpreter: No such file or directory",
+     "sed -i 's/\\r$//' ./script.sh && ./script.sh"),
 ])
 def test_offline_fixes(folder, command, error, fixed):
     (folder / "Documents" / "plan.txt").write_text("")
