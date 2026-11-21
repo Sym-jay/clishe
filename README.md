@@ -47,7 +47,7 @@ Most command-line tools assume you already know the command you want. Clishe ass
 - **Ctrl+G in your normal shell** (bash, zsh or fish) turns a line of English into the command, without running it.
 - **Safe by default**: destructive commands need a typed `YES` and say why; `rm` can go to the Trash; `undo that` reverses the last change.
 - **`fix that`** explains a failed command and offers a fix, and **`clishe check`** says what a command or script would do before you run it.
-- **Learn as you go**: after a few asks it's your turn to type it; `practice` lessons, your own cheat `sheet` and `progress`; `tour` explains your computer.
+- **Learn as you go**: after a few asks it's your turn to type it; `practice` lessons for basics, text tools and more, your own cheat `sheet` and `progress`; `tour` explains your computer.
 - **AI is optional and local** (Ollama, llama.cpp, LM Studio...). Nothing leaves your machine unless you turn on a cloud provider.
 - **It learns from you**: what you teach or approve is remembered once it has worked. A command that fails is never saved.
 
@@ -120,7 +120,7 @@ clishe --init fish | source    # in ~/.config/fish/config.fish
 | `learned` | List the phrases you've taught |
 | `teach` | Teach a phrase and its command, or fix a wrong one |
 | `forget <phrase>` | Forget a phrase you taught |
-| `practice [lesson]` | Hands-on exercises in a throwaway folder (`practice list` shows the lessons) |
+| `practice [lesson]` | Hands-on exercises in a throwaway folder (try `practice text`, or `practice list` to see all lessons) |
 | `progress` | The commands you've learned to type yourself |
 | `setup` | Find or set up a local AI model |
 | `tour` | A quick tour of your own computer |
@@ -139,7 +139,7 @@ clishe --init fish | source    # in ~/.config/fish/config.fish
 clishe explain "tar -xzvf"        # explain a command, then exit
 clishe "show me disk usage"       # look up a phrase in your KB / seed KB (does not run it)
 clishe --list                     # the phrases you've taught, tab-separated
-clishe practice [lesson]          # hands-on exercises (--list shows the lessons)
+clishe practice [lesson]          # try clishe practice text, or use --list to see all lessons
 clishe progress                   # what you've learned
 clishe setup                      # find or set up a local AI model
 clishe tour                       # a quick tour of your computer
