@@ -273,10 +273,9 @@ def _windows_line_endings(command: str, error: str) -> Optional[dict]:
     script = words[0]
     rest = " ".join(_quote(w) for w in words[1:])
     tail = f" {rest}" if rest else ""
-    return {"explanation": "The script has Windows line endings (CRLF). The shell reads the "
-                           "carriage return as part of the interpreter path. Strip them, then "
-                           "run it again.",
-            "command": f"sed -i 's/\\r$//' {_quote(script)} && {_quote(script)}{tail}"}
+    return {"explanation": "The script was saved on Windows, and its line endings confuse "
+                           "Linux. Strip them, then run it again.",
+            "command": f"perl -pi -e 's/\\r$//' {_quote(script)} && {_quote(script)}{tail}"}
 
 
 RULES = [_typo_in_command, _not_executable, _apt_update, _needs_sudo, _folder_needs_r,

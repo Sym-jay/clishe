@@ -62,7 +62,7 @@ def _fix(folder, command, error):
                            "'sudo dpkg --configure -a' to correct the problem.",
      "sudo dpkg --configure -a && sudo apt install x"),
     ("./script.sh", "bash: ./script.sh: /bin/bash^M: bad interpreter: No such file or directory",
-     "sed -i 's/\\r$//' ./script.sh && ./script.sh"),
+     "perl -pi -e 's/\\r$//' ./script.sh && ./script.sh"),
 ])
 def test_offline_fixes(folder, command, error, fixed):
     (folder / "Documents" / "plan.txt").write_text("")
@@ -86,6 +86,8 @@ def test_cd_into_a_file_here_gets_advice(folder):
 
 def test_new_rules_stay_out_of_the_way(folder):
     # Other git and pip failures aren't these rules' business.
+    assert _fix(folder, "mkdir -p a/b", "mkdir: cannot create directory 'a/b': "
+                                        "No such file or directory")["command"] == ""
     assert _fix(folder, "git pull", "fatal: not a git repository")["command"] == ""
     assert _fix(folder, "pip list", "error: externally-managed-environment")["command"] == ""
     assert _fix(folder, "ls notes.txt/x", "ls: cannot access 'notes.txt/x': Not a directory"
