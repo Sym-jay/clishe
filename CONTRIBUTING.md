@@ -26,6 +26,19 @@ are the easiest way in.
 Try your change in a real session too (`./clishe.sh` from the repo folder).
 Nothing to set up: Clishe uses only the Python standard library.
 
+### Claiming an issue
+
+So two people don't end up doing the same work:
+
+1. Comment on the issue that you'd like to take it, with a line on how
+   you'd go about it.
+2. Wait until you're assigned, then open your PR (with `Closes #<issue>`).
+3. If there's no PR or update within 7 days, the issue goes back to being
+   open for anyone. Just comment if you need more time.
+
+PRs for an issue assigned to someone else may be closed. Small fixes that
+don't have an issue (typos, a broken link) are welcome without asking.
+
 ## Adding a new AI provider
 
 Clishe's provider system is designed so a new backend (OpenAI, Gemini, a
