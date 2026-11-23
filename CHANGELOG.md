@@ -3,6 +3,9 @@
 ## Unreleased
 
 ### Added
+- A text tools practice lesson teaches line counts, sorting, finding repeats,
+  searching for text and picking a column with `wc`, `sort`, `uniq`, `grep`
+  and `cut`.
 - `explain` and the labelled breakdown know 15 more commands offline:
   networking (`ip`, `ss`, `ping`, `dig`, `traceroute`, `nc`, `nmap`) and
   text tools (`sed`, `awk`, `sort`, `uniq`, `cut`, `tr`, `xargs`, `tee`),
